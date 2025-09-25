@@ -88,7 +88,7 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
 6. Start the backend (`npm run dev` in `backend/`) and the frontend (`npm run dev` in the root).
 
 ## Production Runbook
-This runbook outlines how to promote the application from local development to an organisation-hosted production environment (e.g., `https://projekt.gigtforeningen.dk`). Use it as the baseline standard operating procedure for deployments and ongoing operations.
+This runbook outlines how to promote the application from local development to an organisation-hosted production environment. Use it as the baseline standard operating procedure for deployments and ongoing operations.
 
 ### 1. Architecture Overview
 - **Frontend**: Vite/React bundle served as static assets behind an HTTPS reverse proxy (nginx/IIS/Apache).
@@ -98,7 +98,7 @@ This runbook outlines how to promote the application from local development to a
 
 ### 2. Provisioning Checklist
 - Server or container host with outbound internet access for npm installs and certificate renewal.
-- DNS entry (e.g., `projekt.gigtforeningen.dk`) pointing to the reverse proxy/public load balancer.
+- DNS entry for the chosen production hostname pointing to the reverse proxy/public load balancer.
 - TLS certificate (Let's Encrypt via ACME or organisation-issued) with automatic renewal scheduled.
 - Hardened firewall rules: expose only HTTPS (443) and optionally HTTP (80) for ACME; keep PostgreSQL internal.
 - System users or service accounts with least-privilege access to filesystem, database, and logs.
