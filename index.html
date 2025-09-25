@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projektværktøj online</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    @import url('https://rsms.me/inter/inter.css');
+    /* Custom scrollbar for a cleaner look */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 1cm;
+      }
+      
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: #ffffff !important;
+      }
+      
+      .export-hide {
+        display: none !important;
+      }
+
+      /* Reset layout for printing */
+      body, #root {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        display: block !important;
+      }
+      
+      /* Target the flex container of the sidebar and main content */
+      .flex.gap-6.items-start {
+          display: block !important;
+      }
+
+      main#report-content {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0.5rem !important; /* Reduced gap */
+      }
+      
+      /* Reduce gap in nested grids */
+      main#report-content .grid {
+          gap: 0.5rem !important;
+      }
+
+      .bg-white.p-4.rounded-lg.shadow-sm {
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #e2e8f0;
+        padding: 0.75rem !important; /* Reduced padding */
+        margin-bottom: 0.5rem !important;
+      }
+      
+      /* Reduce margin-bottom on titles inside cards */
+      .bg-white.p-4.rounded-lg.shadow-sm h3,
+      .bg-white.p-4.rounded-lg.shadow-sm h4 {
+        margin-bottom: 0.5rem !important;
+        font-size: 1.1rem !important;
+      }
+      
+      .status-button-print-fix {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        text-align: left !important;
+        color: inherit !important;
+        border-radius: 0;
+      }
+      
+      /* Fix timeline drag-and-drop positions for print */
+      .timeline-item-centered {
+        transform: translateX(-50%) !important;
+      }
+      .timeline-phase-bar {
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+      }
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "idb-keyval": "https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "jsonwebtoken": "https://aistudiocdn.com/jsonwebtoken@^9.0.2",
+    "dotenv": "https://aistudiocdn.com/dotenv@^17.2.2",
+    "bcryptjs": "https://aistudiocdn.com/bcryptjs@^3.0.2",
+    "pg": "https://aistudiocdn.com/pg@^8.16.3"
+  }
+}
+</script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
