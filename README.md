@@ -87,6 +87,108 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
    ```
 6. Start the backend (`npm run dev` in `backend/`) and the frontend (`npm run dev` in the root).
 
+## Production Runbook
+This runbook outlines how to promote the application from local development to an organisation-hosted production environment (e.g., `https://projekt.gigtforeningen.dk`). Use it as the baseline standard operating procedure for deployments and ongoing operations.
+
+### 1. Architecture Overview
+- **Frontend**: Vite/React bundle served as static assets behind an HTTPS reverse proxy (nginx/IIS/Apache).
+- **Backend API**: Express/Node.js 18+ process running as a managed service (systemd/PM2/Windows Service).
+- **Database**: PostgreSQL 13+ with `uuid-ossp` and `pgcrypto` extensions enabled.
+- **Secrets**: Environment variables (`backend/.env`) stored in a secure secrets vault or encrypted configuration store.
+
+### 2. Provisioning Checklist
+- Server or container host with outbound internet access for npm installs and certificate renewal.
+- DNS entry (e.g., `projekt.gigtforeningen.dk`) pointing to the reverse proxy/public load balancer.
+- TLS certificate (Let's Encrypt via ACME or organisation-issued) with automatic renewal scheduled.
+- Hardened firewall rules: expose only HTTPS (443) and optionally HTTP (80) for ACME; keep PostgreSQL internal.
+- System users or service accounts with least-privilege access to filesystem, database, and logs.
+
+### 3. Deployment Steps
+1. **Prepare host**
+   - Install Node.js 18 LTS and npm.
+   - Install PostgreSQL or connect to managed instance; create database and user.
+2. **Clone & install**
+   ```bash
+   git clone https://github.com/Maagans/Projekt-tool.git /opt/projekt-tool
+   cd /opt/projekt-tool
+   npm install
+   cd backend
+   npm install
+   ```
+3. **Configure environment**
+   - Copy `backend/.env.example` to `backend/.env` and set production values for `DATABASE_URL` and `JWT_SECRET`.
+   - Run the database bootstrap once:
+     ```bash
+     psql -U <db_user> -d <database> -a -f setup-db.sql
+     ```
+   - Record the administrator credentials entered during bootstrap.
+4. **Build frontend**
+   ```bash
+   cd /opt/projekt-tool
+   npm run build
+   ```
+   This creates production assets in `dist/`.
+5. **Deploy backend**
+   - Configure process manager (example systemd unit):
+     ```ini
+     [Unit]
+     Description=Projekt Tool API
+     After=network.target
+
+     [Service]
+     WorkingDirectory=/opt/projekt-tool/backend
+     EnvironmentFile=/opt/projekt-tool/backend/.env
+     ExecStart=/usr/bin/node index.js
+     Restart=always
+     User=www-data
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+   - Reload daemon (`systemctl daemon-reload`) and enable service (`systemctl enable --now projekt-tool`).
+6. **Serve frontend**
+   - Copy `dist/` contents to web root (e.g., `/var/www/projekt-tool`).
+   - Configure reverse proxy to serve static files and proxy `/api` to `http://127.0.0.1:3001`.
+
+### 4. Post-Deployment Verification
+- Browse to the production URL over HTTPS; confirm assets load without console errors.
+- Log in with the admin account created during bootstrap.
+- Create a test project and ensure data persists in PostgreSQL.
+- Review reverse proxy and API logs for warnings or 5xx responses.
+
+### 5. Operations & Monitoring
+- **Logging**: Ship backend logs to central logging (e.g., rsyslog, ELK, CloudWatch) with retention policy.
+- **Metrics**: Monitor CPU, memory, disk, PostgreSQL connections, and HTTP response times.
+- **Health checks**: Add `/health` endpoint (if desired) or use `/api/workspace` authentication flow for synthetic monitoring.
+- **Alerts**: Create alerts for API downtime, high error rate, or low disk space.
+
+### 6. Backup & Recovery
+- Schedule nightly PostgreSQL dumps (`pg_dump`) and store securely with rotation (e.g., 7 daily, 4 weekly, 12 monthly).
+- Document restoration test procedure: restore dump into staging, run migrations/setup, verify login + data.
+- Backup `.env` (or secrets store) separately; never commit secrets to Git.
+
+### 7. Security & Access Control
+- Use HTTPS everywhere; redirect HTTP requests to HTTPS.
+- Rotate `JWT_SECRET` periodically and on incident response.
+- Restrict SSH/admin access via bastion/VPN; use MFA where possible.
+- Limit database user to required privileges (`CREATE`, `INSERT`, `UPDATE`, `DELETE`, `SELECT`).
+- Review admin accounts in the application quarterly; disable unused logins.
+
+### 8. Maintenance Cadence
+- **Monthly**: Apply OS/Node/PostgreSQL security patches, review logs.
+- **Quarterly**: Update npm dependencies (`npm outdated`), test in staging, then deploy.
+- **Annually**: Re-run disaster recovery drill, rotate TLS certificates if not automated.
+
+### 9. Incident Response
+- Maintain on-call contact list and escalation path.
+- For critical outages: capture logs, restart services via process manager, communicate status to stakeholders.
+- After resolution: perform root-cause analysis, document follow-up actions, and update this runbook if needed.
+
+### 10. Change Management
+- Use feature branches + pull requests; enforce reviews for production changes.
+- Tag releases (e.g., `v1.0.0`) and record deployment date/time.
+- Keep a CHANGELOG summarising user-facing updates and schema changes.
+
 ---
 ## Troubleshooting
 - `FATAL: database "projekt-tool" does not exist`: Make sure you created the database before running `setup-db.sql`.
