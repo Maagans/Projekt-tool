@@ -88,7 +88,13 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
 6. Start the backend (`npm run dev` in `backend/`) and the frontend (`npm run dev` in the root).
 
 ## Production Runbook
-This runbook outlines how to promote the application from local development to an organisation-hosted production environment. Use it as the baseline standard operating procedure for deployments and ongoing operations.
+This runbook describes how to promote the application from local development to an organisation-hosted production environment (for example, a site such as `https://projects.example.com`). Use it as the baseline standard operating procedure for deployments and ongoing operations.
+
+### Quick Start Overview (for project owners)
+- Decide on the production web address you want (e.g., `https://projects.example.com`) and share it with your IT/hosting team.
+- Hand over the latest project zip or GitHub link plus this README.
+- Ask the IT team to follow the deployment steps below and confirm when the site is reachable over HTTPS.
+- When you get the confirmation email, log in with the administrator account that was created during database setup and add the remaining users.
 
 ### 1. Architecture Overview
 - **Frontend**: Vite/React bundle served as static assets behind an HTTPS reverse proxy (nginx/IIS/Apache).
@@ -115,12 +121,15 @@ This runbook outlines how to promote the application from local development to a
    cd backend
    npm install
    ```
+   _Run the four commands above inside the server's terminal (PowerShell on Windows or Bash on Linux/Mac). Run them one line at a time._
+
 3. **Configure environment**
    - Copy `backend/.env.example` to `backend/.env` and set production values for `DATABASE_URL` and `JWT_SECRET`.
    - Run the database bootstrap once:
      ```bash
      psql -U <db_user> -d <database> -a -f setup-db.sql
      ```
+   - If the command reports that `psql` is missing, install the PostgreSQL client tools or ask your database administrator to run it for you.
    - Record the administrator credentials entered during bootstrap.
 4. **Build frontend**
    ```bash
