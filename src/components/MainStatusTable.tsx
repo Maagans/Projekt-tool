@@ -3,8 +3,8 @@ import { MainTableRow } from '../types.ts';
 
 interface MainStatusTableProps {
   rows: MainTableRow[];
-  cycleStatus: (id: number) => void;
-  updateNote: (id: number, note: string) => void;
+  cycleStatus: (id: string) => void;
+  updateNote: (id: string, note: string) => void;
 }
 
 const statusClasses = {

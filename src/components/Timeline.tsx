@@ -14,8 +14,8 @@ interface TimelineProps {
   monthMarkers: { position: number; label: string }[];
   todayPosition: number | null;
   addTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', position: number) => void;
-  updateTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: number, updates: Partial<Phase | Milestone | Deliverable>) => void;
-  deleteTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: number) => void;
+  updateTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: string, updates: Partial<Phase | Milestone | Deliverable>) => void;
+  deleteTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: string) => void;
 }
 
 const phaseColors: Record<string, { bg: string; border: string }> = {
@@ -33,10 +33,10 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   } = props;
   
   const timelineRef = useRef<HTMLDivElement>(null);
-  const deliverableRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const [deliverableLayouts, setDeliverableLayouts] = useState<Record<number, { lane: number }>>({});
-  const [editingItem, setEditingItem] = useState<{ type: 'phase' | 'milestone' | 'deliverable'; id: number } | null>(null);
-  const [editingColorPhaseId, setEditingColorPhaseId] = useState<number | null>(null);
+  const deliverableRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [deliverableLayouts, setDeliverableLayouts] = useState<Record<string, { lane: number }>>({});
+  const [editingItem, setEditingItem] = useState<{ type: 'phase' | 'milestone' | 'deliverable'; id: string } | null>(null);
+  const [editingColorPhaseId, setEditingColorPhaseId] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     const timelineEl = timelineRef.current;
@@ -58,7 +58,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
 
         const NUM_LANES = 4;
         const lanesEndPosition: number[] = Array(NUM_LANES).fill(-Infinity);
-        const newLayouts: Record<number, { lane: number }> = {};
+        const newLayouts: Record<string, { lane: number }> = {};
         
         for (const item of measuredItems) {
             const itemStartPos = item.position - (item.widthPercent / 2);
@@ -96,9 +96,9 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     addTimelineItem(type, 45); // Add near center, easier to grab
   };
 
-  const [draggedItem, setDraggedItem] = useState<{type: 'phase' | 'milestone' | 'deliverable', id: number, mode: 'move' | 'resize-end', initialX: number, initialPos: number, initialWidth?: number} | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end', initialX: number, initialPos: number, initialWidth?: number} | null>(null);
 
-  const handleDragStart = (e: React.MouseEvent, type: 'phase' | 'milestone' | 'deliverable', id: number, mode: 'move' | 'resize-end') => {
+  const handleDragStart = (e: React.MouseEvent, type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end') => {
     e.preventDefault();
     e.stopPropagation();
     

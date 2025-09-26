@@ -7,8 +7,8 @@ interface EditableListProps {
   title: string;
   items: ListItem[];
   onAddItem: () => void;
-  onDeleteItem: (id: number) => void;
-  onUpdateItem: (id: number, content: string) => void;
+  onDeleteItem: (id: string) => void;
+  onUpdateItem: (id: string, content: string) => void;
   onReorderItems: (sourceIndex: number, destinationIndex: number) => void;
 }
 

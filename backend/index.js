@@ -587,6 +587,24 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         return candidateId;
     };
 
+    const hydrateUsedIds = async (tableName, targetSet) => {
+        const result = await client.query('SELECT id::text FROM ' + tableName);
+        for (const row of result.rows) {
+            if (row?.id) {
+                targetSet.add(row.id);
+            }
+        }
+    };
+
+    await hydrateUsedIds('report_status_items', statusUsedIds);
+    await hydrateUsedIds('report_challenge_items', challengeUsedIds);
+    await hydrateUsedIds('report_main_table_rows', mainRowUsedIds);
+    await hydrateUsedIds('report_risks', riskUsedIds);
+    await hydrateUsedIds('report_phases', phaseUsedIds);
+    await hydrateUsedIds('report_milestones', milestoneUsedIds);
+    await hydrateUsedIds('report_deliverables', deliverableUsedIds);
+    await hydrateUsedIds('report_kanban_tasks', taskUsedIds);
+
     const insertListItems = async (items, tableName, usedSet) => {
         const list = Array.isArray(items) ? items : [];
         for (let index = 0; index < list.length; index += 1) {
@@ -863,6 +881,7 @@ const syncProjectReports = async (client, projectId, reportsPayload, existingPro
                 [projectId, weekKey],
             );
             reportId = insertResult.rows[0].id;
+            existingByWeek.set(weekKey, reportId);
         }
         seenReportIds.add(reportId);
         await syncReportState(client, reportId, report.state, existingWorkspaceReportByWeek.get(weekKey)?.state ?? null);
@@ -1443,20 +1462,5 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Backend server is running on http://localhost:${PORT}`);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -11,22 +11,22 @@ const generateId = () => (typeof crypto !== 'undefined' && typeof crypto.randomU
 // --- HOOK LOGIC ---
 
 const getInitialMainTableRows = (): MainTableRow[] => [
-  { id: 1, title: 'Gevinster', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: 2, title: 'Leverancer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: 3, title: 'Tid', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: 4, title: 'Økonomi', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: 5, title: 'Ressourcer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Gevinster', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Leverancer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Tid', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Økonomi', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Ressourcer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
 ];
 
 const getInitialProjectState = (): ProjectState => ({
-  statusItems: [{ id: 1, content: 'Projektet forløber planmæssigt.'}],
-  challengeItems: [{ id: 3, content: 'Ingen væsentlige udfordringer at rapportere.'}],
+  statusItems: [{ id: generateId(), content: 'Projektet forløber planmæssigt.'}],
+  challengeItems: [{ id: generateId(), content: 'Ingen væsentlige udfordringer at rapportere.'}],
   mainTableRows: getInitialMainTableRows(),
-  risks: [{ id: 1, name: 'Forsinkelse af leverancer fra 3. part', s: 3, k: 4 }],
-  phases: [{ id: 101, text: 'Analyse & Design', start: 5, end: 25, highlight: 'blue' }],
-  milestones: [{ id: 201, text: 'Kick-off', position: 2 }],
-  deliverables: [{ id: 301, text: 'Kravspecifikation', position: 15 }],
-  kanbanTasks: [{ id: 401, content: 'Sæt udviklingsmiljø op', status: 'done'}]
+  risks: [{ id: generateId(), name: 'Forsinkelse af leverancer fra 3. part', s: 3, k: 4 }],
+  phases: [{ id: generateId(), text: 'Analyse & Design', start: 5, end: 25, highlight: 'blue' }],
+  milestones: [{ id: generateId(), text: 'Kick-off', position: 2 }],
+  deliverables: [{ id: generateId(), text: 'Kravspecifikation', position: 15 }],
+  kanbanTasks: [{ id: generateId(), content: 'Sæt udviklingsmiljø op', status: 'done'}]
 });
 
 
@@ -305,6 +305,7 @@ export const useProjectManager = () => {
         reports: [],
         projectMembers: [],
         status: 'active',
+        permissions: { canEdit: true, canLogTime: true },
     };
     updateProjects(prev => [...prev, newProject]);
     return newProject;
@@ -673,6 +674,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
     }
   };
 };
+
 
 
 
