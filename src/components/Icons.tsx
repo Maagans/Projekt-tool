@@ -61,11 +61,11 @@ export const UserIcon = () => (
 );
 
 export const ArrowUpIcon = () => (
-    <svg {...iconProps} className="w-4 h-4"><path d="M12 19V5m-7 7l7-7 7 7" /></svg>
+    <svg {...iconProps} className="w-7 h-7"><path d="M12 19V5m-7 7l7-7 7 7" /></svg>
 );
 
 export const ArrowDownIcon = () => (
-    <svg {...iconProps} className="w-4 h-4"><path d="M12 5v14m-7-7l7 7 7 7" /></svg>
+    <svg {...iconProps} className="w-7 h-7"><path d="M12 5v14m-7-7l7 7 7 7" /></svg>
 );
 
 export const FolderOpenIcon = () => (
@@ -85,5 +85,6 @@ export const ChevronDownIcon = () => (
 );
 
 export const SignalIcon = () => (
-    <svg {...iconProps} className="w-4 h-4"><path d="M2 12h.01M6.5 12h.01M11 12h.01M15.5 12h.01M20 12h.01" /></svg>
+    <svg {...iconProps} className="w-7 h-7"><path d="M2 12h.01M6.5 12h.01M11 12h.01M15.5 12h.01M20 12h.01" /></svg>
 );
+

@@ -316,23 +316,31 @@ const AppHeader: React.FC<{
     onLogout: () => void;
     children?: React.ReactNode;
 }> = ({ title, user, isSaving, apiError, onLogout, children }) => {
+    const statusLabel = apiError ? 'Forbindelse mistet' : isSaving ? 'Synkroniserer...' : 'Synkroniseret';
+    const statusCircleClasses = apiError ? 'border-red-300 text-red-600 bg-red-100' : isSaving ? 'border-amber-300 text-amber-600 bg-amber-100' : 'border-green-300 text-green-600 bg-green-100';
+    const statusLabelClasses = apiError ? 'text-red-600' : isSaving ? 'text-amber-600' : 'text-green-600';
+    const haloClasses = apiError ? 'bg-red-400/60 animate-ping' : isSaving ? 'bg-amber-300/60 animate-pulse' : '';
+    const showHalo = Boolean(haloClasses);
+
     return (
         <header className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-wrap justify-between items-center gap-4 export-hide">
             <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
             <div className="flex items-center gap-4">
                 {children}
-                <div className="flex items-center gap-2 text-sm text-slate-500" title={apiError || 'API Status'}>
-                    <div className={apiError ? 'text-red-500' : 'text-green-500'}><SignalIcon /></div>
-                    {isSaving ? (
-                        <>
-                         <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                         <span>Gemmer...</span>
-                        </>
-                    ) : (
-                        <span>Gemt</span>
-                    )}
+                <div className="flex items-center gap-3 text-sm" title={apiError || 'API Status'}>
+                    <span className="relative flex items-center justify-center">
+                        {showHalo && (
+                            <span className={`absolute inline-flex h-11 w-11 rounded-full ${haloClasses}`}></span>
+                        )}
+                        <span className={`relative flex h-11 w-11 items-center justify-center rounded-full border ${statusCircleClasses}`}>
+                            <SignalIcon />
+                        </span>
+                    </span>
+                    <span className={`font-semibold ${statusLabelClasses} ${(isSaving && !apiError) ? 'animate-pulse' : ''}`} aria-live="polite">
+                        {statusLabel}
+                    </span>
                 </div>
-                 <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-lg">
+                <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-lg">
                     <div className="w-8 h-8 grid place-items-center bg-slate-200 text-slate-600 rounded-full"><UserIcon/></div>
                     <div>
                         <div className="font-semibold text-sm text-slate-800">{user?.name}</div>
@@ -839,3 +847,6 @@ const ProjectSettingsPage: React.FC<{ project: Project; projectManager: ReturnTy
 };
 
 export default App;
+
+
+
