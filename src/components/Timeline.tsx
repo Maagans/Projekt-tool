@@ -312,7 +312,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                           <div className="flex flex-col items-center -translate-x-1/2 timeline-item-centered">
                               <div className="absolute bottom-full w-px bg-teal-400 border-l border-dashed border-teal-400 -z-10" style={{ height: `${lineHeightRem}rem` }}></div>
                               <div className="w-3 h-3 bg-teal-500 rounded-full ring-4 ring-white" title={calculateDateFromPosition(d.position)}></div>
-                              <div className="bg-white px-2 py-1 rounded-md shadow text-xs whitespace-nowrap mt-2">
+                              <div className="bg-white px-3 py-2 rounded-md shadow text-xs leading-snug mt-2 max-w-[14rem] min-h-[3rem] text-center whitespace-normal break-words flex items-center justify-center">
                                   <EditableField initialValue={d.text} onSave={(text) => updateTimelineItem('deliverable', d.id, { text })} className="!p-0" />
                               </div>
                           </div>
@@ -337,3 +337,4 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     </div>
   );
 };
+
