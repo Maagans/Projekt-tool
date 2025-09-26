@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+﻿import { useState, useCallback, useEffect, useMemo } from 'react';
 import { api } from '../api.ts'; // Import the new centralized API
 import { 
   Project, Report, ProjectState, MainTableRow, Risk, Phase, 
@@ -11,22 +11,67 @@ const generateId = () => (typeof crypto !== 'undefined' && typeof crypto.randomU
 // --- HOOK LOGIC ---
 
 const getInitialMainTableRows = (): MainTableRow[] => [
-  { id: generateId(), title: 'Gevinster', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: generateId(), title: 'Leverancer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: generateId(), title: 'Tid', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: generateId(), title: 'Økonomi', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
-  { id: generateId(), title: 'Ressourcer', status: 'green', note: '<i>Ingen bemærkninger.</i>' },
+  { id: generateId(), title: 'Gevinster', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
+  { id: generateId(), title: 'Leverancer', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
+  { id: generateId(), title: 'Tid', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
+  { id: generateId(), title: 'Ã˜konomi', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
+  { id: generateId(), title: 'Ressourcer', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
 ];
 
 const getInitialProjectState = (): ProjectState => ({
-  statusItems: [{ id: generateId(), content: 'Projektet forløber planmæssigt.'}],
-  challengeItems: [{ id: generateId(), content: 'Ingen væsentlige udfordringer at rapportere.'}],
-  mainTableRows: getInitialMainTableRows(),
-  risks: [{ id: generateId(), name: 'Forsinkelse af leverancer fra 3. part', s: 3, k: 4 }],
-  phases: [{ id: generateId(), text: 'Analyse & Design', start: 5, end: 25, highlight: 'blue' }],
-  milestones: [{ id: generateId(), text: 'Kick-off', position: 2 }],
-  deliverables: [{ id: generateId(), text: 'Kravspecifikation', position: 15 }],
-  kanbanTasks: [{ id: generateId(), content: 'Sæt udviklingsmiljø op', status: 'done'}]
+  statusItems: [
+    { id: generateId(), content: 'Projektets maal er defineret, og gevinsterne er klarlagt.' },
+    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er paa plads.' },
+    { id: generateId(), content: 'Projektteamet er bemandet, og aktiviteter er i gang.' },
+  ],
+  challengeItems: [
+    { id: generateId(), content: 'Hold oeje med afhaengigheder til eksterne leverandoerer i fase 3.' },
+    { id: generateId(), content: 'Planlaeg overlevering til drift tidligt for at undgaa forsinkelser.' },
+  ],
+  mainTableRows: [
+    { id: generateId(), title: 'Gevinster', status: 'green', note: '<p>De forventede gevinster er beskrevet, og gevinstplanen er igangsat.</p>' },
+    { id: generateId(), title: 'Leverancer', status: 'yellow', note: '<p>Leverancer for fase 3 er under udarbejdelse – kraever opfoelgning paa testfeedback.</p>' },
+    { id: generateId(), title: 'Tid', status: 'green', note: '<p>Tidsplanen holder. Milepaelen for fase 2 blev naar som planlagt.</p>' },
+    { id: generateId(), title: 'OEkonomi', status: 'green', note: '<p>Budgettet er opdateret, og der er ingen afvigelser.</p>' },
+    { id: generateId(), title: 'Ressourcer', status: 'yellow', note: '<p>Vi mangler en specialist i udviklingsfasen – handlinger er igangsat.</p>' },
+  ],
+  risks: [
+    { id: generateId(), name: 'Manglende tilgaengelighed hos noeglebrugere til test i fase 3', s: 3, k: 3 },
+    { id: generateId(), name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation', s: 2, k: 4 },
+  ],
+  phases: [
+    { id: generateId(), text: 'Idebeskrivelse', start: 0, end: 15, highlight: 'blue' },
+    { id: generateId(), text: 'Forberedelse & planlaegning', start: 15, end: 35, highlight: 'green' },
+    { id: generateId(), text: 'Analyse & udvikling', start: 35, end: 65, highlight: 'yellow' },
+    { id: generateId(), text: 'Implementering, idriftsaettelse & evaluering', start: 65, end: 100, highlight: 'purple' },
+  ],
+  milestones: [
+    { id: generateId(), text: 'Go/No-Go fase 2', position: 20 },
+    { id: generateId(), text: 'Design godkendt', position: 45 },
+    { id: generateId(), text: 'Klar til idriftsaettelse', position: 70 },
+    { id: generateId(), text: 'Projektafslutning', position: 95 },
+  ],
+  deliverables: [
+    { id: generateId(), text: 'Kort ideoplaeg', position: 10 },
+    { id: generateId(), text: 'Foreloebig interessentoversigt', position: 12 },
+    { id: generateId(), text: 'Foerste risikovurdering', position: 14 },
+    { id: generateId(), text: 'Projektbeskrivelse', position: 25 },
+    { id: generateId(), text: 'Maalhierarki og milepaelsplan', position: 28 },
+    { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32 },
+    { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34 },
+    { id: generateId(), text: 'Kravspecifikation', position: 45 },
+    { id: generateId(), text: 'Prototype/testleverance', position: 55 },
+    { id: generateId(), text: 'Uddannelses- og implementeringsplan', position: 60 },
+    { id: generateId(), text: 'Implementeret loesning', position: 75 },
+    { id: generateId(), text: 'Overdragelse til drift', position: 82 },
+    { id: generateId(), text: 'Kommunikation til brugere', position: 88 },
+    { id: generateId(), text: 'Evalueringsrapport & gevinstopfoelgning', position: 95 },
+  ],
+  kanbanTasks: [
+    { id: generateId(), content: 'Afhold opstartsmoede med styregruppen', status: 'done' },
+    { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing' },
+    { id: generateId(), content: 'Planlaeg brugertraening', status: 'todo' },
+  ],
 });
 
 
@@ -102,7 +147,7 @@ export const useProjectManager = () => {
         }
       } catch (error) {
         console.error("Failed to load session:", error);
-        setApiError("Kunne ikke hente data. Prøv at genindlæse siden.");
+        setApiError("Kunne ikke hente data. PrÃ¸v at genindlÃ¦se siden.");
       } finally {
         setIsLoading(false);
       }
@@ -129,11 +174,11 @@ export const useProjectManager = () => {
             await api.saveWorkspace({ projects, employees });
           } catch (error) {
             console.error("Autosave failed:", error);
-            setApiError("�ndringer kunne ikke gemmes. Tjek din forbindelse.");
+            setApiError("ï¿½ndringer kunne ikke gemmes. Tjek din forbindelse.");
           } finally {
             setIsSaving(false);
           }
-        }, 1000); // Gem 1 sekund efter sidste �ndring
+        }, 1000); // Gem 1 sekund efter sidste ï¿½ndring
     } else {
         setIsSaving(false);
     }
@@ -162,7 +207,7 @@ export const useProjectManager = () => {
     } catch (error) {
       console.error("Login failed:", error);
       setApiError("Der opstod en fejl under login.");
-      return { success: false, message: "Serverfejl. Prøv igen senere." };
+      return { success: false, message: "Serverfejl. PrÃ¸v igen senere." };
     } finally {
         setIsLoading(false);
     }
@@ -248,7 +293,7 @@ export const useProjectManager = () => {
   const importEmployeesFromCsv = (csvContent: string) => {
     const lines = csvContent.split('\n').filter(line => line.trim() !== '');
     if (lines.length <= 1) {
-        alert("CSV-filen er tom eller indeholder kun en overskriftsrække.");
+        alert("CSV-filen er tom eller indeholder kun en overskriftsrÃ¦kke.");
         return;
     }
     const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
@@ -280,7 +325,7 @@ export const useProjectManager = () => {
               addedCount++;
           }
       }
-      alert(`Import færdig.\n- ${addedCount} nye medarbejdere tilføjet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rækker sprunget over pga. fejl.`);
+      alert(`Import fÃ¦rdig.\n- ${addedCount} nye medarbejdere tilfÃ¸jet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rÃ¦kker sprunget over pga. fejl.`);
       return newEmployeesList;
     });
   };
@@ -453,7 +498,7 @@ export const useProjectManager = () => {
     })
     .catch((error) => {
       console.error('Time log sync failed:', error);
-      setApiError('Kunne ikke synkronisere timeregistrering. Prøv igen.');
+      setApiError('Kunne ikke synkronisere timeregistrering. PrÃ¸v igen.');
     });
 };
 const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entriesToUpdate: { weekKey: string, plannedHours: number }[]) => {
@@ -568,7 +613,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
             timelineManager: {
                 add: (type, pos) => updateState(s => { const newId = generateId();
                     if (type === 'phase') return { ...s, phases: [...s.phases, { id: newId, text: 'Ny fase', start: pos, end: Math.min(pos + 10, 100), highlight: 'blue' }] };
-                    if (type === 'milestone') return { ...s, milestones: [...s.milestones, { id: newId, text: 'Ny milepæl', position: pos }] };
+                    if (type === 'milestone') return { ...s, milestones: [...s.milestones, { id: newId, text: 'Ny milepÃ¦l', position: pos }] };
                     if (type === 'deliverable') return { ...s, deliverables: [...s.deliverables, { id: newId, text: 'Ny leverance', position: pos }] };
                     return s;
                 }),
@@ -619,7 +664,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     try {
                         const start = new Date(project.config.projectStartDate);
                         const end = new Date(project.config.projectEndDate);
-                        if (start > end) { alert("Projektets slutdato er før startdatoen."); return null; }
+                        if (start > end) { alert("Projektets slutdato er fÃ¸r startdatoen."); return null; }
                         let current = new Date(start);
                         while (current <= end) { allPossibleWeeksSet.add(getWeekKey(new Date(current))); current.setDate(current.getDate() + 7); }
                     } catch (e) { console.error("Ugyldig dato i projektkonfiguration", e); return null; }
@@ -644,7 +689,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     const nextWeekKey = getWeekKey(d);
 
                     if (!allPossibleWeeksSet.has(nextWeekKey)) {
-                         alert("Næste uge er uden for projektets tidsramme.");
+                         alert("NÃ¦ste uge er uden for projektets tidsramme.");
                          return null;
                     }
                     if (existingWeeks.has(nextWeekKey)) {
@@ -674,6 +719,8 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
     }
   };
 };
+
+
 
 
 

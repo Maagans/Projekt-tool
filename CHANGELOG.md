@@ -6,9 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-09-26
+### Added
+- Tilfoejet eksempeldata til nye rapporter (faser, deliverables, risici og kanbanopgaver) for hurtigere opstart.
+
 ## [1.0.2] - 2025-09-26
 ### Changed
-- Gjort synkroniseringsindikatoren mere synlig og tilføjet animation, når forbindelsen til databasen mistes.
+- Gjort synkroniseringsindikatoren mere synlig og tilfoejet animation, naar forbindelsen til databasen mistes.
 
 ## [1.0.1] - 2025-09-26
 ### Fixed
