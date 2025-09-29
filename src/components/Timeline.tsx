@@ -297,8 +297,9 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
               {deliverables.map((d, index) => {
                   const layout = deliverableLayouts[d.id];
                   const laneIndex = layout ? layout.lane : index % 2;
-                  const topRem = 0.5 + (laneIndex * 2);
-                  const lineHeightRem = 1.5 + topRem;
+                  const laneSpacingRem = 3.5;
+                  const topRem = 0.75 + (laneIndex * laneSpacingRem);
+                  const lineHeightRem = topRem + 2; 
 
                   return (
                       <div 
@@ -313,7 +314,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                               <div className="absolute bottom-full w-px bg-teal-400 border-l border-dashed border-teal-400 -z-10" style={{ height: `${lineHeightRem}rem` }}></div>
                               <div className="w-3 h-3 bg-teal-500 rounded-full ring-4 ring-white" title={calculateDateFromPosition(d.position)}></div>
                               <div className="bg-white px-3 py-2 rounded-md shadow text-xs leading-snug mt-2 max-w-[14rem] min-h-[3rem] text-center whitespace-normal break-words flex items-center justify-center">
-                                  <EditableField initialValue={d.text} onSave={(text) => updateTimelineItem('deliverable', d.id, { text })} className="!p-0" />
+                                  <EditableField initialValue={d.text} onSave={(text) => updateTimelineItem('deliverable', d.id, { text })} className="!p-0" wrapDisplay />
                               </div>
                           </div>
                           <div className="absolute top-0 left-full ml-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity export-hide">
@@ -337,4 +338,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     </div>
   );
 };
+
+
+
 

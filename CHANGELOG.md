@@ -1,4 +1,4 @@
-ï»¿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [1.0.3] - 2025-09-26
 ### Added
 - Tilfoejet eksempeldata til nye rapporter (faser, deliverables, risici og kanbanopgaver) for hurtigere opstart.
-- Leverance-bokse i tidslinjen har nu stoerre hoejde, bryder tekst automatisk og undgaar overlap.
+- Leverance-bokse i tidslinjen har nu stoerre hoejde, automatisk tekstombrydning og ekstra afstand mellem rækker.
 
 ## [1.0.2] - 2025-09-26
 ### Changed
