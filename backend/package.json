@@ -6,7 +6,13 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "migrate": "node-pg-migrate --configFile node-pg-migrate.config.cjs up",
+    "migrate:down": "node-pg-migrate --configFile node-pg-migrate.config.cjs down",
+    "migrate:status": "node-pg-migrate --configFile node-pg-migrate.config.cjs status",
+    "seed:admin": "node ./scripts/seed-admin.js",
+    "migrate:create": "node-pg-migrate --configFile node-pg-migrate.config.cjs create",
+    "backup": "node ./scripts/backup-db.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -14,6 +20,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "node-pg-migrate": "^8.0.3",
     "pg": "^8.11.5"
   },
   "devDependencies": {

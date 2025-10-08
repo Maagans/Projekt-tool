@@ -1,77 +1,87 @@
-# Projektværktøj Backend
+﻿# Projektvaerktoej Backend
 
-This directory contains the Node.js, Express, and PostgreSQL backend for the project management tool.
+Node.js/Express API med PostgreSQL til projektvaerktoej-appen.
 
-## Prerequisites
+## Forudsaetninger
+- Node.js 18 eller nyere
+- PostgreSQL 14 eller nyere (server-adgang med en bruger der maa oprette tabeller)
 
-- [Node.js](https://nodejs.org/) (v18 or later recommended)
-- [PostgreSQL](https://www.postgresql.org/download/) installed and running.
+## Installation
+1. Installer dependencies:
+   ```bash
+   npm install
+   ```
+2. Kopier `.env.example` til `.env` og opdater variablerne:
+   - `DATABASE_URL` skal pege paa din PostgreSQL database.
+   - `JWT_SECRET` skal vaere en lang tilfaeldig streng (se eksempel i filen).
+   - `PORT` er valgfri (standard er 3001).
+   - `PG_BACKUP_DIR` er valgfri og styrer hvor backups gemmes (standard `backups`).
 
-## Setup Instructions
+## Database migrationer
+Projektet bruger [node-pg-migrate](https://salsita.github.io/node-pg-migrate/) til schema-opdateringer. Alle SQL-aendringer ligger i `backend/migrations`.
 
-### 1. Install Dependencies
-
-Navigate to this directory in your terminal and run:
-
+### Koer alle pending migrationer
 ```bash
-npm install
+npm run migrate
+```
+CLI'en bruger `DATABASE_URL` fra `.env`.
+
+### Vise status
+```bash
+npm run migrate:status
 ```
 
-### 2. Set up the Database
+### Rulle seneste migration tilbage (brug kun til fejlretning)
+```bash
+npm run migrate:down
+```
 
-This project uses PostgreSQL for data storage.
+### Opret en ny migration
+```bash
+npm run migrate:create -- add-new-table
+```
+Dette genererer en tom fil i `backend/migrations`. Udfyld `exports.up` og `exports.down`. Koer `npm run migrate` lokalt og skriv eventuelle data-migrationer (INSERT/UPDATE) i samme fil. Alle filer skal vaere idempotente og reversible hvor det er muligt.
 
-1.  **Create a database and user:**
-    First, you need to create a PostgreSQL database and a user with privileges on that database. You can do this by running the following commands in your `psql` shell:
+## Seed af administrator
+Scriptet `npm run seed:admin` opretter eller opdaterer en administrator-bruger sammen med en tilhoerende medarbejder.
 
-    ```sql
-    -- Replace 'myuser' and 'mypassword' with your desired username and a secure password.
-    CREATE USER myuser WITH PASSWORD 'mypassword';
+### Hurtig brug uden at gemme kodeord i .env
+```bash
+ADMIN_NAME='Din Admin' \
+ADMIN_EMAIL='admin@example.com' \
+ADMIN_PASSWORD='midlertidig-kode' \
+npm run seed:admin
+```
+- Scriptet opdaterer eksisterende bruger hvis e-mailen findes.
+- Hvis du saetter `ADMIN_FORCE_RESET=false`, bevares eksisterende kodeord.
 
-    -- Replace 'projekt-tool' with your desired database name.
-    CREATE DATABASE "projekt-tool" WITH OWNER = myuser;
-    ```
+### Brug af .env (fx i testmiljo)
+Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet igen efter brug, hvis filen deles.
 
-2.  **Run the Setup Script:**
-    A setup script named `setup-db.sql` is included in this `backend` directory. This script will create the necessary tables (`users`, `workspaces`) with the correct structure.
+## Backup af database
+- Koer `npm run backup` for at gemme en dump-fil (format=custom) via `pg_dump`.
+- Backups gemmes i `backend/backups` eller den sti du angiver i `PG_BACKUP_DIR`.
+- Krav: `pg_dump` fra PostgreSQL klientvaerktoeer skal vaere installeret og paa PATH.
 
-    Run the script against your database using a command like this in your terminal. Remember to replace `myuser` and `projekt-tool` with your actual username and database name:
+## Lokal udvikling
+- Start backend med auto-reload: `npm run dev`.
+- Start backend til produktionstest: `npm start` (forventer at migrationerne allerede er koert).
 
-    ```bash
-    psql -U myuser -d projekt-tool -a -f setup-db.sql
-    ```
-    
-    After running the script, the database will be ready but **empty**.
+## Arbejdsgang til produktion
+1. Tag backup af databasen.
+2. Deploy ny kode (fx via git pull eller CI).
+3. Koer `npm install --omit=dev` (eller tilsvarende) hvis dependencies er aendret.
+4. Koer `npm run migrate` mod produktionsdatabasen.
+5. Seed eller opdater admin efter behov: `npm run seed:admin`.
+6. Koer `npm run backup` hvis du vil tage en frisk dump efter migrationerne.
+7. Genstart processen/service der koerer backend (pm2/systemd/docker osv.).
+8. Overvaag logs og koer `npm run migrate:status` for at bekraefte at alt er opdateret.
 
-### 3. Configure Environment Variables
+## Bedste praksis for fremtidige aendringer
+- Alle database-aendringer skal ske via nye migrationsfiler.
+- Beskriv nye migrations i CHANGELOG eller i pull request beskrivelsen.
+- Hold migrationer saa smaa og afproevede som muligt (skriv tests/skripter til data rettelser).
+- Brug `migrate:status` som en del af smoke-tests efter deployment.
 
-1.  Create a new file named `.env` in this `backend` directory.
-2.  Add the `DATABASE_URL` and `JWT_SECRET` variables.
-    -   **Update `DATABASE_URL`**: Make sure the connection string matches your PostgreSQL setup.
-        -   Format: `postgresql://[user]:[password]@[host]:[port]/[database]`
-        -   Example: `DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/projekt-tool"`
-    -   **Update `JWT_SECRET`**: Replace the placeholder with a long, random, and secret string. You can generate a secure secret by running this command in your terminal:
-        ```bash
-        node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-        ```
-
-### 4. Run the Server and Complete Setup
-
-1.  **Start the backend server**:
-    For development (recommended), this will use `nodemon` to automatically restart the server when you make changes.
-    ```bash
-    npm run dev
-    ```
-    For production:
-    ```bash
-    npm start
-    ```
-    The server will start on `http://localhost:3001`.
-
-2.  **Start the frontend application** (from the root directory):
-    ```bash
-    npm run dev
-    ```
-
-3.  **Create the First User**:
-    When you open the application in your browser for the first time, it will detect that the database is empty and present you with a **setup page**. Use this page to create your first administrator account. After that, you will be redirected to the normal login page.
+## Legacy setup-db.sql
+Filen `setup-db.sql` findes stadig til reference, men den er afloest af migrationssystemet og boer ikke bruges i nye miljoer.
