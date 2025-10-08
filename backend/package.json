@@ -7,11 +7,11 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "migrate": "node-pg-migrate --configFile node-pg-migrate.config.cjs up",
-    "migrate:down": "node-pg-migrate --configFile node-pg-migrate.config.cjs down",
-    "migrate:status": "node-pg-migrate --configFile node-pg-migrate.config.cjs status",
+    "migrate": "node-pg-migrate --configFile node-pg-migrate.config.json up",
+    "migrate:down": "node-pg-migrate --configFile node-pg-migrate.config.json down",
+    "migrate:status": "node-pg-migrate --configFile node-pg-migrate.config.json status",
     "seed:admin": "node ./scripts/seed-admin.js",
-    "migrate:create": "node-pg-migrate --configFile node-pg-migrate.config.cjs create",
+    "migrate:create": "node-pg-migrate --configFile node-pg-migrate.config.json create",
     "backup": "node ./scripts/backup-db.js"
   },
   "dependencies": {

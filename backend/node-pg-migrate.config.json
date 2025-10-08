@@ -1,0 +1,6 @@
+{
+  "dir": "migrations",
+  "migrationsTable": "pgmigrations",
+  "migrationFileExtension": "js",
+  "createExtensionIfNotExists": ["uuid-ossp", "pgcrypto"]
+}

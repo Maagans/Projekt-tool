@@ -1,4 +1,4 @@
-﻿exports.up = (pgm) => {
+export const up = (pgm) => {
   pgm.createType('user_role', ['Administrator', 'Projektleder', 'Teammedlem']);
 
   pgm.createTable('employees', {
@@ -14,29 +14,40 @@
     name: { type: 'text', notNull: true },
     start_date: { type: 'date', notNull: true },
     end_date: { type: 'date', notNull: true },
-    status: { type: 'text', notNull: true, default: pgm.literal("'active'") },
+    status: { type: 'text', notNull: true, default: 'active' },
     description: { type: 'text' },
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
     updated_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
   });
-  pgm.addConstraint('projects', 'chk_project_dates', 'start_date <= end_date');
-  pgm.addConstraint('projects', 'chk_project_status', "status IN ('active', 'completed', 'on-hold')");
+  pgm.addConstraint('projects', 'chk_project_dates', {
+    check: 'start_date <= end_date',
+  });
+  pgm.addConstraint('projects', 'chk_project_status', {
+    check: "status IN ('active', 'completed', 'on-hold')",
+  });
 
   pgm.createTable('project_members', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
     project_id: { type: 'uuid', notNull: true, references: 'projects', onDelete: 'cascade' },
     employee_id: { type: 'uuid', notNull: true, references: 'employees', onDelete: 'cascade' },
     role: { type: 'text', notNull: true },
-    member_group: { type: 'text', notNull: true, default: pgm.literal("'unassigned'") },
+    member_group: { type: 'text', notNull: true, default: 'unassigned' },
     is_project_lead: { type: 'boolean', notNull: true, default: false },
   });
   pgm.addConstraint('project_members', 'project_members_project_id_employee_id_key', {
     unique: ['project_id', 'employee_id'],
   });
-  pgm.addConstraint('project_members', 'chk_member_group', "member_group IN ('styregruppe','projektgruppe','partnere','referencegruppe','unassigned')");
+  pgm.addConstraint('project_members', 'chk_member_group', {
+    check: "member_group IN ('styregruppe','projektgruppe','partnere','referencegruppe','unassigned')",
+  });
 
   pgm.createTable('project_member_time_entries', {
-    project_member_id: { type: 'uuid', notNull: true, references: 'project_members', onDelete: 'cascade' },
+    project_member_id: {
+      type: 'uuid',
+      notNull: true,
+      references: 'project_members',
+      onDelete: 'cascade',
+    },
     week_key: { type: 'varchar(10)', notNull: true },
     planned_hours: { type: 'numeric(6,2)', notNull: true, default: 0 },
     actual_hours: { type: 'numeric(6,2)', notNull: true, default: 0 },
@@ -44,7 +55,9 @@
   pgm.addConstraint('project_member_time_entries', 'project_member_time_entries_pkey', {
     primaryKey: ['project_member_id', 'week_key'],
   });
-  pgm.addConstraint('project_member_time_entries', 'chk_non_negative_hours', 'planned_hours >= 0 AND actual_hours >= 0');
+  pgm.addConstraint('project_member_time_entries', 'chk_non_negative_hours', {
+    check: 'planned_hours >= 0 AND actual_hours >= 0',
+  });
 
   pgm.createTable('reports', {
     id: { type: 'bigserial', primaryKey: true },
@@ -79,7 +92,9 @@
     status: { type: 'text', notNull: true },
     note: { type: 'text' },
   });
-  pgm.addConstraint('report_main_table_rows', 'chk_main_row_status', "status IN ('green','yellow','red')");
+  pgm.addConstraint('report_main_table_rows', 'chk_main_row_status', {
+    check: "status IN ('green','yellow','red')",
+  });
 
   pgm.createTable('report_risks', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -88,8 +103,12 @@
     probability: { type: 'smallint', notNull: true },
     consequence: { type: 'smallint', notNull: true },
   });
-  pgm.addConstraint('report_risks', 'chk_probability_range', 'probability BETWEEN 1 AND 5');
-  pgm.addConstraint('report_risks', 'chk_consequence_range', 'consequence BETWEEN 1 AND 5');
+  pgm.addConstraint('report_risks', 'chk_probability_range', {
+    check: 'probability BETWEEN 1 AND 5',
+  });
+  pgm.addConstraint('report_risks', 'chk_consequence_range', {
+    check: 'consequence BETWEEN 1 AND 5',
+  });
 
   pgm.createTable('report_phases', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -99,7 +118,9 @@
     end_percentage: { type: 'numeric(5,2)', notNull: true },
     highlight: { type: 'text', notNull: true },
   });
-  pgm.addConstraint('report_phases', 'chk_phase_range', 'start_percentage BETWEEN 0 AND 100 AND end_percentage BETWEEN 0 AND 100 AND start_percentage <= end_percentage');
+  pgm.addConstraint('report_phases', 'chk_phase_range', {
+    check: 'start_percentage BETWEEN 0 AND 100 AND end_percentage BETWEEN 0 AND 100 AND start_percentage <= end_percentage',
+  });
 
   pgm.createTable('report_milestones', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -107,7 +128,9 @@
     label: { type: 'text', notNull: true },
     position_percentage: { type: 'numeric(5,2)', notNull: true },
   });
-  pgm.addConstraint('report_milestones', 'chk_milestone_range', 'position_percentage BETWEEN 0 AND 100');
+  pgm.addConstraint('report_milestones', 'chk_milestone_range', {
+    check: 'position_percentage BETWEEN 0 AND 100',
+  });
 
   pgm.createTable('report_deliverables', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -115,7 +138,9 @@
     label: { type: 'text', notNull: true },
     position_percentage: { type: 'numeric(5,2)', notNull: true },
   });
-  pgm.addConstraint('report_deliverables', 'chk_deliverable_range', 'position_percentage BETWEEN 0 AND 100');
+  pgm.addConstraint('report_deliverables', 'chk_deliverable_range', {
+    check: 'position_percentage BETWEEN 0 AND 100',
+  });
 
   pgm.createTable('report_kanban_tasks', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -123,7 +148,9 @@
     content: { type: 'text', notNull: true },
     status: { type: 'text', notNull: true },
   });
-  pgm.addConstraint('report_kanban_tasks', 'chk_kanban_status', "status IN ('todo','doing','done')");
+  pgm.addConstraint('report_kanban_tasks', 'chk_kanban_status', {
+    check: "status IN ('todo','doing','done')",
+  });
 
   pgm.createTable('users', {
     id: { type: 'uuid', primaryKey: true, default: pgm.func('uuid_generate_v4()') },
@@ -135,10 +162,15 @@
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
   });
 
-  pgm.createFunction('trigger_set_project_timestamp', [], {
-    returns: 'trigger',
-    language: 'plpgsql',
-  }, 'BEGIN\n  NEW.updated_at := NOW();\n  RETURN NEW;\nEND;');
+  pgm.createFunction(
+    'trigger_set_project_timestamp',
+    [],
+    {
+      returns: 'trigger',
+      language: 'plpgsql',
+    },
+    'BEGIN\n  NEW.updated_at := NOW();\n  RETURN NEW;\nEND;',
+  );
   pgm.createTrigger('projects', 'trg_projects_set_updated', {
     when: 'BEFORE',
     operation: 'UPDATE',
@@ -150,7 +182,7 @@
   pgm.sql('CREATE UNIQUE INDEX idx_employees_email_unique_ci ON employees (LOWER(email));');
 };
 
-exports.down = (pgm) => {
+export const down = (pgm) => {
   pgm.sql('DROP INDEX IF EXISTS idx_employees_email_unique_ci;');
   pgm.sql('DROP INDEX IF EXISTS idx_users_email_unique_ci;');
 

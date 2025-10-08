@@ -1,11 +1,97 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
+import readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
 const { Pool } = pg;
 
 const normalize = (value) => (typeof value === 'string' ? value.trim() : '');
 const normalizeEmail = (value) => normalize(value).toLowerCase();
+
+let rl;
+
+const closePrompt = () => {
+  if (rl) {
+    rl.close();
+    rl = undefined;
+  }
+};
+
+const ensureInteractive = () => {
+  if (!input.isTTY || !output.isTTY) {
+    console.error(
+      'Paakraevede ADMIN_* variabler mangler og kan ikke indtastes interaktivt (ingen TTY tilgaengelig).',
+    );
+    process.exit(1);
+  }
+  if (!rl) {
+    rl = readline.createInterface({ input, output });
+  }
+  return rl;
+};
+
+const promptUntilValid = async (question, { validate, transform } = {}) => {
+  const iface = ensureInteractive();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const answer = await iface.question(question);
+    const trimmed = normalize(answer);
+    const error = validate ? validate(trimmed, answer) : null;
+    if (!error) {
+      return transform ? transform(trimmed, answer) : trimmed;
+    }
+    console.log(error);
+  }
+};
+
+async function resolveAdminValues(initialValues) {
+  const values = { ...initialValues };
+  const hasTTY = Boolean(input.isTTY && output.isTTY);
+
+  if (!values.adminName) {
+    if (!hasTTY) {
+      console.error('ADMIN_NAME mangler.');
+      process.exit(1);
+    }
+    values.adminName = await promptUntilValid('Administrator navn: ', {
+      validate: (trimmed) => (trimmed ? null : 'Navnet maa ikke vaere tomt.'),
+    });
+  }
+
+  if (!values.adminEmail) {
+    if (!hasTTY) {
+      console.error('ADMIN_EMAIL mangler.');
+      process.exit(1);
+    }
+    const emailValues = await promptUntilValid('Administrator e-mail: ', {
+      validate: (_, raw) => (normalizeEmail(raw) ? null : 'Indtast en gyldig e-mail.'),
+      transform: (trimmed, raw) => ({
+        raw: trimmed,
+        normalized: normalizeEmail(raw),
+      }),
+    });
+    values.adminEmailRaw = emailValues.raw;
+    values.adminEmail = emailValues.normalized;
+  }
+
+  if (!values.adminPassword || values.adminPassword.length < 6) {
+    if (!hasTTY) {
+      console.error('ADMIN_PASSWORD skal vaere mindst 6 tegn.');
+      process.exit(1);
+    }
+    values.adminPassword = await promptUntilValid('Administrator kodeord (min. 6 tegn): ', {
+      validate: (trimmed) =>
+        trimmed.length >= 6 ? null : 'Kodeordet skal vaere mindst 6 tegn.',
+    });
+  }
+
+  if (!values.adminEmailRaw && values.adminEmail) {
+    values.adminEmailRaw = values.adminEmail;
+  }
+
+  return values;
+}
 
 async function main() {
   const { DATABASE_URL, ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_FORCE_RESET } = process.env;
@@ -15,33 +101,24 @@ async function main() {
     process.exit(1);
   }
 
-  const adminName = normalize(ADMIN_NAME);
-  const adminEmailRaw = normalize(ADMIN_EMAIL);
-  const adminEmail = normalizeEmail(ADMIN_EMAIL);
-  const adminPassword = normalize(ADMIN_PASSWORD);
+  const adminValues = await resolveAdminValues({
+    adminName: normalize(ADMIN_NAME),
+    adminEmailRaw: normalize(ADMIN_EMAIL),
+    adminEmail: normalizeEmail(ADMIN_EMAIL),
+    adminPassword: normalize(ADMIN_PASSWORD),
+  });
 
-  if (!adminName) {
-    console.error('ADMIN_NAME mangler.');
-    process.exit(1);
-  }
-  if (!adminEmail) {
-    console.error('ADMIN_EMAIL mangler.');
-    process.exit(1);
-  }
-  if (adminPassword.length < 6) {
-    console.error('ADMIN_PASSWORD skal vaere mindst 6 tegn.');
-    process.exit(1);
-  }
+  closePrompt();
 
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const client = await pool.connect();
-
+  let client;
+  const { adminName, adminEmail, adminEmailRaw, adminPassword } = adminValues;
   const forceReset = String(ADMIN_FORCE_RESET ?? 'true').toLowerCase() !== 'false';
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
-
     const employeeLookup = await client.query(
       'SELECT id, name FROM employees WHERE LOWER(email) = LOWER($1)',
       [adminEmail],
@@ -89,16 +166,22 @@ async function main() {
     await client.query('COMMIT');
     console.log('Admin-seed gennemfoert for', adminEmail);
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK');
+    }
     console.error('Kunne ikke oprette/opdatere administrator:', error.message);
     process.exitCode = 1;
   } finally {
-    client.release();
+    closePrompt();
+    if (client) {
+      client.release();
+    }
     await pool.end();
   }
 }
 
 main().catch((error) => {
+  closePrompt();
   console.error('Uventet fejl:', error.message);
   process.exit(1);
 });
