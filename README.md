@@ -20,18 +20,17 @@ npm install
 
 ## 2. Prepare PostgreSQL
 1. Ensure PostgreSQL is running and that you can connect with `psql`.
-2. Create a database user and the target database (adjust names and passwords as needed):
+2. Create a database user and grant ownership of the project database (adjust names and passwords as needed):
    ```sql
    CREATE ROLE cs WITH LOGIN PASSWORD 'changeme';
    CREATE DATABASE "projekt-tool" OWNER cs;
    ```
-3. From the `backend` directory, run the setup script. It prompts you for the first administrator's name, email, and password and then builds the entire schema:
+   If you already have a user, grant it privileges on the database instead.
+3. Create the database from the CLI if you did not do it in the SQL step:
    ```bash
-   cd backend
-   psql -U cs -d "projekt-tool" -a -f setup-db.sql
+   createdb -U cs projekt-tool
    ```
-   - The script enables required extensions (`uuid-ossp`, `pgcrypto`), recreates all tables, links users to employees, and seeds only the administrator you provide.
-   - Keep the credentials you enter — you will use them to log in to the app after start-up.
+   _If `createdb` is unavailable, run `psql -U cs -c 'CREATE DATABASE "projekt-tool";'` instead._
 
 ## 3. Configure the backend
 Create `backend/.env` with your database connection string and a JWT secret:
@@ -44,14 +43,28 @@ Generate a strong JWT secret, for example:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## 4. Run the backend API
+## 4. Run database migrations
+```bash
+cd backend
+npm run migrate
+```
+This creates the schema, constraints, and required extensions (`uuid-ossp`, `pgcrypto`) inside the configured database.
+
+## 5. Seed the administrator account
+```bash
+cd backend
+npm run seed:admin
+```
+The script prompts for admin name, email, and password if the corresponding `ADMIN_*` environment variables are missing.
+
+## 6. Run the backend API
 ```bash
 cd backend
 npm run dev
 ```
 The server listens on `http://localhost:3001` and exposes endpoints for authentication, project management, and time tracking.
 
-## 5. Run the frontend
+## 7. Run the frontend
 In a separate terminal, from the project root:
 ```bash
 npm run dev
@@ -63,7 +76,7 @@ Vite serves the React client on `http://localhost:5173` by default and proxies A
 - **Projektleder**: Can edit projects where they are marked as project lead and can view other projects in read-only mode.
 - **Teammedlem**: Can view projects they are assigned to and log their own actual hours; planned hours remain read-only.
 
-Use the administrator account you created during the database setup to sign in first. From there you can invite or promote additional users via the admin panel.
+Use the administrator account you created during seeding to sign in first. From there you can invite or promote additional users via the admin panel.
 
 ## Sharing the project with others
 If you need to hand the project to another developer, share a clean archive without bundled dependencies.
@@ -81,9 +94,11 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
 2. Run `npm install` in the project root (frontend).
 3. Run `npm install` inside `backend/`.
 4. Copy `backend/.env.example` to `backend/.env` and update `DATABASE_URL` and `JWT_SECRET`.
-5. Execute the database setup script from `backend/`:
+5. Run migrations and seed an admin:
    ```bash
-   psql -U <db_user> -d <database> -a -f setup-db.sql
+   cd backend
+   npm run migrate
+   npm run seed:admin
    ```
 6. Start the backend (`npm run dev` in `backend/`) and the frontend (`npm run dev` in the root).
 
@@ -125,12 +140,16 @@ This runbook describes how to promote the application from local development to 
 
 3. **Configure environment**
    - Copy `backend/.env.example` to `backend/.env` and set production values for `DATABASE_URL` and `JWT_SECRET`.
-   - Run the database bootstrap once:
+   - Run the database migrations once:
      ```bash
-     psql -U <db_user> -d <database> -a -f setup-db.sql
+     cd backend
+     npm run migrate
      ```
-   - If the command reports that `psql` is missing, install the PostgreSQL client tools or ask your database administrator to run it for you.
-   - Record the administrator credentials entered during bootstrap.
+   - Seed the administrator account (either set `ADMIN_*` variables in `.env` or answer the prompts):
+     ```bash
+     npm run seed:admin
+     ```
+   - Record the administrator credentials for later logins.
 4. **Build frontend**
    ```bash
    cd /opt/projekt-tool
@@ -200,8 +219,9 @@ This runbook describes how to promote the application from local development to 
 
 ---
 ## Troubleshooting
-- `FATAL: database "projekt-tool" does not exist`: Make sure you created the database before running `setup-db.sql`.
+- `FATAL: database "projekt-tool" does not exist`: Make sure you created the database before running `npm run migrate`.
 - `Authentication failed: Token is invalid`: Clear your browser's local storage after resetting the database so the frontend requests a fresh session.
-- Re-run `psql -U cs -d "projekt-tool" -a -f setup-db.sql` whenever you need to rebuild the schema; it is safe to execute multiple times.
+- Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
+
