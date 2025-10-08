@@ -307,3 +307,42 @@ Capacity aggregation rules:
 ## Dependencies
 - If SSO roadmap adds `employees.department`, reuse it; otherwise create it here.
 - Uses existing `project_member_time_entries` (no schema change needed).
+## Visual Timeline
+
+### Resource Management (Gantt)
+```mermaid
+gantt
+dateFormat  YYYY-MM-DD
+title Resource Management Roadmap
+section Prep
+RM-0 Prep & flag:done, rm0, 2025-10-08, 3d
+section Backend
+RM-1 Capacity migration:active, rm1, after rm0, 3d
+RM-2 Aggregation service: rm2, after rm1, 4d
+RM-3 Analytics API: rm3, after rm2, 3d
+section Frontend
+RM-4 PMO view: rm4, after rm3, 4d
+RM-5 Project panel: rm5, after rm4, 3d
+section Polish & Release
+RM-6 Polish & Ops: rm6, after rm5, 2d
+RM-7 Docs & Release: rm7, after rm6, 2d
+```
+
+### Azure AD SSO & Employee Sync (Gantt)
+```mermaid
+gantt
+dateFormat  YYYY-MM-DD
+title Azure AD SSO & Employee Sync
+section Prep
+M0 Flags & deps: m0, 2025-10-22, 2d
+section Graph Sync
+M1 DB schema: m1, after m0, 2d
+M2 Graph client (dry-run): m2, after m1, 3d
+M3 Upsert (writes): m3, after m2, 3d
+section SSO
+M4 OIDC login: m4, after m3, 4d
+M5 Role mapping: m5, after m4, 3d
+section Frontend & Ops
+M6 Login button: m6, after m5, 2d
+M7 Scheduling/backoff/docs: m7, after m6, 3d
+```
