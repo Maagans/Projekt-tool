@@ -174,3 +174,136 @@ AZURE_ADMIN_GROUP_ID=
 AZURE_PROJECTLEAD_GROUP_ID=
 AZURE_SYNC_GROUP_ID=
 ```
+# Resource Management Roadmap
+
+This feature adds capacity planning and utilization views across departments and per project, with weekly aggregation and Recharts visualizations.
+
+## Objectives
+- Track capacity vs. planned vs. actual hours per week.
+- PMO (org-wide, department filter) and Project Lead (project-only) views.
+- Weekly aggregation using existing `week_key` dimension.
+- Visualize with Recharts.
+
+## Prerequisites
+- Departments mapped to employees (assumed true). If the database lacks a `department` field, add it via migration (see dependency note).
+- Confirm week aggregation: use `project_member_time_entries.week_key` (varchar(10)).
+- Access control:
+  - PMO view available to Administrators (or add a dedicated PMO role later).
+  - Project-level view available to Projektleder and Administrator for their projects.
+
+## Data Model
+- Existing:
+  - `employees(id, name, email, [department?])`
+  - `project_members(id, project_id, employee_id, role, ...)`
+  - `project_member_time_entries(project_member_id, week_key, planned_hours, actual_hours)`
+- New:
+  - `employees.max_capacity_hours_week numeric(6,2) NOT NULL DEFAULT 0`
+  - If not present: `employees.department text` (dependency on SSO Milestone 1 can satisfy this).
+
+Note on capacity history: Initial scope uses a static per-employee weekly capacity (applied to all weeks). A later enhancement can add capacity change history.
+
+## API (Draft)
+- GET `/analytics/resources`
+  - Query:
+    - `scope=department|project`
+    - `scopeId=<departmentName|projectId>`
+    - `fromWeek=<YYYY-Www>` (optional)
+    - `toWeek=<YYYY-Www>` (optional)
+  - Response:
+    ```json
+    {
+      "scope": "department",
+      "scopeId": "IT",
+      "fromWeek": "2025-W01",
+      "toWeek": "2025-W12",
+      "series": [
+        { "week": "2025-W01", "capacity": 320, "planned": 260, "actual": 245 },
+        { "week": "2025-W02", "capacity": 320, "planned": 280, "actual": 310 }
+      ],
+      "overAllocatedWeeks": ["2025-W02"]
+    }
+    ```
+
+Capacity aggregation rules:
+- Department scope: sum `employees.max_capacity_hours_week` for all employees in department.
+- Project scope: sum `employees.max_capacity_hours_week` for employees assigned to the project.
+- Planned/actual: sum from `project_member_time_entries` (join through `project_members` and filter by scope).
+
+## Frontend (Draft)
+- Library: Recharts.
+- Views:
+  - PMO dashboard: department filter + line chart with Capacity, Planned, Actual.
+  - Project dashboard panel: same chart for the current project.
+- UX:
+  - Tooltips with values per week.
+  - Badges/colour emphasis when planned/actual exceed capacity.
+  - Optional CSV export later.
+
+## Milestones
+
+### RM-0 ? Requirements Lock & Skeleton
+- Confirm weekly aggregation and department mapping (confirmed).
+- Decide role for PMO view (use Administrator initially).
+- Add feature flag(s) if desired (e.g., `RESOURCES_ANALYTICS_ENABLED=true`).
+- Acceptance: No behavior change; docs updated.
+
+### RM-1 ? Migration: Capacity (+ Department if missing)
+- Add `employees.max_capacity_hours_week numeric(6,2) NOT NULL DEFAULT 0`.
+- If `employees.department` does not exist, add `department text` (otherwise reuse existing).
+- Validation: capacity must be >= 0.
+- Acceptance: `npm run migrate` succeeds; existing data unaffected.
+
+### RM-2 ? Backend Aggregation Service (No Routes Yet)
+- Implement service functions:
+  - `calcDepartmentSeries(department, range)` and `calcProjectSeries(projectId, range)`.
+  - Joins:
+    - Department: `employees` -> `project_members.employee_id` -> `project_member_time_entries`
+    - Project: `project_members.project_id` -> `project_member_time_entries`
+  - Aggregate per `week_key` -> `{ capacity, planned, actual }`.
+- Unit tests on SQL/service layer with seeded fixtures.
+- Acceptance: Service returns correct timeseries for sample data.
+
+### RM-3 ? API Endpoint
+- Add GET `/analytics/resources` using the service.
+- Input validation: scope, scopeId, week range.
+- Access control:
+  - Department scope: Administrator only (PMO).
+  - Project scope: Administrator or Projektleder of that project.
+- Acceptance: Endpoint returns JSON as specified; 403/400 errors correct.
+
+### RM-4 ? Frontend: PMO View (Admin)
+- New page: Resources Analytics with department dropdown and date range.
+- Recharts line chart with 3 series; legend, tooltips.
+- Over-allocation highlighting.
+- Acceptance: Admin can switch department and see correct data.
+
+### RM-5 ? Frontend: Project Panel
+- Add panel on project dashboard.
+- Uses `scope=project&scopeId=:projectId`.
+- Acceptance: Projektleder sees own project?s lines; matches API.
+
+### RM-6 ? Polish & Ops
+- Optional CSV export of the series.
+- Pagination/batching of weeks if needed.
+- Basic caching of frequent queries (e.g., memory cache for latest week).
+- Acceptance: Smooth UX, no noticeable lag for typical ranges.
+
+### RM-7 ? Docs & Release
+- README: new field on employee, API usage, screenshots.
+- ROADMAP: mark milestones complete and next improvements.
+- Version bump and changelog.
+
+## Acceptance Criteria (End-to-End)
+- A department with N employees shows weekly capacity as the sum of employees? `max_capacity_hours_week`.
+- Planned/actual match sums in `project_member_time_entries` (filtered by department via join or by project).
+- Over-allocated weeks are flagged (planned>capacity or actual>capacity).
+- Admin (PMO) sees department view; Projektleder sees project view; Teammedlem cannot access department analytics.
+
+## Risks & Mitigations
+- Missing department on employees: handled by migration or dependency on SSO Milestone 1 (adds `department`).
+- Inconsistent week keys: enforce `YYYY-Www` format and validate on input.
+- Performance on large ranges: implement index-aware queries and optional caching.
+
+## Dependencies
+- If SSO roadmap adds `employees.department`, reuse it; otherwise create it here.
+- Uses existing `project_member_time_entries` (no schema change needed).
