@@ -6,10 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-10-08
+### Fixed
+- Rettede `node-pg-migrate`-konfigurationen til at bruge JSON og ESM-kompatible migrationer, saa `npm run migrate` virker paa nye installationer.
+- Opdaterede admin seeding-scriptet til at prompt'e interaktivt for manglende `ADMIN_*` variabler og haandtere ikke-interaktive miljoeer sikkert.
+
+### Changed
+- Opdaterede README med ny installationsproces baseret paa `npm run migrate` og `npm run seed:admin` i stedet for det gamle `setup-db.sql`.
+
+## [1.0.4] - 2025-10-01
+### Fixed
+- Rettede fejl i rapport-tidslinjen hvor milepaele kunne overlappe leverancer ved brede skaerme.
+
 ## [1.0.3] - 2025-09-26
 ### Added
 - Tilfoejet eksempeldata til nye rapporter (faser, deliverables, risici og kanbanopgaver) for hurtigere opstart.
-- Leverance-bokse i tidslinjen har nu stoerre hoejde, automatisk tekstombrydning og ekstra afstand mellem rækker.
+- Leverance-bokse i tidslinjen har nu stoerre hoejde, automatisk tekstombrydning og ekstra afstand mellem raekker.
 
 ## [1.0.2] - 2025-09-26
 ### Changed
