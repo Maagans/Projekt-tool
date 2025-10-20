@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Report } from '../types';
 import { PlusIcon, CalendarIcon, StepForwardIcon, TrashIcon } from './Icons';
 
@@ -27,9 +27,9 @@ export const ReportSidebar: React.FC<ReportSidebarProps> = ({ reports, activeWee
         <button
             onClick={onNextReportClick}
             className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-green-600 bg-green-100 hover:bg-green-200 p-2 rounded-md transition-colors"
-            title="Opret rapport for nÃ¦ste uge"
+            title="Opret rapport for næste uge"
         >
-            <StepForwardIcon /> NÃ¦ste
+            <StepForwardIcon /> Næste
         </button>
       </div>
 
@@ -59,7 +59,7 @@ export const ReportSidebar: React.FC<ReportSidebarProps> = ({ reports, activeWee
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm(`Er du sikker pÃ¥, at du vil slette rapporten for ${report.weekKey}? Handlingen kan ikke fortrydes.`)) {
+                                if (window.confirm(`Er du sikker på, at du vil slette rapporten for ${report.weekKey}? Handlingen kan ikke fortrydes.`)) {
                                     onDeleteReport(report.weekKey);
                                 }
                             }}

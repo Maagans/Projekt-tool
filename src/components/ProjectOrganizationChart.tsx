@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ProjectMember, Employee, Project } from '../types';
 import { PlusIcon, TrashIcon, UsersIcon, ClockIcon } from './Icons';
 import { EditableField } from './EditableField';
@@ -180,12 +180,12 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMe
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg flex flex-col h-[70vh]">
-        <h3 className="text-xl font-bold mb-4 text-slate-800">TilfÃ¸j medlem fra database</h3>
+        <h3 className="text-xl font-bold mb-4 text-slate-800">Tilføj medlem fra database</h3>
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="SÃ¸g efter navn eller email..."
+          placeholder="Søg efter navn eller email..."
           className="w-full bg-white border border-slate-300 rounded-md p-2 mb-4"
         />
         <div className="flex-grow overflow-y-auto border-y border-slate-200 -mx-6 px-6 py-2">
@@ -201,13 +201,13 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMe
                     onClick={() => handleAssign(emp.id)}
                     className="bg-blue-100 text-blue-700 px-3 py-1 text-sm font-semibold rounded-md hover:bg-blue-200"
                   >
-                    TilfÃ¸j
+                    Tilføj
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-center text-slate-500 pt-8">Ingen tilgÃ¦ngelige medarbejdere matcher sÃ¸gningen.</p>
+            <p className="text-center text-slate-500 pt-8">Ingen tilgængelige medarbejdere matcher søgningen.</p>
           )}
         </div>
         <div className="flex justify-end pt-6">

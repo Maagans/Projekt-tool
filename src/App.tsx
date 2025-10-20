@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useProjectManager } from './hooks/useProjectManager';
 import { api } from './api';
 import { EditableList } from './components/RichTextEditor';
@@ -79,9 +79,9 @@ const App: React.FC = () => {
          return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center bg-white p-8 rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-red-600 mb-2">Fejl ved indlÃ¦sning af data</h2>
+                    <h2 className="text-xl font-bold text-red-600 mb-2">Fejl ved indlæsning af data</h2>
                     <p className="text-slate-600">{apiError}</p>
-                    <button onClick={() => window.location.reload()} className="mt-4 bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">PrÃ¸v igen</button>
+                    <button onClick={() => window.location.reload()} className="mt-4 bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">Prøv igen</button>
                 </div>
             </div>
         );
@@ -171,7 +171,7 @@ const FirstTimeSetupPage: React.FC<{
                 onSetupComplete();
             }, 2000);
         } else {
-            setError(result.message || 'OpsÃ¦tning fejlede.');
+            setError(result.message || 'Opsætning fejlede.');
         }
         setIsSubmitting(false);
     };
@@ -181,7 +181,7 @@ const FirstTimeSetupPage: React.FC<{
             <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-slate-800">Velkommen!</h1>
-                    <p className="text-slate-500">Lad os oprette den fÃ¸rste administratorkonto.</p>
+                    <p className="text-slate-500">Lad os oprette den første administratorkonto.</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
@@ -250,8 +250,8 @@ const LoginPage: React.FC<{ onLogin: (email: string, pass: string) => Promise<an
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
             <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-slate-800">ProjektvÃ¦rktÃ¸j</h1>
-                    <p className="text-slate-500">Log ind for at fortsÃ¦tte</p>
+                    <h1 className="text-3xl font-bold text-slate-800">Projektværktøj</h1>
+                    <p className="text-slate-500">Log ind for at fortsætte</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
@@ -499,7 +499,7 @@ const EmployeePage: React.FC<{ projectManager: ReturnType<typeof useProjectManag
 
     const handleSaveNewEmployee = () => {
         if (!newEmployee.name || !newEmployee.email) {
-            alert("Navn og email er pÃ¥krÃ¦vet.");
+            alert("Navn og email er påkrævet.");
             return;
         }
         addEmployee(newEmployee.name, newEmployee.location, newEmployee.email);
@@ -523,7 +523,7 @@ const EmployeePage: React.FC<{ projectManager: ReturnType<typeof useProjectManag
             <main className="bg-white p-4 rounded-lg shadow-sm">
                  <div className="flex justify-end mb-4">
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".csv" className="hidden" />
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-semibold"><UploadIcon/> ImportÃ©r fra CSV</button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-semibold"><UploadIcon/> Importér fra CSV</button>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full">
@@ -536,14 +536,14 @@ const EmployeePage: React.FC<{ projectManager: ReturnType<typeof useProjectManag
                                     <td className="p-2"><EditableField initialValue={emp.name} onSave={name => updateEmployee(emp.id, { name })} /></td>
                                     <td className="p-2"><select value={emp.location} onChange={e => updateEmployee(emp.id, { location: e.target.value as Location })} className="bg-white border border-slate-300 rounded-md p-1.5 text-sm w-full">{locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}</select></td>
                                     <td className="p-2"><EditableField initialValue={emp.email} onSave={email => updateEmployee(emp.id, { email })} /></td>
-                                    <td className="p-2"><button onClick={() => { if (window.confirm(`Er du sikker pÃ¥ du vil slette ${emp.name}?`)) deleteEmployee(emp.id); }} className="text-slate-400 hover:text-red-500 p-1"><TrashIcon /></button></td>
+                                    <td className="p-2"><button onClick={() => { if (window.confirm(`Er du sikker på du vil slette ${emp.name}?`)) deleteEmployee(emp.id); }} className="text-slate-400 hover:text-red-500 p-1"><TrashIcon /></button></td>
                                 </tr>
                             ))}
                              <tr className="bg-slate-100">
                                 <td className="p-2"><input type="text" placeholder="Nyt navn" value={newEmployee.name} onChange={e => setNewEmployee(s => ({...s, name: e.target.value}))} className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full"/></td>
                                 <td className="p-2"><select value={newEmployee.location} onChange={e => setNewEmployee(s => ({...s, location: e.target.value as Location}))} className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full">{locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}</select></td>
                                 <td className="p-2"><input type="email" placeholder="Email" value={newEmployee.email} onChange={e => setNewEmployee(s => ({...s, email: e.target.value}))} className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full"/></td>
-                                <td className="p-2"><button onClick={handleSaveNewEmployee} className="w-full bg-blue-500 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-600">TilfÃ¸j</button></td>
+                                <td className="p-2"><button onClick={handleSaveNewEmployee} className="w-full bg-blue-500 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-600">Tilføj</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -776,7 +776,7 @@ const ProjectPage: React.FC<{ projectId: string; projectManager: ReturnType<type
                  </div>
                  {activeSubPage === 'reports' && (
                     <button onClick={handleExportPdf} className="flex items-center justify-center gap-2 text-sm bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-                        <DownloadIcon /><span>EksportÃ©r PDF</span>
+                        <DownloadIcon /><span>Eksportér PDF</span>
                     </button>
                  )}
             </div>
@@ -825,11 +825,11 @@ const ReportPage: React.FC<{ project: Project; projectManager: ReturnType<typeof
     };
     
     if (project.reports.length === 0) {
-        return <div className="text-center bg-white p-10 rounded-lg shadow-sm"><h2>Ingen rapporter</h2>{canManage && <button onClick={handleCreateNext} className="mt-4 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">Opret fÃ¸rste rapport</button>}</div>;
+        return <div className="text-center bg-white p-10 rounded-lg shadow-sm"><h2>Ingen rapporter</h2>{canManage && <button onClick={handleCreateNext} className="mt-4 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">Opret første rapport</button>}</div>;
     }
     
     if (!activeReport) {
-        return <div className="text-center bg-white p-10 rounded-lg shadow-sm"><h2>VÃ¦lg en rapport fra listen for at se den.</h2></div>;
+        return <div className="text-center bg-white p-10 rounded-lg shadow-sm"><h2>Vælg en rapport fra listen for at se den.</h2></div>;
     }
     
     const { timelineManager, statusListManager, challengeListManager, kanbanManager, riskManager } = restActions;
@@ -841,7 +841,7 @@ const ReportPage: React.FC<{ project: Project; projectManager: ReturnType<typeof
                 {canManage && (
                     <div className="flex items-center gap-2 mb-4">
                         <button onClick={() => setIsNewReportModalOpen(true)} className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 bg-blue-100 hover:bg-blue-200 p-2 rounded-md transition-colors" title="Opret ny specifik ugerapport"><PlusIcon /> Ny</button>
-                        <button onClick={handleCreateNext} className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-green-600 bg-green-100 hover:bg-green-200 p-2 rounded-md transition-colors" title="Opret rapport for nÃ¦ste uge"><StepForwardIcon /> NÃ¦ste</button>
+                        <button onClick={handleCreateNext} className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-green-600 bg-green-100 hover:bg-green-200 p-2 rounded-md transition-colors" title="Opret rapport for næste uge"><StepForwardIcon /> Næste</button>
                     </div>
                 )}
                 <div className="flex-grow overflow-y-auto -mr-2 pr-2">
@@ -881,7 +881,7 @@ const NewReportModal: React.FC<{ manager: any, onClose: () => void, onSelect: (w
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 export-hide">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4 text-slate-800">Opret ny ugerapport</h3>
-                <label htmlFor="week-select" className="block text-sm font-medium text-slate-700 mb-2">VÃ¦lg uge for rapporten (baseres pÃ¥ seneste)</label>
+                <label htmlFor="week-select" className="block text-sm font-medium text-slate-700 mb-2">Vælg uge for rapporten (baseres på seneste)</label>
                 {availableWeeks.length > 0 ? (
                     <select id="week-select" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="w-full bg-white border border-slate-300 rounded-md p-2 text-sm">{availableWeeks.map((w: string) => <option key={w} value={w}>{w}</option>)}</select>
                 ) : (
@@ -918,7 +918,7 @@ const ProjectOrganizationPage: React.FC<{ project: Project; projectManager: Retu
 
 const ProjectSettingsPage: React.FC<{ project: Project; projectManager: ReturnType<typeof useProjectManager>; }> = ({ project, projectManager }) => {
     const { updateProjectConfig, updateProjectStatus } = projectManager;
-    const projectStatusOptions: { key: ProjectStatus, label: string }[] = [{key: 'active', label: 'Aktiv'}, {key: 'completed', label: 'FuldfÃ¸rt'}, {key: 'on-hold', label: 'PÃ¥ hold'}];
+    const projectStatusOptions: { key: ProjectStatus, label: string }[] = [{key: 'active', label: 'Aktiv'}, {key: 'completed', label: 'Fuldført'}, {key: 'on-hold', label: 'På hold'}];
     return (
          <div className="bg-white p-4 rounded-lg shadow-sm">
              <h3 className="text-lg font-bold mb-4 text-slate-700">Projektindstillinger</h3>

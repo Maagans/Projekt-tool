@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { KanbanTask } from '../types';
 import { PlusIcon, TrashIcon } from './Icons';
 import { EditableField } from './EditableField';
@@ -8,7 +8,7 @@ type KanbanStatus = 'todo' | 'doing' | 'done';
 const columnTitles: Record<KanbanStatus, string> = {
   todo: 'To Do',
   doing: 'I gang',
-  done: 'GennemfÃ¸rt'
+  done: 'Gennemført'
 };
 
 const columnStyles: Record<KanbanStatus, string> = {
@@ -90,7 +90,7 @@ const KanbanColumn: React.FC<{
         onClick={() => onAddTask(status)}
         className="mt-4 w-full flex items-center justify-center gap-1 text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors export-hide"
       >
-        <PlusIcon /> TilfÃ¸j opgave
+        <PlusIcon /> Tilføj opgave
       </button>
     </div>
   );

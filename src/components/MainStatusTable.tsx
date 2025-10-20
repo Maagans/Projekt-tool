@@ -1,4 +1,4 @@
-﻿import React, { useRef } from 'react';
+import React, { useRef } from 'react';
 import { MainTableRow } from '../types';
 
 interface MainStatusTableProps {
@@ -47,7 +47,7 @@ export const MainStatusTable: React.FC<MainStatusTableProps> = ({ rows, cycleSta
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-slate-200">
-              <th className="p-2 text-left text-sm font-semibold text-slate-600 w-1/4">OmrÃ¥de</th>
+              <th className="p-2 text-left text-sm font-semibold text-slate-600 w-1/4">Område</th>
               <th className="p-2 text-left text-sm font-semibold text-slate-600 w-1/4">Status</th>
               <th className="p-2 text-left text-sm font-semibold text-slate-600 w-1/2">Note</th>
             </tr>

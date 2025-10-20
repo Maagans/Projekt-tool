@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Project, ProjectConfig } from '../types';
 import { CalendarIcon, SaveIcon, PlusIcon, DownloadIcon, StepForwardIcon } from './Icons';
 import { EditableField } from './EditableField';
@@ -155,7 +155,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
 
     } catch (error) {
         console.error("Fejl under PDF-eksport:", error);
-        alert("Der opstod en fejl under PDF-eksporten. PrÃ¸v venligst igen.");
+        alert("Der opstod en fejl under PDF-eksporten. Prøv venligst igen.");
     } finally {
         setIsExporting(false);
         document.body.classList.remove('pdf-export-active');
@@ -181,7 +181,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     onChange={e => selectProject(e.target.value)}
                     className="bg-white border border-slate-300 rounded-md p-2 text-sm font-semibold"
                 >
-                    <option value="" disabled>{Object.keys(workspace).length > 0 ? "VÃ¦lg projekt" : "Ingen projekter"}</option>
+                    <option value="" disabled>{Object.keys(workspace).length > 0 ? "Vælg projekt" : "Ingen projekter"}</option>
                     {Object.keys(workspace).map(name => <option key={name} value={name}>{name}</option>)}
                 </select>
                 <button onClick={() => setShowNewProject(true)} className="flex items-center gap-1 text-sm bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600">
@@ -236,7 +236,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     className="bg-white border border-slate-300 rounded-md p-2 text-sm"
                     disabled={!currentProject?.reports.length}
                 >
-                    <option value="" disabled>VÃ¦lg uge</option>
+                    <option value="" disabled>Vælg uge</option>
                     {currentProject?.reports.sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(r => (
                         <option key={r.weekKey} value={r.weekKey}>{r.weekKey}</option>
                     ))}
@@ -247,9 +247,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
                 <button 
                     onClick={createNextReport}
                     className="flex items-center gap-1 text-sm bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600"
-                    title="Opret rapport for nÃ¦ste uge baseret pÃ¥ den seneste"
+                    title="Opret rapport for næste uge baseret på den seneste"
                 >
-                    <StepForwardIcon /> NÃ¦ste rapport
+                    <StepForwardIcon /> Næste rapport
                 </button>
                  <button 
                     onClick={handleExportPdf}
@@ -267,7 +267,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     ) : (
                         <>
                             <DownloadIcon />
-                            <span>EksportÃ©r PDF</span>
+                            <span>Eksportér PDF</span>
                         </>
                     )}
                 </button>
@@ -276,7 +276,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     className="flex items-center gap-2 text-sm bg-slate-600 text-white px-4 py-2 rounded-md hover:bg-slate-700 transition-colors font-semibold"
                     >
                     <SaveIcon />
-                    EksportÃ©r Data
+                    Eksportér Data
                 </button>
              </div>
         </div>
@@ -287,7 +287,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
                 <h3 className="text-xl font-bold mb-4 text-slate-800">Opret ny ugerapport</h3>
                 <div className="space-y-2">
-                    <label htmlFor="week-select" className="block text-sm font-medium text-slate-700">VÃ¦lg uge for rapporten</label>
+                    <label htmlFor="week-select" className="block text-sm font-medium text-slate-700">Vælg uge for rapporten</label>
                     {availableWeeks.length > 0 ? (
                         <select
                             id="week-select"
@@ -298,7 +298,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                             {availableWeeks.map(week => <option key={week} value={week}>{week}</option>)}
                         </select>
                     ) : (
-                        <p className="text-sm text-slate-500 p-3 bg-slate-100 rounded-md border border-slate-200">Der er ingen tilgÃ¦ngelige uger at oprette rapport for i den valgte projektperiode.</p>
+                        <p className="text-sm text-slate-500 p-3 bg-slate-100 rounded-md border border-slate-200">Der er ingen tilgængelige uger at oprette rapport for i den valgte projektperiode.</p>
                     )}
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
