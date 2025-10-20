@@ -14,9 +14,11 @@ Node.js/Express API med PostgreSQL til projektvaerktoej-appen.
 2. Kopier `.env.example` til `.env` og opdater variablerne:
    - `DATABASE_URL` skal pege paa din PostgreSQL database.
    - `JWT_SECRET` skal vaere en lang tilfaeldig streng (se eksempel i filen).
-   - `PORT` er valgfri (standard er 3001).
-   - `CORS_ORIGIN` er valgfri komma-separeret liste af tilladte origins (standard `http://localhost:5173` i udvikling).
-   - `PG_BACKUP_DIR` er valgfri og styrer hvor backups gemmes (standard `backups`).
+- `PORT` er valgfri (standard er 3001).
+- `CORS_ORIGIN` er valgfri komma-separeret liste af tilladte origins (standard `http://localhost:5173` i udvikling).
+- `PG_BACKUP_DIR` er valgfri og styrer hvor backups gemmes (standard `backups`).
+- `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` styrer rate limiting (standard 60s vindue / 5 requests).
+- `LOG_LEVEL` styrer log-niveau (fx `info`, `debug`, `warn`).
 
 ## Database migrationer
 Projektet bruger [node-pg-migrate](https://salsita.github.io/node-pg-migrate/) til schema-opdateringer. Alle SQL-aendringer ligger i `backend/migrations`.
@@ -65,6 +67,8 @@ Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet
 - Krav: `pg_dump` fra PostgreSQL klientvaerktoeer skal vaere installeret og paa PATH.
 
 ## Lokal udvikling
+- Health check: `GET /health` returnerer `{ "status": "ok" }` og fejler med 503 hvis databasen er utilgængelig.
+
 - Start backend med auto-reload: `npm run dev`.
 - Start backend til produktionstest: `npm start` (forventer at migrationerne allerede er koert).
 
@@ -86,4 +90,5 @@ Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet
 
 ## Legacy setup-db.sql
 Filen `setup-db.sql` findes stadig til reference, men den er afloest af migrationssystemet og boer ikke bruges i nye miljoer.
+
 

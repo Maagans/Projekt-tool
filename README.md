@@ -1,4 +1,4 @@
-﻿# Project Status & Reporting Tool
+# Project Status & Reporting Tool
 
 A full-stack project and report management tool powered by a PostgreSQL relational database, an Express backend, and a Vite/React frontend. This guide walks through setting the system up from scratch on a local machine.
 
@@ -40,12 +40,14 @@ JWT_SECRET=replace_this_with_a_random_64_char_hex
 CORS_ORIGIN=http://localhost:5173
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX=5
+LOG_LEVEL=info
 ```
 Generate a strong JWT secret, for example:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 For production, set `CORS_ORIGIN` to a comma-separated list of allowed origins (e.g., your deployed frontend URLs).
+Set `LOG_LEVEL` (default `info`) to control backend logging verbosity.
 
 ## 4. Run database migrations
 ```bash
@@ -229,4 +231,5 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
+
 

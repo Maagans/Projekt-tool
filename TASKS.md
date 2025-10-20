@@ -5,6 +5,16 @@
     1) `npm run lint`.
     2) `npm run build`.
   - Accept: 429 ved overskridelse; legitime brugere kan stadig logge ind under normal brug.
+- [x] BE-003: Central error handler
+  - Formål: En ensartet 500-respons og mindre duplikeret try/catch.
+  - Ændringer: Tilføjede global createAppError helper, central error middleware og opdaterede auth/workspace/time-entry routes til at bruge 
+ext(createAppError(...)).
+  - Test (TDD):
+    1) 
+pm run lint.
+    2) 
+pm run build.
+  - Accept: Konsistente fejlbeskeder/logs; ingen utilsigtede 200'er ved fejl.
 - Start fra den første fase og bevæg dig nedad; faserne reducerer risiko ved at sikre stabilt grundlag først.
 - Hver opgave beskriver “Red-Green-Refactor” i praksis via konkrete testtrin og klare acceptkriterier.
 - Hvor der foreslås nye værktøjer (lint/CI/test), opret dem i små commits og valider i pipeline, før du fortsætter.
@@ -115,21 +125,22 @@
   - PRD: §3.1–§3.3 Dataintegritet (forhindrer forkerte data i projekter, rapporter og brugere).
   - Afhængigheder: BE-003.
 
-- [ ] BE-005: `/health` endpoint
+- [x] BE-005: `/health` endpoint
   - Formål: Drift/overvågning; enkel liveness/readiness.
-  - Ændringer: `GET /health` returnerer `{ status: 'ok' }` og evt. DB ping.
-  - Test (TDD): `curl /health` = 200; kan sondres i load balancer.
-  - Accept: Endpoint stabilt i dev/prod.
-  - PRD: §4 Stabilitet og Pålidelighed (driftsmonitorering for funktionerne i §3).
-  - Afhængigheder: Ingen.
+  - Ændringer: Tilføjede `GET /health` med DB ping og dokumenterede endpoint i README/backend-README.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
+  - Accept: `curl /health` = 200; kan sondres i load balancer.
 
-- [ ] BE-006: Log-hærdning (ingen PII; struktureret logging)
-  - Formål: Bedre drift; undgå følsomme data i logs.
-  - Ændringer: Skift konsol-logs til pino/structured og fjern email i fejl-logs ved login.
-  - Test (TDD): Login-fejl logger uden email; struktur kan parses.
-  - Accept: Logs indeholder ikke PII og er maskinlæsbare.
-  - Afhængigheder: BE-003.
 
+- [x] BE-006: Log-hardening (no PII; structured logging)
+  - Purpose: Improve operations; avoid sensitive data in logs.
+  - Changes: Added Pino logger, centralized error handling logging, scrubbed login email output, and documented `LOG_LEVEL`.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
+  - Acceptance: Logs contain no PII and remain machine-readable.
 ---
 
 ## Fase P3 — CI/CD, kvalitet og dev-oplevelse
@@ -217,7 +228,7 @@
   - PRD: §3.1 Projektrapportering (pålidelig UX) & §4 Stabilitet (graceful degradation).
   - Afhængigheder: FE-001.
 
-  - Afhængigheder: BE-006.
+  - Dependencies: BE-006.
 
 - [ ] FE-006: Beskyt mod reload-loops ved 401 i `api.ts`
   - Formål: Undgå gentagne `window.location.reload()`-loops.

@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import pool from './db.js';
 import authMiddleware from './authMiddleware.js';
+import logger from './logger.js';
 
 dotenv.config();
 
@@ -34,6 +35,19 @@ const corsOptions = {
     credentials: true,
 };
 
+const createAppError = (message, status = 500, cause) => {
+    const error = new Error(message);
+    error.status = status;
+    error.userMessage = message;
+    if (cause) {
+        error.cause = cause;
+    }
+    if (status < 500) {
+        error.expose = true;
+    }
+    return error;
+};
+
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
@@ -50,8 +64,19 @@ const authRateLimiter = rateLimit({
     legacyHeaders: false,
     message: {
         success: false,
-        message: 'For mange forsøg. Prøv igen om lidt.',
+        message: 'Too many attempts. Please try again shortly.',
     },
+});
+
+
+app.get('/health', async (req, res, next) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({ status: 'ok' });
+    } catch (error) {
+        logger.error({ err: error }, 'Health check failed');
+        return next(createAppError('Health check failed', 503, error));
+    }
 });
 
 const isValidUuid = (value) => typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(value);
@@ -81,7 +106,7 @@ const createEmptyWorkspace = () => ({ projects: [], employees: [] });
 
 const logDebug = (category, ...args) => {
     if (process.env.DEBUG_WORKSPACE === 'true') {
-        console.log('[' + String(category) + ']', ...args);
+        logger.debug({ category, args });
     }
 };
 const loadFullWorkspace = async (clientOverride) => {
@@ -1136,18 +1161,18 @@ const adminOnly = (req, res, next) => {
     return next();
 };
 
-app.get('/api/setup/status', async (req, res) => {
+app.get('/api/setup/status', async (req, res, next) => {
     try {
         const result = await pool.query("SELECT COUNT(*)::int AS admin_count FROM users WHERE role = 'Administrator'");
         const needsSetup = (result.rows[0]?.admin_count ?? 0) === 0;
         res.json({ needsSetup });
     } catch (error) {
-        console.error('Error checking setup status:', error);
-        res.status(500).json({ message: 'Could not check application setup status.' });
+        logger.error({ err: error }, 'Error checking setup status');
+        return next(createAppError('Could not check application setup status.', 500, error));
     }
 });
 
-app.post('/api/setup/create-first-user', authRateLimiter, async (req, res) => {
+app.post('/api/setup/create-first-user', authRateLimiter, async (req, res, next) => {
     try {
         const result = await pool.query("SELECT COUNT(*)::int AS admin_count FROM users WHERE role = 'Administrator'");
         if ((result.rows[0]?.admin_count ?? 0) > 0) {
@@ -1199,11 +1224,11 @@ app.post('/api/setup/create-first-user', authRateLimiter, async (req, res) => {
 
         res.status(201).json({ success: true, message: 'Administrator account created successfully! You can now log in.' });
     } catch (error) {
-        console.error('First user creation error:', error);
-        res.status(500).json({ message: 'An internal server error occurred during initial setup.' });
+        logger.error({ err: error }, 'First user creation error');
+        return next(createAppError('An internal server error occurred during initial setup.', 500, error));
     }
 });
-app.post('/api/login', authRateLimiter, async (req, res) => {
+app.post('/api/login', authRateLimiter, async (req, res, next) => {
     const { email, password } = req.body ?? {};
     if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required.' });
@@ -1214,13 +1239,13 @@ app.post('/api/login', authRateLimiter, async (req, res) => {
         const result = await pool.query('SELECT id::text, name, email, role, password_hash, employee_id::text FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
         const user = result.rows[0];
         if (!user) {
-            console.error(`Login attempt failed: User with email "${email}" not found.`);
+            logger.warn({ event: 'login_failed', reason: 'user_not_found' });
             return res.status(401).json({ message: 'Login failed. Please check your email and password.' });
         }
 
         const isMatch = bcrypt.compareSync(password.trim(), user.password_hash.trim());
         if (!isMatch) {
-            console.error(`Login attempt failed: Password mismatch for user "${email}".`);
+            logger.warn({ event: 'login_failed', reason: 'password_mismatch', userId: user.id });
             return res.status(401).json({ message: 'Login failed. Please check your email and password.' });
         }
 
@@ -1242,12 +1267,12 @@ app.post('/api/login', authRateLimiter, async (req, res) => {
         const token = jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn: '1d' });
         res.json({ success: true, token, user: userPayload });
     } catch (error) {
-        console.error('Internal server error during login:', error);
-        res.status(500).json({ message: 'An internal server error occurred during login.' });
+        logger.error({ err: error }, 'Internal server error during login');
+        return next(createAppError('An internal server error occurred during login.', 500, error));
     }
 });
 
-app.post('/api/register', authRateLimiter, async (req, res) => {
+app.post('/api/register', authRateLimiter, async (req, res, next) => {
     const { email, name, password } = req.body ?? {};
     if (!email || !name || !password) {
         return res.status(400).json({ message: 'Email, name, and password are required.' });
@@ -1295,8 +1320,8 @@ app.post('/api/register', authRateLimiter, async (req, res) => {
 
         res.status(201).json({ success: true, message: 'User created successfully! You can now log in.' });
     } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ message: 'An internal server error occurred during registration.' });
+        logger.error({ err: error }, 'Registration error');
+        return next(createAppError('An internal server error occurred during registration.', 500, error));
     }
 });
 
@@ -1304,15 +1329,15 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true, message: 'Logged out successfully.' });
 });
 
-app.get('/api/workspace', authMiddleware, async (req, res) => {
+app.get('/api/workspace', authMiddleware, async (req, res, next) => {
     try {
         const enrichedUser = await ensureEmployeeLinkForUser(pool, req.user);
         req.user = enrichedUser;
         const workspace = await buildWorkspaceForUser(enrichedUser);
         res.json(workspace);
     } catch (error) {
-        console.error('Get workspace error:', error);
-        res.status(500).json({ message: 'An internal server error occurred while retrieving workspace data.' });
+        logger.error({ err: error }, 'Get workspace error');
+        return next(createAppError('An internal server error occurred while retrieving workspace data.', 500, error));
     }
 });
 
@@ -1334,11 +1359,11 @@ app.post('/api/workspace', authMiddleware, async (req, res) => {
         res.json({ success: true, workspace });
     } catch (error) {
         const statusCode = error.statusCode ?? 500;
-        console.error('Save workspace error:', error);
+        logger.error({ err: error }, 'Save workspace error');
         res.status(statusCode).json({ message: statusCode === 403 ? 'Forbidden: Insufficient permissions.' : 'An internal server error occurred while saving workspace data.' });
     }
 });
-app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, res) => {
+app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, res, next) => {
     const { projectId } = req.params;
     const { memberId, weekKey, plannedHours, actualHours } = req.body ?? {};
 
@@ -1459,21 +1484,21 @@ app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, re
             client.release();
         }
     } catch (error) {
-        console.error('Time entry update error:', error);
-        res.status(500).json({ message: 'An internal server error occurred while updating time entries.' });
+        logger.error({ err: error }, 'Time entry update error');
+        return next(createAppError('An internal server error occurred while updating time entries.', 500, error));
     }
 });
-app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+app.get('/api/users', authMiddleware, adminOnly, async (req, res, next) => {
     try {
         const result = await pool.query('SELECT id::text, name, email, role FROM users ORDER BY name');
         res.json(result.rows);
     } catch (error) {
-        console.error('Get users error:', error);
-        res.status(500).json({ message: 'An internal server error occurred while retrieving users.' });
+        logger.error({ err: error }, 'Get users error');
+        return next(createAppError('An internal server error occurred while retrieving users.', 500, error));
     }
 });
 
-app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
+app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res, next) => {
     const { id } = req.params;
     const { role } = req.body ?? {};
 
@@ -1492,13 +1517,44 @@ app.put('/api/users/:id/role', authMiddleware, adminOnly, async (req, res) => {
         }
         res.json({ success: true, message: 'User role updated.' });
     } catch (error) {
-        console.error('Update role error:', error);
-        res.status(500).json({ message: 'An internal server error occurred while updating the user role.' });
+        logger.error({ err: error }, 'Update role error');
+        return next(createAppError('An internal server error occurred while updating the user role.', 500, error));
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Backend server is running on http://localhost:${PORT}`);
+// Centralized error handler
+app.use((err, req, res, next) => {
+    if (res.headersSent) {
+        return next(err);
+    }
+
+    const status = err.status ?? err.statusCode ?? 500;
+    const message =
+        err.userMessage ??
+        (status < 500 && err.message ? err.message : 'An internal server error occurred.');
+
+    if (status >= 500) {
+        logger.error({ err }, 'Unhandled application error');
+    }
+
+    res.status(status).json({
+        success: false,
+        message,
+    });
 });
+
+app.listen(PORT, () => {
+    logger.info({ port: PORT }, 'Backend server is running');
+});
+
+
+
+
+
+
+
+
+
+
 
 
