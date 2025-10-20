@@ -13,20 +13,22 @@ Hvordan bruges den
 
 ## Fase P0 — Forberedelse & Hygiejne (lav risiko, stor effekt)
 
-- [ ] REPO-001: Fjern dubletter og genererede filer
+- [x] REPO-001: Fjern dubletter og genererede filer
   - Formål: Eliminér filkollisioner og forvirring mellem `src/**` og rodkopier.
   - Ændringer: Slet/arkivér bl.a. `App.js`, `components/*.js`, `hooks/useProjectManager.js`, `index-1.tsx`, tom `index.tsx`, `types.js`, `metadata*.json` (eller flyt til `docs/`), `tmp_patch.py`, `setup-db.sql` (i roden), `-1.gitignore`.
   - Test (TDD):
     1) `npm run dev` (frontend) starter uden importfejl.
     2) `rg -n "src\\(components|hooks|types)" -S` viser, at kun TypeScript-kilder bruges.
   - Accept: Dev og build virker; ingen ubrugte .js-duplikater parallelt med .tsx.
+  - PRD: §4 Stabilitet og Pålidelighed (grundlag for projekt- og ressourcestyring i §3.1–§3.3).
   - Afhængigheder: Ingen.
 
-- [ ] REPO-002: Normalisér filkodning og lokalisering
+- [x] REPO-002: Normalisér filkodning og lokalisering
   - Formål: Undgå “�”-tegn i UI og sikre konsistent UTF-8.
   - Ændringer: Tilføj `.editorconfig`; ret mis-encodede strenge (fx “Skælskør” i `src/types.ts`).
   - Test (TDD): Åbn UI; verificér danske tegn (æøå) vises korrekt i titler og labels.
   - Accept: Alle danske strenge gengives korrekt i browseren og i build-output.
+  - PRD: §4 Performance & Responsivitet (lokaliseret UI fra §3.1 og §3.2 uden encoding-fejl).
   - Afhængigheder: REPO-001 (anbefalet).
 
 - [ ] REPO-003: ESLint/Prettier baseline for TS/React
@@ -34,6 +36,7 @@ Hvordan bruges den
   - Ændringer: Tilføj `.eslintrc.cjs` + Prettier; kør `npm run lint` i root (frontend) som standard.
   - Test (TDD): `npm run lint` returnerer 0 fejl; CI konfigureres senere til at køre lint.
   - Accept: Ingen lint-fejl i `src/**`.
+  - PRD: §4 Stabilitet og Pålidelighed (kodekvalitet understøtter kernefunktioner i §3.1–§3.3).
   - Afhængigheder: Ingen.
 
 ---
@@ -50,6 +53,7 @@ Hvordan bruges den
     1) Start backend (`backend/npm run dev`) og frontend (`npm run dev`).
     2) Log ind i UI uden CORS-fejl; API-kald går via `/api`.
   - Accept: Login/arbejdsrum indlæses i dev uden CORS eller URL-ændringer.
+  - PRD: §3.1 Kernefunktioner (stabil driftsopsætning) & §4 Stabilitet og Pålidelighed (miljøfleksibilitet).
   - Afhængigheder: Ingen.
 
 - [ ] FE-002: Fjern importmap/CDN i `index.html` (lad Vite bundte alt)
@@ -57,6 +61,7 @@ Hvordan bruges den
   - Ændringer: Fjern `<script type="importmap">...`-blokken; behold Tailwind midlertidigt via CDN (flyttes i FE-005).
   - Test (TDD): `npm run build` genererer `dist/` uden errors; app kører på `vite preview`.
   - Accept: Ingen runtime-fejl pga. manglende imports; konsol er ren.
+  - PRD: §4 Performance & Responsivitet (forudsigelige builds til kerneflows i §3.1).
   - Afhængigheder: FE-001 (anbefalet).
 
 - [ ] FE-003: Strammere TS-importer (ingen .ts/.tsx endelser)
@@ -66,6 +71,7 @@ Hvordan bruges den
     - Opdater imports som `import App from './App'` (uden `.tsx`).
   - Test (TDD): `npm run build` lykkes; ingen module resolution-fejl.
   - Accept: Build og dev fungerer uden TS-endelser i imports.
+  - PRD: §4 Stabilitet og Dataintegritet (tydelige moduler til rapport- og ressourceflows i §3.1–§3.2).
   - Afhængigheder: REPO-003.
 
 - [ ] FE-004: Global Error Boundary + API-fejlvisning
@@ -73,6 +79,7 @@ Hvordan bruges den
   - Ændringer: Tilføj simpel `ErrorBoundary` og en global toast/notifikation, når `api.ts` fejler (401/5xx).
   - Test (TDD): Stop backend; UI viser pæn fejl og recovery (fx “Prøv igen”).
   - Accept: Ingen “blanke sider”; fejl vises konsistent.
+  - PRD: §3.1 Projektrapportering (pålidelig UX) & §4 Stabilitet (graceful degradation).
   - Afhængigheder: FE-001.
 
 - [ ] FE-005: Bundt Tailwind lokalt
@@ -80,6 +87,7 @@ Hvordan bruges den
   - Ændringer: Opsæt `tailwind.config.js`, `postcss.config.js`, `index.css` med `@tailwind`-direktiver; fjern CDN i `index.html`.
   - Test (TDD): `npm run build`; UI-styles matcher dev.
   - Accept: Ingen visuelle regressioner og ingen CDN-kald i prod.
+  - PRD: §4 Performance & Responsivitet (ensartet UI for funktioner i §3.1–§3.2).
   - Afhængigheder: FE-002.
 
 ---
@@ -93,6 +101,7 @@ Hvordan bruges den
     1) `curl` med tilladt `Origin` = 200; med forkert `Origin` = 403/afvist preflight.
     2) UI fungerer fra den konfigurerede origin.
   - Accept: CORS kun tilladt fra whitelisted origin; security-headere sat.
+  - PRD: §3.3 Bruger- og adgangsstyring & §4 Sikkerhed/Kryptering (beskyt loginflow).
   - Afhængigheder: Ingen.
 
 - [ ] BE-002: Rate limiting på auth/setup-ruter
@@ -100,6 +109,7 @@ Hvordan bruges den
   - Ændringer: `express-rate-limit` på `POST /api/login`, `POST /api/register`, `POST /api/setup/*` (f.eks. 5/min pr. IP).
   - Test (TDD): 6. anmodning inden for interval resulterer i 429; normaliserer efter cooldown.
   - Accept: 429 ved overskridelse; legitime brugere kan stadig logge ind under normal brug.
+  - PRD: §3.3 Login & Roller samt §4 Sikkerhed (begrænser brute-force mod konti).
   - Afhængigheder: BE-001 (anbefalet).
 
 - [ ] BE-003: Central error handler
@@ -107,6 +117,7 @@ Hvordan bruges den
   - Ændringer: Tilføj `app.use((err, req, res, next) => { ... })`; skift lokale catch til `next(err)`.
   - Test (TDD): Tving en fejl (fx kast i en route); respons er 500 med ensartet JSON.
   - Accept: Konsistente fejlbeskeder/logs; ingen utilsigtede 200’er ved fejl.
+  - PRD: §4 Stabilitet og Pålidelighed (kontrollerede fejl for rapportering i §3.1–§3.2).
   - Afhængigheder: BE-001.
 
 - [ ] BE-004: Inputvalidering (login/register/time-entries)
@@ -114,6 +125,7 @@ Hvordan bruges den
   - Ændringer: `zod`/`joi` skemaer for body/params; indsæt i relevante ruter.
   - Test (TDD): Send ugyldige felter/typer; 400 med forklarende fejl.
   - Accept: Alle validerede ruter afviser dårlige inputs konsistent.
+  - PRD: §3.1–§3.3 Dataintegritet (forhindrer forkerte data i projekter, rapporter og brugere).
   - Afhængigheder: BE-003.
 
 - [ ] BE-005: `/health` endpoint
@@ -121,6 +133,7 @@ Hvordan bruges den
   - Ændringer: `GET /health` returnerer `{ status: 'ok' }` og evt. DB ping.
   - Test (TDD): `curl /health` = 200; kan sondres i load balancer.
   - Accept: Endpoint stabilt i dev/prod.
+  - PRD: §4 Stabilitet og Pålidelighed (driftsmonitorering for funktionerne i §3).
   - Afhængigheder: Ingen.
 
 - [ ] BE-006: Log-hærdning (ingen PII; struktureret logging)
@@ -238,4 +251,3 @@ Hvordan bruges den
 Noter
 - Opgaverne er designet, så hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved større refaktoreringer (BE-007) anbefales flag/feature toggles og små commits med hyppige smoke-tests.
-

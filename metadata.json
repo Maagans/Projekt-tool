@@ -1,5 +1,0 @@
-{
-  "name": "Projektværktøj online",
-  "description": "En app til at generere og administrere ugentlige projektstatusrapporter, få overblik over projektorganisation baseret på en specificeret datamodel. Giver et visuelt overblik over projektets fremdrift, risici og tidslinje.",
-  "requestFramePermissions": []
-}

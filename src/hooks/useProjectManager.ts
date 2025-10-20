@@ -21,12 +21,12 @@ const getInitialMainTableRows = (): MainTableRow[] => [
 const getInitialProjectState = (): ProjectState => ({
   statusItems: [
     { id: generateId(), content: 'Projektets mål er defineret, og gevinsterne er klarlagt.' },
-    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er paa plads.' },
+    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er på plads.' },
     { id: generateId(), content: 'Projektteamet er bemandet, og aktiviteter er i gang.' },
   ],
   challengeItems: [
     { id: generateId(), content: 'Hold øje med afhængigheder til eksterne leverandører i fase 3.' },
-    { id: generateId(), content: 'Planlæg overlevering til drift tidligt for at undgaa forsinkelser.' },
+    { id: generateId(), content: 'Planlæg overlevering til drift tidligt for at undgå forsinkelser.' },
   ],
   mainTableRows: [
     { id: generateId(), title: 'Gevinster', status: 'green', note: '<p>De forventede gevinster er beskrevet, og gevinstplanen er igangsat.</p>' },
@@ -56,7 +56,7 @@ const getInitialProjectState = (): ProjectState => ({
     { id: generateId(), text: 'Foreløbig interessentoversigt', position: 12 },
     { id: generateId(), text: 'Første risikovurdering', position: 14 },
     { id: generateId(), text: 'Projektbeskrivelse', position: 25 },
-    { id: generateId(), text: 'Målhierarki og milepaelsplan', position: 28 },
+    { id: generateId(), text: 'Målhierarki og milepælsplan', position: 28 },
     { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32 },
     { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34 },
     { id: generateId(), text: 'Kravspecifikation', position: 45 },
