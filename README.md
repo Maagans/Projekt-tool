@@ -65,18 +65,24 @@ The script prompts for admin name, email, and password if the corresponding `ADM
 
 ## 6. Run the backend API
 ```bash
-cd backend
-npm run dev
+npm run dev:backend
 ```
-The server listens on `http://localhost:3001` and exposes endpoints for authentication, project management, and time tracking.
+This script proxies to `backend/npm run dev` (nodemon) and listens on `http://localhost:3001`.  
+_Alternative_: `cd backend && npm run dev`.
 
 ## 7. Run the frontend
-In a separate terminal, from the project root:
+From the project root:
 ```bash
 npm run dev
 ```
-Vite serves the React client on `http://localhost:5173` by default and proxies API calls to the backend.
+Vite serves the React client on `http://localhost:5173` by default and proxies API calls to the backend.  
 To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
+
+### One command for both servers
+```bash
+npm run dev:all
+```
+This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
 
 ## Roles and permissions
 - **Administrator**: Full access. Can view and edit every project, manage users, and change settings.
@@ -107,7 +113,7 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
    npm run migrate
    npm run seed:admin
    ```
-6. Start the backend (`npm run dev` in `backend/`) and the frontend (`npm run dev` in the root).
+6. Start everything with `npm run dev:all` (or run the backend via `npm run dev:backend` and the frontend via `npm run dev` in separate terminals).
 
 ## Production Runbook
 This runbook describes how to promote the application from local development to an organisation-hosted production environment (for example, a site such as `https://projects.example.com`). Use it as the baseline standard operating procedure for deployments and ongoing operations.

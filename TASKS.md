@@ -159,9 +159,9 @@ pm run build.
   - Accept: Stabil migrationskørsel i CI.
   - Afhængigheder: CI-001.
 
-- [ ] DEV-001: `dev:all` – start FE+BE samtidig
+- [x] DEV-001: `dev:all` – start FE+BE samtidig
   - Formål: Hurtigere lokal udvikling.
-  - Ændringer: Tilføj `concurrently` i root scripts til at køre `vite` + `backend:nodemon`.
+  - Ændringer: Tilføjet `concurrently`-opsætning samt scripts `npm run dev:backend` og `npm run dev:all` i roden.
   - Test (TDD): `npm run dev:all` starter begge processer.
   - Accept: Ét kommando-flow til lokal udvikling.
   - Afhængigheder: FE-001, BE-001.
