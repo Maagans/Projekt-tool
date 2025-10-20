@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.0.6] - 2025-10-20
+### Changed
+- Ryddet op i ældre duplikatfiler og flyttet legacy-metadata til `docs/`, så TypeScript-kilder er den eneste sandhed.
+- Tilføjet `.editorconfig`, ESLint og Prettier-konfiguration samt lint-fixes i frontend-komponenter.
+- Pinned TypeScript til 5.5.4 for at matche @typescript-eslint og fjerne værktøjsadvarsler.
+
 ## [1.0.5] - 2025-10-08
 ### Fixed
 - Rettede `node-pg-migrate`-konfigurationen til at bruge JSON og ESM-kompatible migrationer, saa `npm run migrate` virker paa nye installationer.
