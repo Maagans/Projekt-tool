@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import pool from './db.js';
 import authMiddleware from './authMiddleware.js';
 import logger from './logger.js';
@@ -47,6 +48,95 @@ const createAppError = (message, status = 500, cause) => {
     }
     return error;
 };
+
+const formatZodIssues = (issues) =>
+    issues.map((issue) => ({
+        path: issue.path.length > 0 ? issue.path.join('.') : '(root)',
+        message: issue.message,
+    }));
+
+const respondValidationError = (res, message, issues) =>
+    res.status(400).json({
+        success: false,
+        message,
+        errors: formatZodIssues(issues),
+    });
+
+const loginSchema = z.object({
+    email: z
+        .string({ required_error: 'Email is required.' })
+        .trim()
+        .min(1, 'Email is required.')
+        .max(320, 'Email must be at most 320 characters.')
+        .email('Email must be valid.'),
+    password: z
+        .string({ required_error: 'Password is required.' })
+        .min(1, 'Password is required.')
+        .max(256, 'Password must be at most 256 characters.'),
+});
+
+const registerSchema = z.object({
+    email: z
+        .string({ required_error: 'Email is required.' })
+        .trim()
+        .min(1, 'Email is required.')
+        .max(320, 'Email must be at most 320 characters.')
+        .email('Email must be valid.'),
+    name: z
+        .string({ required_error: 'Name is required.' })
+        .trim()
+        .min(1, 'Name is required.')
+        .max(200, 'Name must be at most 200 characters.'),
+    password: z
+        .string({ required_error: 'Password is required.' })
+        .min(6, 'Password must be at least 6 characters long.')
+        .max(256, 'Password must be at most 256 characters.'),
+});
+
+const optionalNonNegativeNumber = (fieldName) =>
+    z
+        .preprocess(
+            (value) => {
+                if (value === undefined || value === null || value === '') return undefined;
+                if (typeof value === 'number') return value;
+                if (typeof value === 'string') {
+                    const parsed = Number(value);
+                    return Number.isNaN(parsed) ? value : parsed;
+                }
+                return value;
+            },
+            z
+                .number({
+                    invalid_type_error: `${fieldName} must be a number.`,
+                })
+                .finite(`${fieldName} must be a finite number.`)
+                .min(0, `${fieldName} cannot be negative.`),
+        )
+        .optional();
+
+const isoWeekPattern = /^\d{4}-W\d{2}$/;
+
+const timeEntryParamsSchema = z.object({
+    projectId: z.string({ required_error: 'projectId is required.' }).uuid('projectId must be a valid UUID.'),
+});
+
+const timeEntryBodySchema = z
+    .object({
+        memberId: z.string({ required_error: 'memberId is required.' }).uuid('memberId must be a valid UUID.'),
+        weekKey: z
+            .string({ required_error: 'weekKey is required.' })
+            .trim()
+            .regex(isoWeekPattern, 'weekKey must be in the format YYYY-Www.'),
+        plannedHours: optionalNonNegativeNumber('plannedHours'),
+        actualHours: optionalNonNegativeNumber('actualHours'),
+    })
+    .refine(
+        (data) => data.plannedHours !== undefined || data.actualHours !== undefined,
+        {
+            message: 'plannedHours or actualHours must be provided.',
+            path: ['plannedHours'],
+        },
+    );
 
 app.use(helmet({
     contentSecurityPolicy: false,
@@ -1229,12 +1319,13 @@ app.post('/api/setup/create-first-user', authRateLimiter, async (req, res, next)
     }
 });
 app.post('/api/login', authRateLimiter, async (req, res, next) => {
-    const { email, password } = req.body ?? {};
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required.' });
+    const parsed = loginSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+        return respondValidationError(res, 'Invalid login payload.', parsed.error.issues);
     }
 
     try {
+        const { email, password } = parsed.data;
         const normalizedEmail = normalizeEmail(email);
         const result = await pool.query('SELECT id::text, name, email, role, password_hash, employee_id::text FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
         const user = result.rows[0];
@@ -1273,15 +1364,13 @@ app.post('/api/login', authRateLimiter, async (req, res, next) => {
 });
 
 app.post('/api/register', authRateLimiter, async (req, res, next) => {
-    const { email, name, password } = req.body ?? {};
-    if (!email || !name || !password) {
-        return res.status(400).json({ message: 'Email, name, and password are required.' });
-    }
-    if (password.length < 6) {
-        return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    const parsed = registerSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+        return respondValidationError(res, 'Invalid registration payload.', parsed.error.issues);
     }
 
     try {
+        const { email, name, password } = parsed.data;
         const normalizedEmail = normalizeEmail(email);
         const existingUser = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
         if (existingUser.rowCount > 0) {
@@ -1364,17 +1453,21 @@ app.post('/api/workspace', authMiddleware, async (req, res) => {
     }
 });
 app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, res, next) => {
-    const { projectId } = req.params;
-    const { memberId, weekKey, plannedHours, actualHours } = req.body ?? {};
-
-    if (!isValidUuid(projectId) || !isValidUuid(memberId) || !weekKey) {
-        return res.status(400).json({ message: 'projectId, memberId and weekKey are required.' });
+    const parsedParams = timeEntryParamsSchema.safeParse(req.params ?? {});
+    if (!parsedParams.success) {
+        return respondValidationError(res, 'Invalid time entry parameters.', parsedParams.error.issues);
+    }
+    const parsedBody = timeEntryBodySchema.safeParse(req.body ?? {});
+    if (!parsedBody.success) {
+        return respondValidationError(res, 'Invalid time entry payload.', parsedBody.error.issues);
     }
 
     try {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            const { projectId } = parsedParams.data;
+            const { memberId, weekKey, plannedHours, actualHours } = parsedBody.data;
 
             const memberResult = await client.query(
                 `
@@ -1405,9 +1498,12 @@ app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, re
                     await client.query('ROLLBACK');
                     return res.status(403).json({ message: 'Forbidden: You are not assigned to this project.' });
                 }
-                if (!Number.isFinite(actualHours) || Number(actualHours) < 0) {
+                if (actualHours === undefined) {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ message: 'actualHours must be a non-negative number.' });
+                    return res.status(400).json({
+                        success: false,
+                        message: 'actualHours is required for team members and must be a non-negative number.',
+                    });
                 }
                 await client.query(
                     `
@@ -1416,7 +1512,7 @@ app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, re
                     ON CONFLICT (project_member_id, week_key)
                     DO UPDATE SET actual_hours = EXCLUDED.actual_hours
                 `,
-                    [memberId, weekKey, Number(actualHours)],
+                    [memberId, weekKey, actualHours],
                 );
             } else {
                 if (userRole === 'Projektleder') {
@@ -1438,8 +1534,8 @@ app.post('/api/projects/:projectId/time-entries', authMiddleware, async (req, re
                         return res.status(403).json({ message: 'Forbidden: Insufficient permissions.' });
                     }
                 }
-                const planned = Number.isFinite(plannedHours) ? Math.max(0, Number(plannedHours)) : 0;
-                const actual = Number.isFinite(actualHours) ? Math.max(0, Number(actualHours)) : 0;
+                const planned = plannedHours ?? 0;
+                const actual = actualHours ?? 0;
                 await client.query(
                     `
                     INSERT INTO project_member_time_entries (project_member_id, week_key, planned_hours, actual_hours)

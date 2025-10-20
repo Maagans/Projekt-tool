@@ -117,7 +117,7 @@ pm run build.
   - PRD: §4 Stabilitet og Pålidelighed (kontrollerede fejl for rapportering i §3.1–§3.2).
   - Afhængigheder: BE-001.
 
-- [ ] BE-004: Inputvalidering (login/register/time-entries)
+- [x] BE-004: Inputvalidering (login/register/time-entries)
   - Formål: Forudsigelige 400-fejl ved dårlige inputs.
   - Ændringer: `zod`/`joi` skemaer for body/params; indsæt i relevante ruter.
   - Test (TDD): Send ugyldige felter/typer; 400 med forklarende fejl.
