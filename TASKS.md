@@ -1,10 +1,10 @@
-# TDD-roadmap og opgaveliste (incrementel, testbar)
-
-Denne liste opdeler anbefalingerne i faser med små, testbare opgaver (TDD-tankegang). Hver opgave har et entydigt ID, formål, foreslåede ændringer, testtrin og acceptkriterier. Tag én opgave ad gangen, verificér med testen, og kryds af, før du går videre.
-
-Legend: [ ] = Ikke startet, [x] = Færdig
-
-Hvordan bruges den
+- [x] BE-002: Rate limiting på auth/setup-ruter
+  - Formål: Beskyt mod brute-force.
+  - Ændringer: Tilføjede `express-rate-limit` og rate-limiter middleware for login/register/setup + env-variabler.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
+  - Accept: 429 ved overskridelse; legitime brugere kan stadig logge ind under normal brug.
 - Start fra den første fase og bevæg dig nedad; faserne reducerer risiko ved at sikre stabilt grundlag først.
 - Hver opgave beskriver “Red-Green-Refactor” i praksis via konkrete testtrin og klare acceptkriterier.
 - Hvor der foreslås nye værktøjer (lint/CI/test), opret dem i små commits og valider i pipeline, før du fortsætter.
@@ -98,13 +98,6 @@ Hvordan bruges den
   - PRD: §3.3 Bruger- og adgangsstyring & §4 Sikkerhed/Kryptering (beskyt loginflow).
   - Afhængigheder: Ingen.
 
-- [ ] BE-002: Rate limiting på auth/setup-ruter
-  - Formål: Beskyt mod brute-force.
-  - Ændringer: `express-rate-limit` på `POST /api/login`, `POST /api/register`, `POST /api/setup/*` (f.eks. 5/min pr. IP).
-  - Test (TDD): 6. anmodning inden for interval resulterer i 429; normaliserer efter cooldown.
-  - Accept: 429 ved overskridelse; legitime brugere kan stadig logge ind under normal brug.
-  - PRD: §3.3 Login & Roller samt §4 Sikkerhed (begrænser brute-force mod konti).
-  - Afhængigheder: BE-001 (anbefalet).
 
 - [ ] BE-003: Central error handler
   - Formål: En ensartet 500-respons og mindre duplikeret try/catch.

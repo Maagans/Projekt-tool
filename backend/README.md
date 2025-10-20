@@ -86,3 +86,4 @@ Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet
 
 ## Legacy setup-db.sql
 Filen `setup-db.sql` findes stadig til reference, men den er afloest af migrationssystemet og boer ikke bruges i nye miljoer.
+

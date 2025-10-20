@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -39,6 +40,19 @@ app.use(helmet({
 }));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+
+const rateWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
+const rateMax = Number(process.env.RATE_LIMIT_MAX ?? 5);
+const authRateLimiter = rateLimit({
+    windowMs: rateWindowMs,
+    max: rateMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'For mange forsøg. Prøv igen om lidt.',
+    },
+});
 
 const isValidUuid = (value) => typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(value);
 const ensureUuid = (value) => (isValidUuid(value) ? value : randomUUID());
@@ -1133,7 +1147,7 @@ app.get('/api/setup/status', async (req, res) => {
     }
 });
 
-app.post('/api/setup/create-first-user', async (req, res) => {
+app.post('/api/setup/create-first-user', authRateLimiter, async (req, res) => {
     try {
         const result = await pool.query("SELECT COUNT(*)::int AS admin_count FROM users WHERE role = 'Administrator'");
         if ((result.rows[0]?.admin_count ?? 0) > 0) {
@@ -1189,7 +1203,7 @@ app.post('/api/setup/create-first-user', async (req, res) => {
         res.status(500).json({ message: 'An internal server error occurred during initial setup.' });
     }
 });
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authRateLimiter, async (req, res) => {
     const { email, password } = req.body ?? {};
     if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required.' });
@@ -1233,7 +1247,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authRateLimiter, async (req, res) => {
     const { email, name, password } = req.body ?? {};
     if (!email || !name || !password) {
         return res.status(400).json({ message: 'Email, name, and password are required.' });
