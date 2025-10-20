@@ -84,6 +84,15 @@ npm run dev:all
 ```
 This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
 
+## Pre-commit checks
+This repository uses Husky + lint-staged to block commits when linting fails.
+
+- `npm install` automatically runs `npm run prepare`, which installs the husky hooks.
+- The `pre-commit` hook executes `npx lint-staged`, linting staged frontend (`npm run lint`) and backend (`npm run lint --prefix backend`) files.
+- If the hook stops a commit, fix the reported lint errors and re-stage the files before committing again.
+
+If you ever clone the project without running `npm install`, execute `npm run prepare` manually to set up the hooks.
+
 ## Roles and permissions
 - **Administrator**: Full access. Can view and edit every project, manage users, and change settings.
 - **Projektleder**: Can edit projects where they are marked as project lead and can view other projects in read-only mode.

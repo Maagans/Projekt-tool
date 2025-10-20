@@ -166,9 +166,9 @@ pm run build.
   - Accept: Ét kommando-flow til lokal udvikling.
   - Afhængigheder: FE-001, BE-001.
 
-- [ ] CI-003: Husky + lint-staged (pre-commit)
+- [x] CI-003: Husky + lint-staged (pre-commit)
   - Formål: Fang issues før commit.
-  - Ændringer: Opsæt pre-commit, der kører lint/format på staged filer.
+  - Ændringer: Opsat Husky `pre-commit` hook med `lint-staged`, som kører `npm run lint` og `npm run lint --prefix backend` på berørte filer.
   - Test (TDD): Commit med lint-fejl blokeres; rettelse tillader commit.
   - Accept: Hooks kører konsistent på alle maskiner.
   - Afhængigheder: REPO-003.
