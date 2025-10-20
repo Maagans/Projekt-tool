@@ -8,9 +8,10 @@ import { Timeline } from './components/Timeline.tsx';
 import { DeliverablesList } from './components/DeliverablesList.tsx';
 import { KanbanBoard } from './components/KanbanBoard.tsx';
 import { ProjectOrganizationChart } from './components/ProjectOrganizationChart.tsx';
-import { Employee, Location, locations, Project, Report, ProjectStatus, User, UserRole } from './types.ts';
+import { locations } from './types.ts';
+import type { Location, Project, ProjectStatus, User, UserRole } from './types.ts';
 import { EditableField } from './components/EditableField.tsx';
-import { PlusIcon, SaveIcon, EditIcon, TrashIcon, UploadIcon, UsersIcon, ArrowUpIcon, ArrowDownIcon, CalendarIcon, StepForwardIcon, DownloadIcon, FolderOpenIcon, LogOutIcon, ChevronDownIcon, UserIcon, SignalIcon } from './components/Icons.tsx';
+import { PlusIcon, TrashIcon, UploadIcon, UsersIcon, CalendarIcon, StepForwardIcon, DownloadIcon, LogOutIcon, ChevronDownIcon, UserIcon, SignalIcon } from './components/Icons.tsx';
 
 // --- MAIN APP COMPONENT ---
 

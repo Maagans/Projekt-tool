@@ -1,13 +1,13 @@
 import React from 'react';
 
-const iconProps = {
-  className: "w-5 h-5",
-  strokeWidth: "2",
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeLinecap: "round" as "round",
-  strokeLinejoin: "round" as "round",
+const iconProps: React.SVGProps<SVGSVGElement> = {
+  className: 'w-5 h-5',
+  strokeWidth: '2',
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
 };
 
 export const PlusIcon = () => (

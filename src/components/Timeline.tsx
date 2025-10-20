@@ -221,7 +221,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
       }
       return { position: marker.position, label: marker.fallbackLabel };
     });
-  }, [quarterMarkers, weekMarkers, monthlyMarkersDetailed, zoomLevel]);
+  }, [quarterMarkers, monthlyMarkersDetailed, zoomLevel]);
 
   const detailMarkers = useMemo(() => {
     if (zoomLevel === 'quarter') {
@@ -241,7 +241,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
       }));
     }
     return [] as { position: number; label: string }[];
-  }, [zoomLevel, monthlyMarkersDetailed, quarterMarkers, weekMarkers, projectStartMs, projectEndMs, projectDurationMs, getPositionForDate]);
+  }, [zoomLevel, monthlyMarkersDetailed, quarterMarkers, weekMarkers]);
 
 
   const rememberScrollCenter = useCallback(() => {

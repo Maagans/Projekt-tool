@@ -31,9 +31,9 @@ Hvordan bruges den
   - PRD: §4 Performance & Responsivitet (lokaliseret UI fra §3.1 og §3.2 uden encoding-fejl).
   - Afhængigheder: REPO-001 (anbefalet).
 
-- [ ] REPO-003: ESLint/Prettier baseline for TS/React
+- [x] REPO-003: ESLint/Prettier baseline for TS/React
   - Formål: Fange fejl tidligt og standardisere stil.
-  - Ændringer: Tilføj `.eslintrc.cjs` + Prettier; kør `npm run lint` i root (frontend) som standard.
+  - Ændringer: Tilføj `.eslintrc.cjs` + `.prettierrc.json`, installer `eslint-plugin-react`, ryd op i ubrugte imports og kør `npm run lint`.
   - Test (TDD): `npm run lint` returnerer 0 fejl; CI konfigureres senere til at køre lint.
   - Accept: Ingen lint-fejl i `src/**`.
   - PRD: §4 Stabilitet og Pålidelighed (kodekvalitet understøtter kernefunktioner i §3.1–§3.3).

@@ -43,9 +43,9 @@ export const Header: React.FC<HeaderProps> = (props) => {
     try {
         const start = new Date(projectConfig.projectStartDate);
         const end = new Date(projectConfig.projectEndDate);
-        let current = start;
-        
         if (start > end) return [];
+
+        const current = new Date(start);
 
         while (current <= end) {
             weeks.add(getWeekKey(new Date(current)));

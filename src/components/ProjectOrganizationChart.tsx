@@ -253,7 +253,7 @@ const TimeLogModal: React.FC<TimeLogModalProps> = ({
       const start = new Date(project.config.projectStartDate);
       const end = new Date(project.config.projectEndDate);
       if (start > end) return [];
-      let current = start;
+      const current = new Date(start);
       while (current <= end) {
         const d = new Date(Date.UTC(current.getFullYear(), current.getMonth(), current.getDate()));
         const dayNum = d.getUTCDay() || 7;
