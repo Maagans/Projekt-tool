@@ -152,7 +152,7 @@ pm run build.
   - Accept: Alle PR’er kører pipeline; fejl blokkerer merge.
   - Afhængigheder: REPO-003.
 
-- [ ] CI-002: Postgres-service + migration smoke test
+- [x] CI-002: Postgres-service + migration smoke test
   - Formål: Fang DB/migration-fejl tidligt.
   - Ændringer: Actions-job med Postgres service, `backend/npm run migrate` mod test-DB.
   - Test (TDD): Workflow passerer; migrations anvendes uden fejl.
