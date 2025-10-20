@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useProjectManager } from './hooks/useProjectManager';
 import { api } from './api';
 import { EditableList } from './components/RichTextEditor';
@@ -11,16 +11,41 @@ import { ProjectOrganizationChart } from './components/ProjectOrganizationChart'
 import { locations } from './types';
 import type { Location, Project, ProjectStatus, User, UserRole } from './types';
 import { EditableField } from './components/EditableField';
+import { StatusToast } from './components/ui/StatusToast';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { PlusIcon, TrashIcon, UploadIcon, UsersIcon, CalendarIcon, StepForwardIcon, DownloadIcon, LogOutIcon, ChevronDownIcon, UserIcon, SignalIcon } from './components/Icons';
 
 // --- MAIN APP COMPONENT ---
 
 const App: React.FC = () => {
+    const [globalError, setGlobalError] = useState<string | null>(null);
+    const [showApiToast, setShowApiToast] = useState(false);
     const [page, setPage] = useState<{ name: string; projectId?: string }>({ name: 'home' });
     const projectManager = useProjectManager();
     const navigateTo = (name: string, projectId?: string) => setPage({ name, projectId });
     const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
     const { isAuthenticated, isLoading, apiError, projects, isAdministrator, canManage, needsSetup, completeSetup } = projectManager;
+
+    useEffect(() => {
+        if (apiError) {
+            setShowApiToast(true);
+        } else {
+            setShowApiToast(false);
+        }
+    }, [apiError]);
+
+    useEffect(() => {
+        if (!globalError) return;
+        const timeout = window.setTimeout(() => setGlobalError(null), 15000);
+    return () => window.clearTimeout(timeout);
+    }, [globalError]);
+
+    const handleGlobalError = useCallback((error: Error) => {
+        setGlobalError(error.message || 'Der opstod en uventet fejl.');
+        setShowApiToast(false);
+    }, []);
+
+    const clearGlobalError = useCallback(() => setGlobalError(null), []);
 
     useEffect(() => {
         if (!isAuthenticated && page.name !== 'login') {
@@ -29,7 +54,7 @@ const App: React.FC = () => {
     }, [isAuthenticated, page.name]);
 
     if (isLoading) {
-        return (
+    return (
             <div className="flex items-center justify-center h-screen">
                 <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -77,7 +102,49 @@ const App: React.FC = () => {
         }
     };
     
-    return <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto min-h-screen">{mainContent()}</div>;
+    return (
+        <>
+            <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3">
+                {apiError && showApiToast && (
+                    <StatusToast
+                        title="Forbindelse mistet"
+                        message={apiError}
+                        variant="warning"
+                        onClose={() => setShowApiToast(false)}
+                    />
+                )}
+                {globalError && (
+                    <StatusToast
+                        title="Uventet fejl"
+                        message={globalError}
+                        variant="error"
+                        onClose={clearGlobalError}
+                    />
+                )}
+            </div>
+
+            <ErrorBoundary
+                onError={handleGlobalError}
+                fallback={({ reset }) => (
+                    <GlobalErrorScreen
+                        onRetry={() => {
+                            clearGlobalError();
+                            reset();
+                        }}
+                        onReload={() => {
+                            clearGlobalError();
+                            reset();
+                            window.location.reload();
+                        }}
+                    />
+                )}
+            >
+                <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto min-h-screen">
+                    {mainContent()}
+                </div>
+            </ErrorBoundary>
+        </>
+    );
 };
 
 // --- FIRST TIME SETUP PAGE ---
@@ -308,6 +375,31 @@ const RegistrationPage: React.FC<{
 };
 
 
+// --- ERROR UI ---
+const GlobalErrorScreen: React.FC<{ onRetry: () => void; onReload: () => void }> = ({ onRetry, onReload }) => (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="max-w-md rounded-xl border border-red-200 bg-white p-8 text-center shadow-lg">
+            <h1 className="text-2xl font-semibold text-red-600 mb-2">Noget gik galt</h1>
+            <p className="text-sm text-slate-600 mb-6">
+                Et uventet problem forhindrede os i at vise indholdet. Prøv igen eller genindlæs siden.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <button
+                    onClick={onRetry}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                    Prøv igen
+                </button>
+                <button
+                    onClick={onReload}
+                    className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                    Genindlæs siden
+                </button>
+            </div>
+        </div>
+    </div>
+);
 // --- SHARED HEADER ---
 const AppHeader: React.FC<{
     title: string;
@@ -586,7 +678,7 @@ const PmoPage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>, 
         let color = 'bg-green-500';
         if (percentage > 100) color = 'bg-red-500';
         else if (percentage > 85) color = 'bg-yellow-500';
-        return (
+    return (
             <div className="w-full bg-slate-200 rounded-full h-4" title={`Belastning: ${percentage}%`}>
                 <div className={color + " h-4 rounded-full"} style={{ width: `${Math.min(percentage, 100)}%` }}></div>
             </div>
@@ -848,6 +940,15 @@ const ProjectSettingsPage: React.FC<{ project: Project; projectManager: ReturnTy
 };
 
 export default App;
+
+
+
+
+
+
+
+
+
 
 
 

@@ -88,5 +88,9 @@ export const SignalIcon = () => (
     <svg {...iconProps} className="w-7 h-7"><path d="M2 12h.01M6.5 12h.01M11 12h.01M15.5 12h.01M20 12h.01" /></svg>
 );
 
+export const XIcon = () => (
+  <svg {...iconProps}><path d="m18 6-12 12M6 6l12 12" /></svg>
+);
+
 
 

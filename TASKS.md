@@ -71,20 +71,16 @@ Hvordan bruges den
   - PRD: §4 Stabilitet og Dataintegritet (tydelige moduler til rapport- og ressourceflows i §3.1–§3.2).
   - Afhængigheder: REPO-003.
 
-- [ ] FE-004: Global Error Boundary + API-fejlvisning
-  - Formål: Robust fejloplevelse og hurtigere fejlfinding.
-  - Ændringer: Tilføj simpel `ErrorBoundary` og en global toast/notifikation, når `api.ts` fejler (401/5xx).
-  - Test (TDD): Stop backend; UI viser pæn fejl og recovery (fx “Prøv igen”).
-  - Accept: Ingen “blanke sider”; fejl vises konsistent.
-  - PRD: §3.1 Projektrapportering (pålidelig UX) & §4 Stabilitet (graceful degradation).
-  - Afhængigheder: FE-001.
 
-- [ ] FE-005: Bundt Tailwind lokalt
+- [x] FE-005: Bundt Tailwind lokalt
   - Formål: Eliminér CDN-afhængighed for CSS og få prod-kontrol.
-  - Ændringer: Opsæt `tailwind.config.js`, `postcss.config.js`, `index.css` med `@tailwind`-direktiver; fjern CDN i `index.html`.
-  - Test (TDD): `npm run build`; UI-styles matcher dev.
+  - Ændringer: Installerede Tailwind/PostCSS lokalt, tilføjede `tailwind.config.js`, `postcss.config.js`, `src/index.css`, importerede CSS i `main.tsx`, fjernede CDN fra `index.html`.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
   - Accept: Ingen visuelle regressioner og ingen CDN-kald i prod.
-  - PRD: §4 Performance & Responsivitet (ensartet UI for funktioner i §3.1–§3.2).
+  - Afhængigheder: FE-002.
+
   - Afhængigheder: FE-002.
 
 ---
@@ -217,13 +213,16 @@ Hvordan bruges den
   - Ændringer: Udskift bearer-flow med `Set-Cookie` HttpOnly + CSRF-beskyttelse; hold samme payload/TTL.
   - Test (TDD): Login sætter cookie; API-kald virker; CSRF-test blokkerer cross-site POST.
   - Accept: Funktionelt login/logout uden localStorage token.
-  - Afhængigheder: BE-001, BE-003, FE-004.
+- [x] FE-004: Global Error Boundary + API-fejlvisning
+  - Formål: Robust fejloplevelse og hurtigere fejlfinding.
+  - Ændringer: Tilføjede `ErrorBoundary`, globale toasts (`StatusToast`) og håndterer 401/5xx fra API med brugerbesked.
+  - Test (TDD):
+    1) Stop backend/server og bekræft at UI viser toast og recovery i stedet for blank side.
+    2) `npm run lint` & `npm run build`.
+  - Accept: Ingen blanke sider; fejl vises konsistent og kan lukkes.
+  - PRD: §3.1 Projektrapportering (pålidelig UX) & §4 Stabilitet (graceful degradation).
+  - Afhængigheder: FE-001.
 
-- [ ] OPS-001: Pino + central log-formatter
-  - Formål: Strukturerede logs til drift.
-  - Ændringer: Pino logger med miljøstyret log-niveau; redaktion af PII.
-  - Test (TDD): Loglinjer er JSON; ingen emails i fejl.
-  - Accept: Logs kan forbruges i aggregationsværktøjer.
   - Afhængigheder: BE-006.
 
 - [ ] FE-006: Beskyt mod reload-loops ved 401 i `api.ts`
