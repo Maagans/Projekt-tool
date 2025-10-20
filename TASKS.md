@@ -191,9 +191,9 @@ pm run build.
   - Accept: `npm run migrate` okay; ingen brud i eksisterende flows.
   - Afhængigheder: CI-002.
 
-- [ ] DB-003: Azure SSO felter (forberedelse til ROADMAP)
+- [x] DB-003: Azure SSO felter (forberedelse til ROADMAP)
   - Formål: Understøt senere Azure Graph sync/SSO.
-  - Ændringer: Migration med felter som beskrevet i `ROADMAP.md` (fx `azure_ad_id`, `department`, `job_title`, `account_enabled`, `synced_at`).
+  - Ændringer: Migration tilføjede `azure_ad_id`, `department`, `job_title`, `account_enabled`, `synced_at` samt unik index på `azure_ad_id`.
   - Test (TDD): Migration og rollback kører; ingen effekt på eksisterende data.
   - Accept: Schema udvidet uden regressions.
   - Afhængigheder: CI-002.

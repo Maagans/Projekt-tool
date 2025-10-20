@@ -17,6 +17,11 @@ export interface Employee {
   location?: Location;
   email: string;
   maxCapacityHoursWeek?: number;
+  azureAdId?: string | null;
+  department?: string | null;
+  jobTitle?: string | null;
+  accountEnabled?: boolean;
+  syncedAt?: string | null;
 }
 
 export interface MainTableRow {

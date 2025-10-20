@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Changed
 - Konverterede `users.email` og `employees.email` til `citext` og erstattede `LOWER(email)`-indeks med native unique constraints for case-insensitive e-mailhåndtering (DB-001).
 - Tilføjede `employees.max_capacity_hours_week` (NUMERIC(6,2) ≥ 0) og eksponerede feltet i API/types for kommende ressourcestyring (DB-002).
+- Udvidede `employees`-skemaet med Azure AD felter (`azure_ad_id`, `department`, `job_title`, `account_enabled`, `synced_at`) og unik indeks på `azure_ad_id` som forberedelse til SSO/sync (DB-003).
 
 ## [1.0.8] - 2025-10-20
 ### Fixed

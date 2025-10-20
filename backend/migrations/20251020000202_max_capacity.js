@@ -17,6 +17,10 @@ export const up = (pgm) => {
     },
   });
 
+  pgm.alterColumn('employees', 'max_capacity_hours_week', {
+    default: null,
+  });
+
   pgm.addConstraint('employees', 'chk_employees_max_capacity_nonnegative', {
     check: 'max_capacity_hours_week >= 0',
   });

@@ -69,8 +69,14 @@ CREATE TABLE employees (
     email CITEXT NOT NULL UNIQUE,
     location TEXT,
     max_capacity_hours_week NUMERIC(6,2) NOT NULL DEFAULT 0 CHECK (max_capacity_hours_week >= 0),
+    azure_ad_id TEXT,
+    department TEXT,
+    job_title TEXT,
+    account_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    synced_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE UNIQUE INDEX idx_employees_azure_ad_id_unique ON employees (azure_ad_id) WHERE azure_ad_id IS NOT NULL;
 
 CREATE TABLE projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

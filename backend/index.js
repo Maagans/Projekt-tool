@@ -214,7 +214,12 @@ const loadFullWorkspace = async (clientOverride) => {
             name,
             email,
             COALESCE(location, '') AS location,
-            COALESCE(max_capacity_hours_week, 0)::float AS max_capacity_hours_week
+            COALESCE(max_capacity_hours_week, 0)::float AS max_capacity_hours_week,
+            azure_ad_id,
+            department,
+            job_title,
+            account_enabled,
+            synced_at
         FROM employees
         ORDER BY name ASC
     `);
@@ -225,6 +230,11 @@ const loadFullWorkspace = async (clientOverride) => {
         email: row.email,
         location: row.location ?? '',
         maxCapacityHoursWeek: Number(row.max_capacity_hours_week ?? 0),
+        azureAdId: row.azure_ad_id ?? null,
+        department: row.department ?? null,
+        jobTitle: row.job_title ?? null,
+        accountEnabled: row.account_enabled ?? true,
+        syncedAt: row.synced_at ? new Date(row.synced_at).toISOString() : null,
     }));
 
     const projectsResult = await executor.query(`
@@ -642,7 +652,10 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
     const employeesArray = Array.isArray(employeesPayload) ? employeesPayload : [];
     if (!employeesArray.length) return;
 
-    const existingResult = await client.query('SELECT id::text, email FROM employees');
+    const existingResult = await client.query(`
+        SELECT id::text, email, azure_ad_id, department, job_title, account_enabled, synced_at
+        FROM employees
+    `);
     const existingById = new Map(existingResult.rows.map((row) => [row.id, row]));
     const existingByEmail = new Map(existingResult.rows.map((row) => [normalizeEmail(row.email), row]));
 
@@ -672,11 +685,13 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
         const email = normalizeEmail(employee.email);
         if (!email) continue;
 
-        const existingByIdRow = existingById.get(employeeId);
+        let existingByIdRow = existingById.get(employeeId);
         const existingByEmailRow = existingByEmail.get(email);
         if (!existingByIdRow && existingByEmailRow) {
             employeeId = existingByEmailRow.id;
+            existingByIdRow = existingByEmailRow;
         }
+        const persistedRow = existingById.get(employeeId) ?? existingByEmailRow ?? null;
 
         if (user.role !== 'Administrator' && !allowedEmployeeIds.has(employeeId)) {
             continue;
@@ -706,8 +721,35 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
 
         employee.id = employeeId;
         employee.maxCapacityHoursWeek = maxCapacity;
-        existingById.set(employeeId, { id: employeeId, email });
-        existingByEmail.set(email, { id: employeeId, email });
+
+        const azureAdId = persistedRow?.azure_ad_id ?? employee.azureAdId ?? null;
+        const department = persistedRow?.department ?? employee.department ?? null;
+        const jobTitle = persistedRow?.job_title ?? employee.jobTitle ?? null;
+        const accountEnabled =
+            typeof employee.accountEnabled === 'boolean'
+                ? employee.accountEnabled
+                : persistedRow?.account_enabled ?? true;
+        const syncedAtRaw = employee.syncedAt ?? persistedRow?.synced_at ?? null;
+        const syncedAtIso = syncedAtRaw ? new Date(syncedAtRaw).toISOString() : null;
+
+        employee.azureAdId = azureAdId;
+        employee.department = department;
+        employee.jobTitle = jobTitle;
+        employee.accountEnabled = accountEnabled;
+        employee.syncedAt = syncedAtIso;
+
+        const updatedRow = {
+            id: employeeId,
+            email,
+            azure_ad_id: azureAdId,
+            department,
+            job_title: jobTitle,
+            account_enabled: accountEnabled,
+            synced_at: syncedAtIso,
+        };
+
+        existingById.set(employeeId, updatedRow);
+        existingByEmail.set(email, updatedRow);
     }
 };
 
