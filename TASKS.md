@@ -184,9 +184,9 @@ pm run build.
   - Accept: Login/registrering virker fortsat; unikhed håndhæves.
   - Afhængigheder: CI-002.
 
-- [ ] DB-002: Kapacitetsfelter (ressource-roadmap)
+- [x] DB-002: Kapacitetsfelter (ressource-roadmap)
   - Formål: Forberede ressourcestyring (RM-roadmap).
-  - Ændringer: Migration der tilføjer `employees.max_capacity_hours_week numeric(6,2) NOT NULL DEFAULT 0`.
+  - Ændringer: Migration tilføjer `employees.max_capacity_hours_week NUMERIC(6,2) NOT NULL DEFAULT 0` + non-negativ check; backend/frontend opdateret til at sende/læse feltet.
   - Test (TDD): Migration opdaterer schema; API kan læse feltet uden fejl.
   - Accept: `npm run migrate` okay; ingen brud i eksisterende flows.
   - Afhængigheder: CI-002.

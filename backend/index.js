@@ -192,6 +192,14 @@ const toDateOnly = (value) => {
     return date.toISOString().slice(0, 10);
 };
 
+const toNonNegativeCapacity = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+        return 0;
+    }
+    return Math.round(numeric * 100) / 100;
+};
+
 const logDebug = (category, ...args) => {
     if (process.env.DEBUG_WORKSPACE === 'true') {
         logger.debug({ category, args });
@@ -201,7 +209,12 @@ const loadFullWorkspace = async (clientOverride) => {
     const executor = clientOverride ?? pool;
 
     const employeesResult = await executor.query(`
-        SELECT id::text, name, email, COALESCE(location, '') AS location
+        SELECT
+            id::text,
+            name,
+            email,
+            COALESCE(location, '') AS location,
+            COALESCE(max_capacity_hours_week, 0)::float AS max_capacity_hours_week
         FROM employees
         ORDER BY name ASC
     `);
@@ -211,6 +224,7 @@ const loadFullWorkspace = async (clientOverride) => {
         name: row.name,
         email: row.email,
         location: row.location ?? '',
+        maxCapacityHoursWeek: Number(row.max_capacity_hours_week ?? 0),
     }));
 
     const projectsResult = await executor.query(`
@@ -668,19 +682,30 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
             continue;
         }
 
-        await client.query(`
-            INSERT INTO employees (id, name, email, location)
-            VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''))
+        const maxCapacity = toNonNegativeCapacity(employee.maxCapacityHoursWeek);
+
+        await client.query(
+            `
+            INSERT INTO employees (id, name, email, location, max_capacity_hours_week)
+            VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''), $5::numeric)
             ON CONFLICT (id)
-            DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, location = EXCLUDED.location;
-        `, [
-            employeeId,
-            (employee.name ?? '').trim() || 'Ukendt navn',
-            email,
-            typeof employee.location === 'string' ? employee.location.trim() : null,
-        ]);
+            DO UPDATE
+            SET name = EXCLUDED.name,
+                email = EXCLUDED.email,
+                location = EXCLUDED.location,
+                max_capacity_hours_week = EXCLUDED.max_capacity_hours_week;
+        `,
+            [
+                employeeId,
+                (employee.name ?? '').trim() || 'Ukendt navn',
+                email,
+                typeof employee.location === 'string' ? employee.location.trim() : null,
+                maxCapacity,
+            ],
+        );
 
         employee.id = employeeId;
+        employee.maxCapacityHoursWeek = maxCapacity;
         existingById.set(employeeId, { id: employeeId, email });
         existingByEmail.set(email, { id: employeeId, email });
     }

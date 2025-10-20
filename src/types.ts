@@ -16,6 +16,7 @@ export interface Employee {
   name: string;
   location?: Location;
   email: string;
+  maxCapacityHoursWeek?: number;
 }
 
 export interface MainTableRow {

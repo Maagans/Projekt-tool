@@ -39,6 +39,7 @@ BEGIN;
 -- Udvidelser
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "citext";
 
 -- Ryd op i gamle objekter
 DROP TABLE IF EXISTS report_kanban_tasks CASCADE;
@@ -65,8 +66,9 @@ CREATE TYPE user_role AS ENUM ('Administrator', 'Projektleder', 'Teammedlem');
 CREATE TABLE employees (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
+    email CITEXT NOT NULL UNIQUE,
     location TEXT,
+    max_capacity_hours_week NUMERIC(6,2) NOT NULL DEFAULT 0 CHECK (max_capacity_hours_week >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -195,15 +197,12 @@ CREATE TABLE report_kanban_tasks (
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    email TEXT NOT NULL,
+    email CITEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role user_role NOT NULL,
     employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE UNIQUE INDEX idx_users_email_unique_ci ON users (LOWER(email));
-CREATE UNIQUE INDEX idx_employees_email_unique_ci ON employees (LOWER(email));
 
 -- Trigger til auto-opdatering af projects.updated_at
 CREATE OR REPLACE FUNCTION trigger_set_project_timestamp()
