@@ -43,7 +43,7 @@ Hvordan bruges den
 
 ## Fase P1 — Frontend konfiguration og build-hærdning
 
-- [ ] FE-001: Env-baseret API-base + Vite-proxy
+- [X] FE-001: Env-baseret API-base + Vite-proxy
   - Formål: Undgå hardcoded URL’er og CORS-problemer i dev.
   - Ændringer: 
     - Skift `src/api.ts` til at bruge `import.meta.env.VITE_API_BASE_URL || '/api'`.
