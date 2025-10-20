@@ -229,7 +229,7 @@ pm run build.
     2) Tilf�j CSRF-middleware og kr�v tokens p� muterende ruter.
     3) Opdat�r frontend `fetch` til `credentials: 'include'` og sende `X-CSRF-Token`.
     4) Ryd op i localStorage-h�ndtering, k�r lint/build og login/logout smoke.
-  - Status: HttpOnly cookies + CSRF middleware implementeret; lint/build k�rt (SEC-001).
+  - Status: HttpOnly cookies + CSRF middleware implementeret; lint/build kørt (SEC-001).
 - [x] FE-004: Global Error Boundary + API-fejlvisning
   - Formål: Robust fejloplevelse og hurtigere fejlfinding.
   - Ændringer: Tilføjede `ErrorBoundary`, globale toasts (`StatusToast`) og håndterer 401/5xx fra API med brugerbesked.
@@ -242,12 +242,16 @@ pm run build.
 
   - Dependencies: BE-006.
 
-- [ ] FE-006: Beskyt mod reload-loops ved 401 i `api.ts`
+- [x] FE-006: Beskyt mod reload-loops ved 401 i `api.ts`
   - Formål: Undgå gentagne `window.location.reload()`-loops.
   - Ændringer: Indfør “once” guard/flag eller redirect til login uden hard reload.
   - Test (TDD): Invalider token; app går til login uden uendelig reload.
   - Accept: Stabil recovery fra 401.
   - Afhængigheder: FE-004.
+  - Plan (WIP):
+    1) Track 401-håndtering i `fetchWithAuth` så reload kun sker en enkel gang.
+    2) Opdatér login-guard til at vise redirect/fejl i stedet for loop.
+    3) Lint/build og manuelle smoke-tests (login -> expiry -> redirect).
 
 ---
 

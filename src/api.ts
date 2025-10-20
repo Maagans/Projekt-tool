@@ -36,6 +36,8 @@ const shouldIncludeCsrf = (method?: string) => {
  * @param options The standard fetch options object.
  * @returns The JSON response from the server.
  */
+let hasHandledUnauthorized = false;
+
 const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers);
   const method = options.method ?? 'GET';
@@ -61,8 +63,11 @@ const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
 
   if (response.status === 401 && !path.includes('/api/logout')) {
     localStorage.removeItem(AUTH_USER_KEY);
-    window.location.reload();
-    throw new Error('Session was invalid. Reloading application.');
+    if (!hasHandledUnauthorized) {
+      hasHandledUnauthorized = true;
+      window.location.href = '/login';
+    }
+    throw new Error('Session was invalid. Redirecting to login.');
   }
 
   if (!response.ok) {
