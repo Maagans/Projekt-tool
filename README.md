@@ -79,10 +79,21 @@ Vite serves the React client on `http://localhost:5173` by default and proxies A
 To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
 
 ### One command for both servers
-```bash
-npm run dev:all
-```
-This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
+  ```bash
+  npm run dev:all
+  ```
+  This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
+
+### Session & CSRF flow
+- Backend issues an HttpOnly `authToken` cookie; fetch-kald bruger `credentials: 'include'` (se `src/api.ts`).
+- Muterende requests sender automatisk `X-CSRF-Token` baseret på `csrfToken`-cookie.
+- Ved 401 svar ryddes klient-cache og der redirectes til `/login` uden reload-loop.
+
+
+### Session & CSRF flow
+- Backend replies with an HttpOnly `authToken` cookie; `fetch` is already configured to send `credentials: 'include'`.
+- Mutating requests automatically send `X-CSRF-Token` (read from the `csrfToken` cookie).
+- On `401` responses we clear cached user-info and redirect to `/login` instead of forcing reload-loops.
 
 ## Pre-commit checks
 This repository uses Husky + lint-staged to block commits when linting fails.
@@ -123,6 +134,11 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
    npm run seed:admin
    ```
 6. Start everything with `npm run dev:all` (or run the backend via `npm run dev:backend` and the frontend via `npm run dev` in separate terminals).
+
+## CI & QA
+- GitHub Actions workflow (`.github/workflows/ci.yml`) kører lint/build på frontend og backend for alle pushes/pull requests.
+- Spejl pipeline lokalt: `npm run lint`, `npm run build` og `npm run lint --prefix backend`.
+- `npm run migrate` køres automatisk i CI mod en midlertidig PostgreSQL.
 
 ## Production Runbook
 This runbook describes how to promote the application from local development to an organisation-hosted production environment (for example, a site such as `https://projects.example.com`). Use it as the baseline standard operating procedure for deployments and ongoing operations.
