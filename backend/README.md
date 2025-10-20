@@ -15,7 +15,7 @@ Node.js/Express API med PostgreSQL til projektvaerktoej-appen.
    - `DATABASE_URL` skal pege paa din PostgreSQL database.
    - `JWT_SECRET` skal vaere en lang tilfaeldig streng (se eksempel i filen).
   - `AZURE_SSO_ENABLED`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` mv. er forberedt til Azure AD SSO/sync (se `ROADMAP.md` for detaljer).
-  - Auth tokens udstedes som HttpOnly cookies; ingen token-konfiguration kræves på klienten.
+  - Auth tokens udstedes som HttpOnly cookies; ingen token-konfiguration krï¿½ves pï¿½ klienten.
 - `PORT` er valgfri (standard er 3001).
 - `CORS_ORIGIN` er valgfri komma-separeret liste af tilladte origins (standard `http://localhost:5173` i udvikling).
 - `PG_BACKUP_DIR` er valgfri og styrer hvor backups gemmes (standard `backups`).
@@ -69,7 +69,7 @@ Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet
 - Krav: `pg_dump` fra PostgreSQL klientvaerktoeer skal vaere installeret og paa PATH.
 
 ## Lokal udvikling
-- Health check: `GET /health` returnerer `{ "status": "ok" }` og fejler med 503 hvis databasen er utilgængelig.
+- Health check: `GET /health` returnerer `{ "status": "ok" }` og fejler med 503 hvis databasen er utilgï¿½ngelig.
 
 - Start backend med auto-reload: `npm run dev`.
 - Start backend til produktionstest: `npm start` (forventer at migrationerne allerede er koert).

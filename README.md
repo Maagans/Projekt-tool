@@ -84,10 +84,6 @@ To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_
   ```
   This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
 
-### Session & CSRF flow
-- Backend issues an HttpOnly `authToken` cookie; fetch-kald bruger `credentials: 'include'` (se `src/api.ts`).
-- Muterende requests sender automatisk `X-CSRF-Token` baseret på `csrfToken`-cookie.
-- Ved 401 svar ryddes klient-cache og der redirectes til `/login` uden reload-loop.
 
 
 ### Session & CSRF flow
@@ -136,9 +132,11 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
 6. Start everything with `npm run dev:all` (or run the backend via `npm run dev:backend` and the frontend via `npm run dev` in separate terminals).
 
 ## CI & QA
-- GitHub Actions workflow (`.github/workflows/ci.yml`) kører lint/build på frontend og backend for alle pushes/pull requests.
+- GitHub Actions workflow (`.github/workflows/ci.yml`) kÃ¸rer lint/build pÃ¥ frontend og backend for alle pushes/pull requests.
 - Spejl pipeline lokalt: `npm run lint`, `npm run build` og `npm run lint --prefix backend`.
-- `npm run migrate` køres automatisk i CI mod en midlertidig PostgreSQL.
+- `npm run migrate` kÃ¸res automatisk i CI mod en midlertidig PostgreSQL.
+
+
 
 ## Production Runbook
 This runbook describes how to promote the application from local development to an organisation-hosted production environment (for example, a site such as `https://projects.example.com`). Use it as the baseline standard operating procedure for deployments and ongoing operations.
