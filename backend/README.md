@@ -15,6 +15,7 @@ Node.js/Express API med PostgreSQL til projektvaerktoej-appen.
    - `DATABASE_URL` skal pege paa din PostgreSQL database.
    - `JWT_SECRET` skal vaere en lang tilfaeldig streng (se eksempel i filen).
    - `PORT` er valgfri (standard er 3001).
+   - `CORS_ORIGIN` er valgfri komma-separeret liste af tilladte origins (standard `http://localhost:5173` i udvikling).
    - `PG_BACKUP_DIR` er valgfri og styrer hvor backups gemmes (standard `backups`).
 
 ## Database migrationer

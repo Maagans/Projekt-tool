@@ -37,11 +37,13 @@ Create `backend/.env` with your database connection string and a JWT secret:
 ```env
 DATABASE_URL=postgresql://cs:changeme@localhost:5432/projekt-tool
 JWT_SECRET=replace_this_with_a_random_64_char_hex
+CORS_ORIGIN=http://localhost:5173
 ```
 Generate a strong JWT secret, for example:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+For production, set `CORS_ORIGIN` to a comma-separated list of allowed origins (e.g., your deployed frontend URLs).
 
 ## 4. Run database migrations
 ```bash
