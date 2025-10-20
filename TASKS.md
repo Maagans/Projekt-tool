@@ -177,9 +177,9 @@ pm run build.
 
 ## Fase P4 — Database og migrations
 
-- [ ] DB-001: `citext` til e-mails + unikke indeks
+- [x] DB-001: `citext` til e-mails + unikke indeks
   - Formål: Indbygget case-insensitive håndtering af emails.
-  - Ændringer: Migration: `CREATE EXTENSION IF NOT EXISTS citext;` og ændr brugte email-kolonner til `citext`; erstat `LOWER(...)`-indeks.
+  - Ændringer: Migration aktiverer `citext`, konverterer `users.email`/`employees.email` til `citext` og erstatter `LOWER(...)`-indeks med native constraints.
   - Test (TDD): Opret to brugere med `Admin@Example.com` og `admin@example.com` → 2. fejler på unikhed.
   - Accept: Login/registrering virker fortsat; unikhed håndhæves.
   - Afhængigheder: CI-002.

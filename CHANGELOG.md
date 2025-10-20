@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Udvidede backend CI-jobbet med Postgres-service og migration smoke-test, så `npm run migrate` kører mod en midlertidig database (CI-002).
 - Tilføjede `npm run dev:all`/`npm run dev:backend` scripts baseret på `concurrently`, så frontend og backend kan startes samlet (DEV-001).
 - Opsatte Husky + lint-staged pre-commit hook der lint'er staged frontend- og backend-filer, så commits blokeres ved lint-fejl (CI-003).
+### Changed
+- Konverterede `users.email` og `employees.email` til `citext` og erstattede `LOWER(email)`-indeks med native unique constraints for case-insensitive e-mailhåndtering (DB-001).
 
 ## [1.0.8] - 2025-10-20
 ### Fixed
