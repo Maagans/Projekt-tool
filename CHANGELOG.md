@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+## [1.0.8] - 2025-10-20
+### Fixed
+- Rettede mis-encodede danske tegn i UI, dokumentation og metadata, så æ/ø/å vises korrekt i rapportmodulet (hotfix).
+
 ## [1.0.7] - 2025-10-20
 ### Added
 - Local Tailwind/PostCSS build pipeline and global error handling UI (FE-002–FE-004).
@@ -55,4 +59,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Database bootstrap script (`backend/setup-db.sql`) that provisions schema, extensions, and first administrator account.
 - Environment-driven configuration for API (`backend/.env`) and frontend (`.env.local`).
 - Local development scripts for running backend (`npm run dev` in `backend/`) and frontend (`npm run dev`).
-
