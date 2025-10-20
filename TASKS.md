@@ -202,12 +202,18 @@ pm run build.
 
 ## Fase P5 — Backend struktur og modulopdeling
 
-- [ ] BE-007: Opdel `backend/index.js` i routers og services
+- [x] BE-007: Opdel `backend/index.js` i routers og services
   - Formål: Vedligeholdbarhed + testbarhed.
   - Ændringer: Opret `routes/auth.js`, `routes/workspace.js`, `routes/users.js`, `routes/projects.js`; flyt forretningslogik til `services/*`.
   - Test (TDD): Smoke: Alle eksisterende endpoints svarer som før (200/401/403/404 og JSON-formater uændret).
   - Accept: Ingen ændring i API-kontrakter; kode kompileres og kører.
   - Afhængigheder: BE-003, BE-004.
+  - Plan (WIP):
+    1) Flyt hjælpefunktioner (`utils/helpers.js`, `utils/errors.js`) og opret Zod-validatorer pr. område.
+    2) Udtræk service-lag (`services/*`) med eksisterende forretningslogik.
+    3) Tilføj tynde controllere og dedikerede routers, opdater `index.js` til kun at montere ruter + global error handler.
+    4) Kør lint og smoke-test API’et; opdater changelog når alt er grønt.
+  - Status: ESM-services, controllere og routers erstatter den monolitiske `index.js`; lint/migrate OK og API-stier uændrede.
 
 ---
 
