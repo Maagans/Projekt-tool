@@ -145,7 +145,7 @@ pm run build.
 
 ## Fase P3 — CI/CD, kvalitet og dev-oplevelse
 
-- [ ] CI-001: GitHub Actions – build/lint for root + backend
+- [x] CI-001: GitHub Actions – build/lint for root + backend
   - Formål: Automatisk kvalitetstjek ved PR.
   - Ændringer: Workflow der kører `npm ci`, `npm run lint`, `npm run build` (root) og tilsvarende i `backend/`.
   - Test (TDD): Åbn PR; workflow passerer grønt.

@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "lint": "eslint . --ext js --max-warnings 0",
+    "build": "node --check index.js",
     "migrate": "node-pg-migrate --configFile node-pg-migrate.config.json up",
     "migrate:down": "node-pg-migrate --configFile node-pg-migrate.config.json down",
     "migrate:status": "node-pg-migrate --configFile node-pg-migrate.config.json status",
@@ -28,6 +30,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "eslint": "^8.57.0",
     "nodemon": "^3.1.0",
     "pino-pretty": "^10.3.1"
   }

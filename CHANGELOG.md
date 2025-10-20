@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 ### Fixed
 - Hardened backend login, register og time-entry endpoints med Zod-validering, så ugyldige inputs giver ensartede 400-fejl (BE-004).
+### Added
+- Opsatte GitHub Actions-pipeline der kører install, lint og build for både frontend og backend på push/PR (CI-001).
 
 ## [1.0.8] - 2025-10-20
 ### Fixed

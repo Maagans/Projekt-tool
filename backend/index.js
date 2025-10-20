@@ -192,8 +192,6 @@ const toDateOnly = (value) => {
     return date.toISOString().slice(0, 10);
 };
 
-const createEmptyWorkspace = () => ({ projects: [], employees: [] });
-
 const logDebug = (category, ...args) => {
     if (process.env.DEBUG_WORKSPACE === 'true') {
         logger.debug({ category, args });
