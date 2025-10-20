@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { ListItem } from '../types.ts';
-import { EditableField } from './EditableField.tsx';
-import { PlusIcon, TrashIcon } from './Icons.tsx';
+﻿import React, { useState } from 'react';
+import { ListItem } from '../types';
+import { EditableField } from './EditableField';
+import { PlusIcon, TrashIcon } from './Icons';
 
 interface EditableListProps {
   title: string;
@@ -32,7 +32,7 @@ const DraggableListItem: React.FC<{
       onDragOver={(e) => e.preventDefault()}
       className={`group flex items-start gap-2 p-2 rounded-md transition-all duration-200 ${isDragging ? 'opacity-50 bg-blue-100' : 'bg-slate-50'} ${isDragOver ? 'ring-2 ring-blue-400' : ''}`}
     >
-      <div className="cursor-grab text-slate-400 hover:text-slate-600 pt-1.5 export-hide" title="Træk for at sortere">
+      <div className="cursor-grab text-slate-400 hover:text-slate-600 pt-1.5 export-hide" title="TrÃ¦k for at sortere">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
       </div>
       <div className="flex-grow">
@@ -93,15 +93,17 @@ export const EditableList: React.FC<EditableListProps> = ({ title, items = [], o
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500 text-center py-4">Ingen punkter tilføjet.</p>
+          <p className="text-sm text-slate-500 text-center py-4">Ingen punkter tilfÃ¸jet.</p>
         )}
       </div>
       <button
         onClick={onAddItem}
         className="mt-4 w-full flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors export-hide"
       >
-        <PlusIcon /> Tilføj punkt
+        <PlusIcon /> TilfÃ¸j punkt
       </button>
     </div>
   );
 };
+
+

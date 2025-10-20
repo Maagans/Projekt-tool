@@ -1,9 +1,9 @@
 ﻿import { useState, useCallback, useEffect, useMemo } from 'react';
-import { api } from '../api.ts'; // Import the new centralized API
+import { api } from '../api'; // Import the new centralized API
 import { 
   Project, Report, ProjectState, MainTableRow, Risk, Phase, 
   Milestone, Deliverable, KanbanTask, ProjectConfig, ListItem, Employee, Location, locations, ProjectMember, ProjectStatus, TimeEntry, User, UserRole
-} from '../types.ts';
+} from '../types';
 
 
 const generateId = () => (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2, 12));
@@ -719,6 +719,8 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
     }
   };
 };
+
+
 
 
 

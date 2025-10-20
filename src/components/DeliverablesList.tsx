@@ -1,5 +1,5 @@
-import React from 'react';
-import { Deliverable } from '../types.ts';
+﻿import React from 'react';
+import { Deliverable } from '../types';
 
 interface DeliverablesListProps {
   deliverables: Deliverable[];
@@ -30,3 +30,4 @@ export const DeliverablesList: React.FC<DeliverablesListProps> = ({ deliverables
     </div>
   );
 };
+

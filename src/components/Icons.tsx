@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const iconProps: React.SVGProps<SVGSVGElement> = {
   className: 'w-5 h-5',
@@ -87,4 +87,6 @@ export const ChevronDownIcon = () => (
 export const SignalIcon = () => (
     <svg {...iconProps} className="w-7 h-7"><path d="M2 12h.01M6.5 12h.01M11 12h.01M15.5 12h.01M20 12h.01" /></svg>
 );
+
+
 

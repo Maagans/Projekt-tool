@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Risk } from '../types.ts';
-import { PlusIcon, TrashIcon } from './Icons.tsx';
-import { EditableField } from './EditableField.tsx';
+﻿import React, { useState } from 'react';
+import { Risk } from '../types';
+import { PlusIcon, TrashIcon } from './Icons';
+import { EditableField } from './EditableField';
 
 interface RiskMatrixProps {
   risks: Risk[];
@@ -54,7 +54,7 @@ export const RiskMatrix: React.FC<RiskMatrixProps> = ({ risks, updateRiskPositio
           onClick={addRisk}
           className="flex items-center gap-1 text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition-colors export-hide"
         >
-          <PlusIcon /> Tilføj Risiko
+          <PlusIcon /> TilfÃ¸j Risiko
         </button>
       </div>
       
@@ -128,10 +128,12 @@ export const RiskMatrix: React.FC<RiskMatrixProps> = ({ risks, updateRiskPositio
                        S: {risk.s}, K: {risk.k}
                    </div>
                 </div>
-            )) : <p className="text-sm text-slate-500">Ingen risici tilføjet.</p>}
+            )) : <p className="text-sm text-slate-500">Ingen risici tilfÃ¸jet.</p>}
         </div>
       </div>
     </div>
   );
 };
+
+
 

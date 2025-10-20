@@ -1,8 +1,15 @@
-import { User, WorkspaceData, UserRole, ProjectMember } from './types.ts';
+﻿import type { ProjectMember, User, UserRole, WorkspaceData } from './types';
 
 const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_USER_KEY = 'authUser';
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+const resolveUrl = (path: string) => {
+  if (!path.startsWith('/')) {
+    throw new Error(`API path must start with "/": ${path}`);
+  }
+  return `${API_BASE_URL}${path}`;
+};
 
 // --- REAL BACKEND API CONNECTOR ---
 // This module now handles real communication with the backend.
@@ -16,7 +23,7 @@ const API_BASE_URL = 'http://localhost:3001';
  * @param options The standard fetch options object.
  * @returns The JSON response from the server.
  */
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
     // Fix: Use the Headers class to robustly handle different header formats from options.headers.
     const headers = new Headers(options.headers);
@@ -28,14 +35,14 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
-    
-    const fullUrl = `${API_BASE_URL}${url}`;
+
+    const fullUrl = resolveUrl(path);
 
     const response = await fetch(fullUrl, { ...options, headers });
 
     // NEW: Robust handling of invalid sessions (e.g., after DB reset)
     // If a token was sent but the server responds with 401, the token is invalid.
-    if (response.status === 401 && token && !url.includes('/api/logout')) {
+    if (response.status === 401 && token && !path.includes('/api/logout')) {
         // Clear the stale session data from the browser.
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
@@ -65,7 +72,7 @@ export const api = {
   // NEW: Check if the application needs initial setup
   async checkSetupStatus(): Promise<{ needsSetup: boolean }> {
       // This is an unauthenticated endpoint.
-      const response = await fetch(`${API_BASE_URL}/api/setup/status`);
+      const response = await fetch(resolveUrl('/api/setup/status'));
       if (!response.ok) {
           throw new Error('Could not check setup status.');
       }
@@ -76,7 +83,7 @@ export const api = {
   async createFirstUser(name: string, email: string, password: string): Promise<{ success: boolean; message: string }> {
      try {
       // This is an unauthenticated endpoint.
-      const response = await fetch(`${API_BASE_URL}/api/setup/create-first-user`, {
+      const response = await fetch(resolveUrl('/api/setup/create-first-user'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, password }),
@@ -113,7 +120,7 @@ export const api = {
   async register(email: string, name: string, password: string): Promise<{ success: boolean; message: string }> {
     try {
       // This is an unauthenticated endpoint.
-      const response = await fetch(`${API_BASE_URL}/api/register`, {
+      const response = await fetch(resolveUrl('/api/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, password }),
@@ -198,5 +205,6 @@ export const api = {
     return { success: true };
   }
 };
+
 
 

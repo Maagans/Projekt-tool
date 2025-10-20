@@ -70,6 +70,7 @@ In a separate terminal, from the project root:
 npm run dev
 ```
 Vite serves the React client on `http://localhost:5173` by default and proxies API calls to the backend.
+To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
 
 ## Roles and permissions
 - **Administrator**: Full access. Can view and edit every project, manage users, and change settings.
@@ -224,4 +225,3 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
-

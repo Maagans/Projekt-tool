@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { KanbanTask } from '../types.ts';
-import { PlusIcon, TrashIcon } from './Icons.tsx';
-import { EditableField } from './EditableField.tsx';
+﻿import React, { useState } from 'react';
+import { KanbanTask } from '../types';
+import { PlusIcon, TrashIcon } from './Icons';
+import { EditableField } from './EditableField';
 
 type KanbanStatus = 'todo' | 'doing' | 'done';
 
 const columnTitles: Record<KanbanStatus, string> = {
   todo: 'To Do',
   doing: 'I gang',
-  done: 'Gennemført'
+  done: 'GennemfÃ¸rt'
 };
 
 const columnStyles: Record<KanbanStatus, string> = {
@@ -90,7 +90,7 @@ const KanbanColumn: React.FC<{
         onClick={() => onAddTask(status)}
         className="mt-4 w-full flex items-center justify-center gap-1 text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors export-hide"
       >
-        <PlusIcon /> Tilføj opgave
+        <PlusIcon /> TilfÃ¸j opgave
       </button>
     </div>
   );
@@ -133,3 +133,4 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
     </div>
   );
 };
+

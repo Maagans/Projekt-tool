@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { Phase, Milestone, Deliverable } from '../types.ts';
-import { EditableField } from './EditableField.tsx';
-import { CalendarIcon } from './Icons.tsx';
+import { Phase, Milestone, Deliverable } from '../types';
+import { EditableField } from './EditableField';
+import { CalendarIcon } from './Icons';
 
 interface TimelineProps {
   projectStartDate: string;
@@ -774,6 +774,8 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   </div>
   );
 };
+
+
 
 
 

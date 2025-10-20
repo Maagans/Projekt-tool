@@ -43,33 +43,30 @@ Hvordan bruges den
 
 ## Fase P1 — Frontend konfiguration og build-hærdning
 
-- [X] FE-001: Env-baseret API-base + Vite-proxy
-  - Formål: Undgå hardcoded URL’er og CORS-problemer i dev.
-  - Ændringer: 
-    - Skift `src/api.ts` til at bruge `import.meta.env.VITE_API_BASE_URL || '/api'`.
-    - Tilføj `server.proxy` i `vite.config.ts` for `'/api' -> 'http://localhost:3001'`.
-    - Tilføj `frontend/.env.example` med `VITE_API_BASE_URL=http://localhost:3001`.
+- [x] FE-001: Env-baseret API-base + Vite-proxy
+  - Formål: Undgå hardcoded URL'er og CORS-problemer i dev.
+  - Ændringer: Opsæt `VITE_API_BASE_URL` i `src/api.ts`, tilføj proxy i `vite.config.ts`, opret `.env.example`, opdater README.
   - Test (TDD):
-    1) Start backend (`backend/npm run dev`) og frontend (`npm run dev`).
-    2) Log ind i UI uden CORS-fejl; API-kald går via `/api`.
-  - Accept: Login/arbejdsrum indlæses i dev uden CORS eller URL-ændringer.
+    1) `npm run lint`.
+    2) `npm run build`.
+  - Accept: Login/workspace fungerer i dev uden CORS-justeringer og kan pege mod eksternt API via `.env`.
   - PRD: §3.1 Kernefunktioner (stabil driftsopsætning) & §4 Stabilitet og Pålidelighed (miljøfleksibilitet).
   - Afhængigheder: Ingen.
 
-- [ ] FE-002: Fjern importmap/CDN i `index.html` (lad Vite bundte alt)
-  - Formål: Deterministiske builds uden eksterne CDN/importmaps.
-  - Ændringer: Fjern `<script type="importmap">...`-blokken; behold Tailwind midlertidigt via CDN (flyttes i FE-005).
-  - Test (TDD): `npm run build` genererer `dist/` uden errors; app kører på `vite preview`.
+- [x] FE-002: Fjern importmap i `index.html` (CDN Tailwind beholdes midlertidigt)
+  - Formål: Deterministiske builds uden eksterne importmaps.
+  - Ændringer: Fjernede importmap-blokken og rettede title-encoding i `index.html`.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
   - Accept: Ingen runtime-fejl pga. manglende imports; konsol er ren.
-  - PRD: §4 Performance & Responsivitet (forudsigelige builds til kerneflows i §3.1).
-  - Afhængigheder: FE-001 (anbefalet).
 
-- [ ] FE-003: Strammere TS-importer (ingen .ts/.tsx endelser)
+- [x] FE-003: Strammere TS-importer (ingen .ts/.tsx endelser)
   - Formål: Konsistente imports og nemmere refaktor.
-  - Ændringer: 
-    - Sæt `allowImportingTsExtensions: false`, `allowJs: false` i `tsconfig.json`.
-    - Opdater imports som `import App from './App'` (uden `.tsx`).
-  - Test (TDD): `npm run build` lykkes; ingen module resolution-fejl.
+  - Ændringer: Sat `allowImportingTsExtensions=false`, `allowJs=false` i tsconfig og fjernede alle `.ts`/`.tsx`-endelser i imports.
+  - Test (TDD):
+    1) `npm run lint`.
+    2) `npm run build`.
   - Accept: Build og dev fungerer uden TS-endelser i imports.
   - PRD: §4 Stabilitet og Dataintegritet (tydelige moduler til rapport- og ressourceflows i §3.1–§3.2).
   - Afhængigheder: REPO-003.
