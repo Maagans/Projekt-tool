@@ -8,7 +8,6 @@ import usersRoutes from "./usersRoutes.js";
 const router = Router();
 
 router.use('/', authRoutes);
-router.use('/auth', authRoutes); // optional alias for future endpoints
 router.use('/setup', setupRoutes);
 router.use('/workspace', workspaceRoutes);
 router.use('/projects', projectsRoutes);

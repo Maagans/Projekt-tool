@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import pool from './db.js';
 import logger from './logger.js';
@@ -37,6 +38,7 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false,
 }));
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use('/api', apiRoutes);
 

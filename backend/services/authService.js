@@ -4,6 +4,7 @@ import pool from "../db.js";
 import logger from "../logger.js";
 import { createAppError } from "../utils/errors.js";
 import { normalizeEmail } from "../utils/helpers.js";
+import { generateCsrfToken } from "../utils/cookies.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
 
 const jwtSecret = process.env.JWT_SECRET;
@@ -46,7 +47,9 @@ export const login = async (email, password) => {
     };
 
     const token = jwt.sign(userPayload, jwtSecret, { expiresIn: '1d' });
-    return { token, user: userPayload };
+    const csrfToken = generateCsrfToken();
+
+    return { token, csrfToken, user: userPayload };
 };
 
 export const register = async (email, name, password) => {

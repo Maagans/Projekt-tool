@@ -3,7 +3,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 ### Changed
-- Refaktorerede backend'en til modulær struktur med services, controllere og routers for at gøre `index.js` til et tyndt entrypoint (BE-007).
+- Refaktorerede backend'en til modulï¿½r struktur med services, controllere og routers for at gï¿½re `index.js` til et tyndt entrypoint (BE-007).
+- JWT hï¿½ndtering flyttet til HttpOnly cookies med CSRF-beskyttelse pï¿½ muterende endpoints (SEC-001).
 ## [1.0.12] - 2025-10-20
 ### Fixed
 - Hardened backend login, register og time-entry endpoints med Zod-validering, s? ugyldige inputs giver ensartede 400-fejl (BE-004).

@@ -219,11 +219,17 @@ pm run build.
 
 ## Fase P6 — Valgfri hardening og DX-forbedringer
 
-- [ ] SEC-001: JWT i HttpOnly-cookie (i stedet for localStorage)
+- [x] SEC-001: JWT i HttpOnly-cookie (i stedet for localStorage)
   - Formål: Mindre XSS-eksponering.
   - Ændringer: Udskift bearer-flow med `Set-Cookie` HttpOnly + CSRF-beskyttelse; hold samme payload/TTL.
   - Test (TDD): Login sætter cookie; API-kald virker; CSRF-test blokkerer cross-site POST.
   - Accept: Funktionelt login/logout uden localStorage token.
+  - Plan (WIP):
+    1) Opdater backend-login til at s�tte HttpOnly JWT + generere CSRF-cookie.
+    2) Tilf�j CSRF-middleware og kr�v tokens p� muterende ruter.
+    3) Opdat�r frontend `fetch` til `credentials: 'include'` og sende `X-CSRF-Token`.
+    4) Ryd op i localStorage-h�ndtering, k�r lint/build og login/logout smoke.
+  - Status: HttpOnly cookies + CSRF middleware implementeret; lint/build k�rt (SEC-001).
 - [x] FE-004: Global Error Boundary + API-fejlvisning
   - Formål: Robust fejloplevelse og hurtigere fejlfinding.
   - Ændringer: Tilføjede `ErrorBoundary`, globale toasts (`StatusToast`) og håndterer 401/5xx fra API med brugerbesked.

@@ -1,6 +1,5 @@
 ﻿import type { ProjectMember, User, UserRole, WorkspaceData } from './types';
 
-const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_USER_KEY = 'authUser';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
@@ -9,6 +8,20 @@ const resolveUrl = (path: string) => {
     throw new Error(`API path must start with "/": ${path}`);
   }
   return `${API_BASE_URL}${path}`;
+};
+
+const getCookie = (name: string): string | null => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()!.split(';').shift() ?? null;
+  }
+  return null;
+};
+
+const shouldIncludeCsrf = (method?: string) => {
+  const upper = (method ?? 'GET').toUpperCase();
+  return upper !== 'GET' && upper !== 'HEAD' && upper !== 'OPTIONS';
 };
 
 // --- REAL BACKEND API CONNECTOR ---
@@ -24,47 +37,44 @@ const resolveUrl = (path: string) => {
  * @returns The JSON response from the server.
  */
 const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    // Fix: Use the Headers class to robustly handle different header formats from options.headers.
-    const headers = new Headers(options.headers);
+  const headers = new Headers(options.headers);
+  const method = options.method ?? 'GET';
 
-    if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type') && options.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (shouldIncludeCsrf(method)) {
+    const csrfToken = getCookie('csrfToken');
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken);
     }
+  }
 
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
+  const fullUrl = resolveUrl(path);
 
-    const fullUrl = resolveUrl(path);
+  const response = await fetch(fullUrl, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
 
-    const response = await fetch(fullUrl, { ...options, headers });
+  if (response.status === 401 && !path.includes('/api/logout')) {
+    localStorage.removeItem(AUTH_USER_KEY);
+    window.location.reload();
+    throw new Error('Session was invalid. Reloading application.');
+  }
 
-    // NEW: Robust handling of invalid sessions (e.g., after DB reset)
-    // If a token was sent but the server responds with 401, the token is invalid.
-    if (response.status === 401 && token && !path.includes('/api/logout')) {
-        // Clear the stale session data from the browser.
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(AUTH_USER_KEY);
-        // Reload the page. On next load, the app will have a clean state
-        // and correctly detect if setup is needed.
-        window.location.reload();
-        // Throw an error to stop the current execution flow.
-        throw new Error("Session was invalid. Reloading application.");
-    }
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'An unknown server error occurred.' }));
+    throw new Error(errorData.message || `Request failed with status ${response.status}`);
+  }
 
-    if (!response.ok) {
-        // Try to parse error message from backend, otherwise use a generic message.
-        const errorData = await response.json().catch(() => ({ message: 'An unknown server error occurred.' }));
-        throw new Error(errorData.message || `Request failed with status ${response.status}`);
-    }
-
-    // Handle responses that might not have a body (e.g., 204 No Content)
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-        return response.json();
-    }
-    return {}; // Return empty object for non-json or empty responses
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+  return {};
 };
 
 
@@ -72,7 +82,7 @@ export const api = {
   // NEW: Check if the application needs initial setup
   async checkSetupStatus(): Promise<{ needsSetup: boolean }> {
       // This is an unauthenticated endpoint.
-      const response = await fetch(resolveUrl('/api/setup/status'));
+      const response = await fetch(resolveUrl('/api/setup/status'), { credentials: 'include' });
       if (!response.ok) {
           throw new Error('Could not check setup status.');
       }
@@ -100,16 +110,22 @@ export const api = {
 
   async login(email: string, password: string): Promise<{ success: boolean; user?: User; message?: string }> {
     try {
-      // The backend is expected to return a token and user object on successful login.
-      const data = await fetchWithAuth('/api/login', {
+      const response = await fetch(resolveUrl('/api/login'), {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
 
-      if (data.token && data.user) {
-        localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Request failed with status ${response.status}`);
+      }
+
+      if (data.user) {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
-        return { success: true, user: data.user };
+        return { success: true, user: data.user as User };
       }
       return { success: false, message: 'Login failed: Invalid response from server.' };
     } catch (error: any) {
@@ -124,6 +140,7 @@ export const api = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, password }),
+        credentials: 'include',
       });
       const data = await response.json();
       if (!response.ok) {
@@ -143,7 +160,6 @@ export const api = {
         console.warn("Logout API call failed, but logging out on client-side anyway.", error);
     } finally {
         // Always clear local storage regardless of API call success.
-        localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
     }
   },
@@ -158,7 +174,6 @@ export const api = {
       } catch {
         // If parsing fails, clear corrupted data.
         localStorage.removeItem(AUTH_USER_KEY);
-        localStorage.removeItem(AUTH_TOKEN_KEY);
         return null;
       }
     }

@@ -1,17 +1,20 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
+import { AUTH_COOKIE_NAME } from "./utils/cookies.js";
 
 const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+    const token = req.cookies?.[AUTH_COOKIE_NAME];
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Authentication failed: Token is missing or malformed.' });
+    if (!token) {
+        return res.status(401).json({ message: 'Authentication failed: Token is missing.' });
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ message: 'Server configuration error: JWT secret is missing.' });
+    }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // Add user payload to request object
+        req.user = decoded;
         next();
     } catch (err) {
         return res.status(401).json({ message: 'Authentication failed: Token is invalid or has expired.' });
