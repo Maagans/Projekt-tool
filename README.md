@@ -41,6 +41,7 @@ CORS_ORIGIN=http://localhost:5173
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX=5
 LOG_LEVEL=info
+RESOURCES_ANALYTICS_ENABLED=false
 ```
 Generate a strong JWT secret, for example:
 ```bash
@@ -48,6 +49,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 For production, set `CORS_ORIGIN` to a comma-separated list of allowed origins (e.g., your deployed frontend URLs).
 Set `LOG_LEVEL` (default `info`) to control backend logging verbosity.
+Flip `RESOURCES_ANALYTICS_ENABLED` to `true` when du vil fremvise ressourcemodulets preview (frontend-nav + 501-endpoint); lad den være `false`, hvis modulet ikke skal eksponeres endnu.
 
 ## 4. Run database migrations
 ```bash
@@ -77,6 +79,7 @@ npm run dev
 ```
 Vite serves the React client on `http://localhost:5173` by default and proxies API calls to the backend.  
 To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
+Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALYTICS_ENABLED=true` samtidigt med backend-flaget.
 
 ### One command for both servers
   ```bash
@@ -260,5 +263,4 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
-
 

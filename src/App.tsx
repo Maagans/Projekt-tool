@@ -13,7 +13,10 @@ import type { Location, Project, ProjectStatus, User, UserRole } from './types';
 import { EditableField } from './components/EditableField';
 import { StatusToast } from './components/ui/StatusToast';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import { PlusIcon, TrashIcon, UploadIcon, UsersIcon, CalendarIcon, StepForwardIcon, DownloadIcon, LogOutIcon, ChevronDownIcon, UserIcon, SignalIcon } from './components/Icons';
+import { PlusIcon, TrashIcon, UploadIcon, UsersIcon, CalendarIcon, StepForwardIcon, DownloadIcon, LogOutIcon, ChevronDownIcon, UserIcon, SignalIcon, AnalyticsIcon } from './components/Icons';
+
+const RESOURCES_ANALYTICS_ENABLED =
+    String(import.meta.env.VITE_RESOURCES_ANALYTICS_ENABLED ?? 'false').trim().toLowerCase() === 'true';
 
 // --- MAIN APP COMPONENT ---
 
@@ -22,7 +25,12 @@ const App: React.FC = () => {
     const [showApiToast, setShowApiToast] = useState(false);
     const [page, setPage] = useState<{ name: string; projectId?: string }>({ name: 'home' });
     const projectManager = useProjectManager();
-    const navigateTo = (name: string, projectId?: string) => setPage({ name, projectId });
+    const navigateTo = (name: string, projectId?: string) => {
+        if (name === 'resources' && (!RESOURCES_ANALYTICS_ENABLED || !projectManager.isAdministrator)) {
+            return;
+        }
+        setPage({ name, projectId });
+    };
     const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
     const { isAuthenticated, isLoading, apiError, projects, isAdministrator, canManage, needsSetup, completeSetup } = projectManager;
 
@@ -95,6 +103,10 @@ const App: React.FC = () => {
                  return canManage ? <EmployeePage projectManager={projectManager} navigateTo={navigateTo} /> : <HomePage projectManager={projectManager} navigateTo={navigateTo} />;
             case 'pmo':
                 return canManage ? <PmoPage projectManager={projectManager} navigateTo={navigateTo} /> : <HomePage projectManager={projectManager} navigateTo={navigateTo} />;
+            case 'resources':
+                return RESOURCES_ANALYTICS_ENABLED && isAdministrator
+                    ? <ResourcesPlaceholder projectManager={projectManager} navigateTo={navigateTo} />
+                    : <HomePage projectManager={projectManager} navigateTo={navigateTo} />;
             case 'admin':
                 return isAdministrator ? <UserManagementPage projectManager={projectManager} navigateTo={navigateTo} /> : <HomePage projectManager={projectManager} navigateTo={navigateTo} />;
             default:
@@ -464,11 +476,19 @@ const HomePage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>,
 
     return (
         <div>
-            <AppHeader title="Projekt Dashboard" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
-                 {canManage && <button onClick={() => navigateTo('employees')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold"><UsersIcon /> Database</button>}
-                 {canManage && <button onClick={() => navigateTo('pmo')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold">PMO</button>}
-                 {isAdministrator && <button onClick={() => navigateTo('admin')} className="flex items-center gap-2 text-sm bg-purple-200 text-purple-800 px-4 py-2 rounded-md hover:bg-purple-300 font-semibold">Admin</button>}
-            </AppHeader>
+             <AppHeader title="Projekt Dashboard" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+                   {canManage && <button onClick={() => navigateTo('employees')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold"><UsersIcon /> Database</button>}
+                   {canManage && <button onClick={() => navigateTo('pmo')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold">PMO</button>}
+                   {RESOURCES_ANALYTICS_ENABLED && isAdministrator && (
+                       <button
+                           onClick={() => navigateTo('resources')}
+                           className="flex items-center gap-2 text-sm bg-teal-200 text-teal-900 px-4 py-2 rounded-md hover:bg-teal-300 font-semibold"
+                       >
+                           <AnalyticsIcon /> Ressource Analytics
+                       </button>
+                   )}
+                   {isAdministrator && <button onClick={() => navigateTo('admin')} className="flex items-center gap-2 text-sm bg-purple-200 text-purple-800 px-4 py-2 rounded-md hover:bg-purple-300 font-semibold">Admin</button>}
+              </AppHeader>
             <main>
                 <div className="bg-white p-4 rounded-lg shadow-sm">
                     <h2 className="text-xl font-bold text-slate-700 mb-4">Projekter</h2>
@@ -548,6 +568,33 @@ const EmployeePage: React.FC<{ projectManager: ReturnType<typeof useProjectManag
                         </tbody>
                     </table>
                 </div>
+            </main>
+        </div>
+    );
+};
+
+const ResourcesPlaceholder: React.FC<{ projectManager: ReturnType<typeof useProjectManager>, navigateTo: (name: string, projectId?: string) => void }> = ({ projectManager, navigateTo }) => {
+    const { logout, currentUser, isSaving, apiError } = projectManager;
+
+    return (
+        <div>
+            <AppHeader title="Ressource Analytics (preview)" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+                <button onClick={() => navigateTo('home')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
+                    Tilbage til Dashboard
+                </button>
+            </AppHeader>
+            <main className="bg-white p-6 rounded-lg shadow-sm space-y-4">
+                <p className="text-slate-600">
+                    Ressource analytics-modulet er aktiveret, men selve funktionaliteten er endnu under udvikling.
+                    Denne side fungerer som et preview, mens backend-aggregationen og visualiseringerne færdiggøres.
+                </p>
+                <ul className="list-disc pl-6 text-sm text-slate-600 space-y-1">
+                    <li>API-endpointet <code>/api/analytics/resources</code> returnerer midlertidigt status 501 (Not Implemented).</li>
+                    <li>Følgende opgaver dækker den videre implementering: RM-002 (aggregation), RM-003 (API) og RM-005 (frontend UI).</li>
+                </ul>
+                <p className="text-sm text-slate-500 border border-dashed border-slate-200 p-3 rounded-md bg-slate-50">
+                    Fjern feature-flagget <code>RESOURCES_ANALYTICS_ENABLED</code> eller sæt det til <code>false</code>, hvis modulet ikke skal eksponeres endnu.
+                </p>
             </main>
         </div>
     );
@@ -940,12 +987,6 @@ const ProjectSettingsPage: React.FC<{ project: Project; projectManager: ReturnTy
 };
 
 export default App;
-
-
-
-
-
-
 
 
 

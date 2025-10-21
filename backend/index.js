@@ -13,6 +13,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const RESOURCES_ANALYTICS_ENABLED =
+    String(process.env.RESOURCES_ANALYTICS_ENABLED ?? 'false').trim().toLowerCase() === 'true';
 
 const defaultCorsOrigins = process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173'];
 const envCorsOrigins = String(process.env.CORS_ORIGIN ?? '')
@@ -41,6 +43,15 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use('/api', apiRoutes);
+
+if (RESOURCES_ANALYTICS_ENABLED) {
+    app.get('/api/analytics/resources', (req, res) => {
+        res.status(501).json({
+            success: false,
+            message: 'Ressourceanalytics er aktiveret, men selve modulet er endnu ikke klar.',
+        });
+    });
+}
 
 app.get('/health', async (req, res, next) => {
     try {
