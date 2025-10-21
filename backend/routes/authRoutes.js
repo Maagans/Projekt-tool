@@ -4,11 +4,12 @@ import authMiddleware from "../authMiddleware.js";
 import requireCsrf from "../csrfMiddleware.js";
 import { validateLogin, validateRegister } from "../validators/authValidators.js";
 import { login, register, logout } from "../controllers/authController.js";
+import { config } from "../config/index.js";
 
 const router = Router();
 
-const rateWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
-const rateMax = Number(process.env.RATE_LIMIT_MAX ?? 5);
+const rateWindowMs = config.rateLimit.windowMs;
+const rateMax = config.rateLimit.max;
 const authRateLimiter = rateLimit({
     windowMs: rateWindowMs,
     max: rateMax,

@@ -1,9 +1,10 @@
+import { config } from '../config/index.js';
 import pool from '../db.js';
 import logger from '../logger.js';
 import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity, classifyReportIdentifier } from '../utils/helpers.js';
 
 const logDebug = (category, ...args) => {
-    if (process.env.DEBUG_WORKSPACE === 'true') {
+    if (config.debug.workspace === true) {
         logger.debug({ category, args });
     }
 };
@@ -1111,3 +1112,5 @@ export const persistWorkspace = async (workspaceData, user) => {
         logDebug('persistWorkspace', 'Client released');
     }
 };
+
+

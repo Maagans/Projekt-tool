@@ -50,6 +50,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 For production, set `CORS_ORIGIN` to a comma-separated list of allowed origins (e.g., your deployed frontend URLs).
 Set `LOG_LEVEL` (default `info`) to control backend logging verbosity.
 Flip `RESOURCES_ANALYTICS_ENABLED` to `true` when du vil fremvise ressourcemodulets preview (frontend-nav + 501-endpoint); lad den være `false`, hvis modulet ikke skal eksponeres endnu.
+Konfigurationen valideres centralt i `backend/config/index.js`, så manglende eller ugyldige miljøvariabler giver en tydelig fejl tidligt i opstarten.
 
 ## 4. Run database migrations
 ```bash
@@ -102,6 +103,12 @@ This repository uses Husky + lint-staged to block commits when linting fails.
 - If the hook stops a commit, fix the reported lint errors and re-stage the files before committing again.
 
 If you ever clone the project without running `npm install`, execute `npm run prepare` manually to set up the hooks.
+
+## Testing
+- `npm run test`: kører Vitest + React Testing Library for frontend hooks og komponenter.
+- `npm run test --prefix backend`: kører Vitest for backend-testene.
+- `npm run test:services --prefix backend`: begrænser testkørsel til service-laget (`backend/tests/services`).
+- `npm run test:api --prefix backend`: kører API/integrationstests (`backend/tests/api`).
 
 ## Roles and permissions
 - **Administrator**: Full access. Can view and edit every project, manage users, and change settings.
@@ -263,4 +270,3 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
-

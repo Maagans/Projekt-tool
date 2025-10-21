@@ -1,15 +1,14 @@
-﻿import pino from 'pino';
-
-const isProduction = process.env.NODE_ENV === 'production';
+import pino from "pino";
+import { config, isProduction } from "./config/index.js";
 
 const logger = pino({
-  level: process.env.LOG_LEVEL ?? 'info',
+  level: config.logLevel,
   transport: !isProduction
     ? {
-        target: 'pino-pretty',
+        target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: 'SYS:standard',
+          translateTime: "SYS:standard",
           singleLine: true,
         },
       }

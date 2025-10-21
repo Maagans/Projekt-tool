@@ -6,8 +6,9 @@ import { createAppError } from "../utils/errors.js";
 import { normalizeEmail } from "../utils/helpers.js";
 import { generateCsrfToken } from "../utils/cookies.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
+import { config } from "../config/index.js";
 
-const jwtSecret = process.env.JWT_SECRET;
+const jwtSecret = config.jwtSecret;
 
 export const login = async (email, password) => {
     if (!jwtSecret) {

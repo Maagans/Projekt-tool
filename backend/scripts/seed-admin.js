@@ -1,8 +1,8 @@
-import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { config } from '../config/index.js';
 
 const { Pool } = pg;
 
@@ -94,26 +94,29 @@ async function resolveAdminValues(initialValues) {
 }
 
 async function main() {
-  const { DATABASE_URL, ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_FORCE_RESET } = process.env;
+  const {
+    databaseUrl,
+    adminSeed: { name: adminNameEnv, email: adminEmailEnv, password: adminPasswordEnv, forceReset: adminForceResetEnv },
+  } = config;
 
-  if (!DATABASE_URL) {
+  if (!databaseUrl) {
     console.error('DATABASE_URL mangler. Angiv forbindelse til databasen.');
     process.exit(1);
   }
 
   const adminValues = await resolveAdminValues({
-    adminName: normalize(ADMIN_NAME),
-    adminEmailRaw: normalize(ADMIN_EMAIL),
-    adminEmail: normalizeEmail(ADMIN_EMAIL),
-    adminPassword: normalize(ADMIN_PASSWORD),
+    adminName: normalize(adminNameEnv ?? ''),
+    adminEmailRaw: normalize(adminEmailEnv ?? ''),
+    adminEmail: normalizeEmail(adminEmailEnv ?? ''),
+    adminPassword: normalize(adminPasswordEnv ?? ''),
   });
 
   closePrompt();
 
-  const pool = new Pool({ connectionString: DATABASE_URL });
+  const pool = new Pool({ connectionString: databaseUrl });
   let client;
   const { adminName, adminEmail, adminEmailRaw, adminPassword } = adminValues;
-  const forceReset = String(ADMIN_FORCE_RESET ?? 'true').toLowerCase() !== 'false';
+  const forceReset = adminForceResetEnv ?? true;
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   try {
@@ -185,3 +188,4 @@ main().catch((error) => {
   console.error('Uventet fejl:', error.message);
   process.exit(1);
 });
+

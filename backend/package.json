@@ -9,6 +9,9 @@
     "dev": "nodemon index.js",
     "lint": "eslint . --ext js --max-warnings 0",
     "build": "node --check index.js",
+    "test": "vitest",
+    "test:services": "vitest --run tests/services",
+    "test:api": "vitest --run tests/api",
     "migrate": "node-pg-migrate --configFile node-pg-migrate.config.json up",
     "migrate:down": "node-pg-migrate --configFile node-pg-migrate.config.json down",
     "migrate:status": "node-pg-migrate --configFile node-pg-migrate.config.json status",
@@ -33,6 +36,8 @@
   "devDependencies": {
     "eslint": "^8.57.0",
     "nodemon": "^3.1.0",
-    "pino-pretty": "^10.3.1"
+    "pino-pretty": "^10.3.1",
+    "supertest": "^7.1.3",
+    "vitest": "^1.6.0"
   }
 }

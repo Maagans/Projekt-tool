@@ -1,25 +1,25 @@
 import crypto from "crypto";
+import { isProduction } from "../config/index.js";
 
-const isProduction = process.env.NODE_ENV === 'production';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const AUTH_COOKIE_NAME = 'authToken';
-export const CSRF_COOKIE_NAME = 'csrfToken';
+export const AUTH_COOKIE_NAME = "authToken";
+export const CSRF_COOKIE_NAME = "csrfToken";
 
 export const authCookieOptions = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite: "lax",
     maxAge: DAY_MS,
-    path: '/',
+    path: "/",
 };
 
 export const csrfCookieOptions = {
     httpOnly: false,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite: "lax",
     maxAge: DAY_MS,
-    path: '/',
+    path: "/",
 };
 
 export const clearCookieOptions = (options) => ({
