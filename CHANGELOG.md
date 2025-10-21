@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Fælles test-setup (`src/setupTests.ts`) og dokumenterede testkommandoer i README.
 ### Changed
 - Centraliseret backend-konfiguration (`backend/config/index.js`) der validerer miljøvariabler med Zod og eksporterer typed defaults (ST-002).
-- Middleware, scripts og services opdateret til at bruge config-modulet (auth, rate limiting, database, logger, cookies, backup/seed-scripts m.fl.).
+- Middleware, scripts og services opdateret til at bruge config-modulet (auth, rate limiting, database, logger, cookies, backup/seed-scripts m.fl.).\n- Udvidet input-validering for setup- og bruger-API'et med nye Zod-schemas og validator-tests (ST-003).
 
 ## [1.1.4] - 2025-10-21
 ### Added
@@ -84,3 +84,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og miljøbaseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+

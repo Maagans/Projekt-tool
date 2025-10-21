@@ -237,39 +237,41 @@
 
 ---
 
-## Fase P8 � Stabilitetsforbedringer (f�r RM)
+## Fase P8 - Stabilitetsforbedringer (før RM)
 
 - [x] ST-001: Testbaseline for frontend og backend
-  - Form�l: Sikre automatiseret regressionskontrol f�r roadmapets n�ste features.
-  - �ndringer: Tilf�j `Vitest` + `@testing-library/react` til frontend og `Vitest` + `supertest` til backend; opret basis-tests for `useProjectManager` og `workspaceService`; tilf�j scripts `npm run test`, `npm run test --prefix backend`, `npm run test:services --prefix backend`, `npm run test:api --prefix backend`; dokumenter testsetup i README/CONTRIBUTING.
+  - Formål: Sikre automatiseret regressionskontrol før roadmapets næste features.
+  - ændringer: Tilføj `Vitest` + `@testing-library/react` til frontend og `Vitest` + `supertest` til backend; opret basis-tests for `useProjectManager` og `workspaceService`; tilføj scripts `npm run test`, `npm run test --prefix backend`, `npm run test:services --prefix backend`, `npm run test:api --prefix backend`; dokumenter testsetup i README/CONTRIBUTING.
   - Test (TDD):
     1) `npm run test`
     2) `npm run test --prefix backend`
     3) `npm run lint`
-  - Accept: Begge test-suites k�rer gr�nt lokalt og i CI; mindst �n service- og �n hook-test d�kker eksisterende kerneflow.
-  - Afh�ngigheder: CI-003, BE-007.
-  - Status: Vitest og automatiske tests k�rer for frontend (`useProjectManager`) og backend (`loadFullWorkspace` + API-healthcheck).
+  - Accept: Begge test-suites kører grønt lokalt og i CI; mindst én service- og én hook-test dækker eksisterende kerneflow.
+  - Afhængigheder: CI-003, BE-007.
+  - Status: Vitest og automatiske tests kører for frontend (`useProjectManager`) og backend (`loadFullWorkspace` + API-healthcheck).
 
 - [x] ST-002: Centraliseret config-modul
-  - Form�l: Valider milj�variabler �t sted og styre featureflags sikkert.
-  - �ndringer: Opret ackend/config/index.js med Zod-validering og typed exports; refaktorer middleware/services til at bruge modulet; tilf�j fallback for testmilj�; opdater README med nye n�gler.
+  - Formål: Valider miljøvariabler ét sted og styre featureflags sikkert.
+  - ændringer: Opret Backend/config/index.js med Zod-validering og typed exports; refaktorer middleware/services til at bruge modulet; tilføj fallback for testmiljø; opdater README med nye nøgler.
   - Test (TDD):
     1) 
 pm run test --prefix backend
     2) 
 pm run lint --prefix backend
   - Accept: Alle process.env-slag er erstattet af config-importer; serverstart fejler med klar fejl ved manglende env.
-  - Afh�ngigheder: ST-001.
+  - Afhængigheder: ST-001.
   - Status: Konfiguration centraliseret; middleware, scripts og dokumentation bruger nu typed config.
-- [ ] ST-003: Udvidet input-validering
-  - Formål: Blokere ugyldige payloads på alle muterende endpoints, inden RM-API'et udvider fladen.
-  - ændringer: Udvid Zod-schemas til `users`, `projects`, `setup` m.fl.; centralisér fejlformat; opdater controller-tests.
+- [x] ST-003: Udvidet input-validering
+  - Form�l: Blokere ugyldige payloads p� alle muterende endpoints, inden RM-API'et udvider fladen.
+  - �ndringer: Tilf�j Zod-schemas til users, projects, setup m.fl.; centralis�r fejlformat; opdater controller-tests.
   - Test (TDD):
-    1) `npm run test:api --prefix backend`
-    2) `npm run lint --prefix backend`
+    1) 
+pm run test:api --prefix backend
+    2) 
+pm run lint --prefix backend
   - Accept: Alle muterende endpoints returnerer 400 med konsistent fejlrespons ved ugyldige body/params/query.
-  - Afhængigheder: ST-001, ST-002.
-
+  - Afh�ngigheder: ST-001, ST-002.
+  - Status: Setup- og bruger-APIet validerer nu payloads med Zod og d�kkes af nye validator-tests.
 - [ ] ST-004: Transaktionsaudit i services
   - Formål: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilføjes.
   - ændringer: Gennemgå `workspaceService`, `usersService`, `projectsService`; introducer transaction-helper; dæk rollback-scenarier med service- og integrationstests.
@@ -277,7 +279,7 @@ pm run lint --prefix backend
     1) `npm run test:services --prefix backend`
     2) `npm run test:api --prefix backend`
   - Accept: Alle multi-step writes bruger transaktioner; tests bekræfter korrekt rollback ved fejl.
-  - Afh�ngigheder: ST-003.
+  - Afhængigheder: ST-003.
 
 - [ ] ST-005: Aktivér strict TypeScript
   - Formål: Fange typefejl tidligt og gøre frontendkoden klar til nye moduler.
@@ -407,5 +409,6 @@ pm run lint --prefix backend
 Noter
 - Opgaverne er designet, så hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved større refaktoreringer (BE-007) anbefales flag/feature toggles og små commits med hyppige smoke-tests.
+
 
 
