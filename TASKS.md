@@ -272,15 +272,17 @@ pm run lint --prefix backend
   - Accept: Alle muterende endpoints returnerer 400 med konsistent fejlrespons ved ugyldige body/params/query.
   - Afhængigheder: ST-001, ST-002.
   - Status: Setup- og bruger-APIet validerer nu payloads med Zod og dækkes af nye validator-tests.
-- [ ] ST-004: Transaktionsaudit i services
-  - FormÃ¥l: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilfÃ¸jes.
-  - Ã¦ndringer: GennemgÃ¥ `workspaceService`, `usersService`, `projectsService`; introducer transaction-helper; dÃ¦k rollback-scenarier med service- og integrationstests.
+- [x] ST-004: Transaktionsaudit i services
+  - Formål: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilføjes.
+  - Ændringer: Gennemgå workspaceService, usersService, projectsService; introducer transaction-helper; dæk rollback-scenarier med service- og integrationstests.
   - Test (TDD):
-    1) `npm run test:services --prefix backend`
-    2) `npm run test:api --prefix backend`
-  - Accept: Alle multi-step writes bruger transaktioner; tests bekrÃ¦fter korrekt rollback ved fejl.
-  - AfhÃ¦ngigheder: ST-003.
-
+    1) 
+pm run test:services --prefix backend
+    2) 
+pm run test:api --prefix backend
+  - Accept: Alle multi-step writes bruger transaktioner; tests bekræfter korrekt rollback ved fejl.
+  - Afhængigheder: ST-003.
+  - Status: Transaction-helper indført og brugt i auth/setup/projects; vitest dækker commit/rollback.
 - [ ] ST-005: AktivÃ©r strict TypeScript
   - FormÃ¥l: Fange typefejl tidligt og gÃ¸re frontendkoden klar til nye moduler.
   - Ã¦ndringer: SÃ¦t `"strict": true` (m.fl.) i `tsconfig.json`; fjern `any`-smuthuller i `src/**`; opdater hooks/components og tests til at opfylde stricte typer.
@@ -409,6 +411,7 @@ pm run lint --prefix backend
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved stÃ¸rre refaktoreringer (BE-007) anbefales flag/feature toggles og smÃ¥ commits med hyppige smoke-tests.
+
 
 
 

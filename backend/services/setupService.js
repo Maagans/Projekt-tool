@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import pool from "../db.js";
 import { normalizeEmail } from "../utils/helpers.js";
 import { createAppError } from "../utils/errors.js";
+import { withTransaction } from "../utils/transactions.js";
 
 export const needsInitialSetup = async () => {
     const result = await pool.query("SELECT COUNT(*)::int AS admin_count FROM users WHERE role = 'Administrator'");
@@ -10,11 +11,8 @@ export const needsInitialSetup = async () => {
 
 export const createFirstAdministrator = async ({ email, name, password }) => {
     const normalizedEmail = normalizeEmail(email);
-    const client = await pool.connect();
 
-    try {
-        await client.query('BEGIN');
-
+    return withTransaction(async (client) => {
         const adminCountResult = await client.query("SELECT COUNT(*)::int AS admin_count FROM users WHERE role = 'Administrator'");
         if ((adminCountResult.rows[0]?.admin_count ?? 0) > 0) {
             throw createAppError('An administrator account already exists. Cannot create another.', 403);
@@ -38,13 +36,6 @@ export const createFirstAdministrator = async ({ email, name, password }) => {
             [name.trim(), normalizedEmail, passwordHash, 'Administrator', employeeId],
         );
 
-        await client.query('COMMIT');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-
-    return { success: true };
+        return { success: true };
+    });
 };

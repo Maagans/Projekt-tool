@@ -6,6 +6,7 @@ import { createAppError } from "../utils/errors.js";
 import { normalizeEmail } from "../utils/helpers.js";
 import { generateCsrfToken } from "../utils/cookies.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
+import { withTransaction } from "../utils/transactions.js";
 import { config } from "../config/index.js";
 
 const jwtSecret = config.jwtSecret;
@@ -60,9 +61,7 @@ export const register = async (email, name, password) => {
         throw createAppError('An account with this email already exists.', 409);
     }
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+    return withTransaction(async (client) => {
         const passwordHash = await bcrypt.hash(password, 10);
 
         let employeeId = null;
@@ -82,15 +81,8 @@ export const register = async (email, name, password) => {
             [name.trim(), normalizedEmail, passwordHash, 'Teammedlem', employeeId],
         );
 
-        await client.query('COMMIT');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-
-    return { success: true };
+        return { success: true };
+    });
 };
 
 export const logout = () => ({ success: true, message: 'Logged out successfully.' });
