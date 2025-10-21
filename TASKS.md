@@ -237,88 +237,170 @@
 
 ---
 
-## Fase P8 - Ressourcestyring (RM)
+## Fase P8 � Stabilitetsforbedringer (f�r RM)
+
+- [ ] ST-001: Testbaseline for frontend og backend
+  - Form�l: Sikre automatiseret regressionskontrol f�r roadmapets n�ste features.
+  - �ndringer: Tilf�j `Vitest` + `@testing-library/react` til frontend og `Vitest` + `supertest` til backend; opret basis-tests for `useProjectManager` og `workspaceService`; tilf�j scripts `npm run test`, `npm run test --prefix backend`, `npm run test:services --prefix backend`, `npm run test:api --prefix backend`; dokumenter testsetup i README/CONTRIBUTING.
+  - Test (TDD):
+    1) `npm run test`
+    2) `npm run test --prefix backend`
+    3) `npm run lint`
+  - Accept: Begge test-suites k�rer gr�nt lokalt og i CI; mindst �n service- og �n hook-test d�kker eksisterende kerneflow.
+  - Afh�ngigheder: CI-003, BE-007.
+
+- [ ] ST-002: Centraliseret config-modul
+  - Form�l: Valider milj�variabler �t sted og styre featureflags sikkert.
+  - �ndringer: Opret `backend/config/index.js` med Zod-validering og typed exports; refaktorer middleware/services til at bruge modulet; tilf�j fallback for testmilj�; opdater README med nye n�gler.
+  - Test (TDD):
+    1) `npm run test --prefix backend`
+    2) `npm run lint --prefix backend`
+  - Accept: Alle `process.env`-slag er erstattet af config-importer; serverstart fejler med klar fejl ved manglende env.
+  - Afh�ngigheder: ST-001.
+
+- [ ] ST-003: Udvidet input-validering
+  - Form�l: Blokere ugyldige payloads p� alle muterende endpoints, inden RM-API�et udvider fladen.
+  - �ndringer: Udvid Zod-schemas til `users`, `projects`, `setup` m.fl.; centralis�r fejlformat; opdater controller-tests.
+  - Test (TDD):
+    1) `npm run test:api --prefix backend`
+    2) `npm run lint --prefix backend`
+  - Accept: Alle muterende endpoints returnerer 400 med konsistent fejlrespons ved ugyldige body/params/query.
+  - Afh�ngigheder: ST-001, ST-002.
+
+- [ ] ST-004: Transaktionsaudit i services
+  - Form�l: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilf�jes.
+  - �ndringer: Gennemg� `workspaceService`, `usersService`, `projectsService`; introducer transaction-helper; d�k rollback-scenarier med service- og integrationstests.
+  - Test (TDD):
+    1) `npm run test:services --prefix backend`
+    2) `npm run test:api --prefix backend`
+  - Accept: Alle multi-step writes bruger transaktioner; tests bekr�fter korrekt rollback ved fejl.
+  - Afh�ngigheder: ST-003.
+
+- [ ] ST-005: Aktiv�r strict TypeScript
+  - Form�l: Fange typefejl tidligt og g�re frontendkoden klar til nye moduler.
+  - �ndringer: S�t `"strict": true` (m.fl.) i `tsconfig.json`; fjern `any`-smuthuller i `src/**`; opdater hooks/components og tests til at opfylde stricte typer.
+  - Test (TDD):
+    1) `npm run lint`
+    2) `npm run test`
+    3) `npm run build`
+  - Accept: Frontend bygger i strict-mode uden typefejl; lint/test passerer uden at sl�kke reglerne.
+  - Afh�ngigheder: ST-001, ST-004.
+
+---
+
+## Fase P9 - Frontend struktur og DX
+
+- [ ] DX-001: Modularis�r `useProjectManager`
+  - Form�l: Reducere kompleksitet og g�re state-h�ndtering testbar f�r yderligere features.
+  - �ndringer: Opdel hooken i dom�nespecifikke hooks/contexts (auth, projekter, medarbejdere); opdater komponenter og tests; dokumenter ny arkitektur.
+  - Test (TDD):
+    1) `npm run test -- --runInBand`
+    2) `npm run lint`
+  - Accept: `useProjectManager`-filen er reduceret markant (<500 linjer) og tests d�kker de nye hooks.
+  - Afh�ngigheder: ST-001, ST-005.
+
+- [ ] DX-002: Introducer TanStack Query
+  - Form�l: Forenkle server-state management og f� caching/retry out-of-the-box.
+  - �ndringer: Installer `@tanstack/react-query`; opret `QueryClientProvider` i `main.tsx`; migrer centrale fetches (login/workspace) til queries/mutations; opdater fejlh�ndtering/toasts.
+  - Test (TDD):
+    1) `npm run test`
+    2) `npm run lint`
+    3) `npm run build`
+  - Accept: Serverkald h�ndteres via React Query med bevaret UX; tests d�kker query-hooks.
+  - Afh�ngigheder: DX-001, ST-003.
+
+- [ ] DX-003: Opdel storkomponenter
+  - Form�l: �ge vedligeholdbarhed og l�sbarhed i UI-laget.
+  - �ndringer: Bryd `App.tsx` op i ruter/layouts med lazy-loading; del `ProjectOrganizationChart` m.fl. i mindre komponenter; opdater imports og tests.
+  - Test (TDD):
+    1) `npm run test`
+    2) `npm run lint`
+    3) `npm run build`
+  - Accept: Ingen enkeltkomponent overstiger 500 linjer; bundle-splitting bevarer funktionalitet.
+  - Afh�ngigheder: DX-001, DX-002.
+
+---
+
+## Fase P10 - Ressourcestyring (RM)
 
 - [ ] RM-001: Feature flag og skeleton-navigation
-  - Formål: Gate ressourcemodulet bag et env-flag og forberede UI/route-stubs uden funktionel ændring.
-  - ændringer: Tilføj `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun når flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
+  - Form�l: Gate ressourcemodulet bag et env-flag og forberede UI/route-stubs uden funktionel �ndring.
+  - �ndringer: Tilf�j `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun n�r flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
   - Test (TDD):
     1) `npm run lint --prefix backend`
     2) `npm run lint`
     3) `npm run build`
   - Accept: Med flag `false` vises ingen nye links eller API-responser; med flag `true` vises en "Coming soon"-placeholder uden dataadgang.
-  - Afhængigheder: FE-001, BE-007.
+  - Afh�ngigheder: FE-001, BE-007.
 
 - [ ] RM-002: ResourceAnalyticsService aggregation
-  - Formål: Beregne kapacitet, planlagte og faktiske timer pr. uge for department- og project-scopes.
-  - ændringer: Opret `services/resourceAnalyticsService.js`, brug eksisterende tabeller + `max_capacity_hours_week`, tilf�j fixtures og automatiske tests i `backend/tests/resourceAnalyticsService.test.js`, opret npm-script `test:services`.
+  - Form�l: Beregne kapacitet, planlagte og faktiske timer pr. uge for department- og project-scopes.
+  - �ndringer: Opret `services/resourceAnalyticsService.js`, brug eksisterende tabeller + `max_capacity_hours_week`, tilf�j fixtures og automatiske tests i `backend/tests/resourceAnalyticsService.test.js`, opret npm-script `test:services`.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run lint --prefix backend`
   - Accept: Testdata viser korrekt summering af capacity/planned/actual og identificerer over-allocated weeks.
-  - Afhængigheder: DB-002, DB-003.
+  - Afh�ngigheder: DB-002, DB-003.
 
 - [ ] RM-003: GET `/analytics/resources` endpoint
-  - Formål: Eksponere aggregationerne via et sikkert API med input-validering og rolle-tjek.
-  - ændringer: Opret validator (Zod) til scope/ugeparametre, ny controller/route `routes/analyticsRoutes.js`, opdater `routes/index.js`, tilf�j integrationstests med Supertest og npm-script `test:api`.
+  - Form�l: Eksponere aggregationerne via et sikkert API med input-validering og rolle-tjek.
+  - �ndringer: Opret validator (Zod) til scope/ugeparametre, ny controller/route `routes/analyticsRoutes.js`, opdater `routes/index.js`, tilf�j integrationstests med Supertest og npm-script `test:api`.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run test:api --prefix backend`
     3) `npm run lint --prefix backend`
-  - Accept: Admin før 200 med series-data; ikke-autoriserede før 403/401; ugyldige parametre giver 400.
-  - Afhængigheder: RM-002, SEC-001, BE-003, BE-007.
+  - Accept: Admin f�r 200 med series-data; ikke-autoriserede f�r 403/401; ugyldige parametre giver 400.
+  - Afh�ngigheder: RM-002, SEC-001, BE-003, BE-007.
 
 - [ ] RM-004: Frontend dataclient + Vitest-setup
-  - Formål: Hente ressource-data via den nye API og stabilisere data-modeller på klienten.
-  - ændringer: Tilføj `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
+  - Form�l: Hente ressource-data via den nye API og stabilisere data-modeller p� klienten.
+  - �ndringer: Tilf�j `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
   - Test (TDD):
     1) `npm run test -- --runInBand`
     2) `npm run lint`
-  - Accept: Hook returnerer normaliserede serier og håndterer fejl/401 med eksisterende error boundary.
-  - Afhængigheder: RM-003, FE-004, FE-006.
+  - Accept: Hook returnerer normaliserede serier og h�ndterer fejl/401 med eksisterende error boundary.
+  - Afh�ngigheder: RM-003, FE-004, FE-006.
 
 - [ ] RM-005: PMO ressourcemodul (Admin)
-  - Formål: Bygge Ressource Analytics-side med department-filter og line chart.
-  - ændringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilføj screenshot i docs.
+  - Form�l: Bygge Ressource Analytics-side med department-filter og line chart.
+  - �ndringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilf�j screenshot i docs.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
     3) `npm run build`
   - Accept: Med flag aktiveret kan Admin skifte department og se kapacitet/plan/aktuel-linjer med tooltips og over-allocation-markering.
-  - Afhængigheder: RM-004.
+  - Afh�ngigheder: RM-004.
 
 - [ ] RM-006: Projekt-dashboard panel
-  - Formål: Vise projekt-specifikt ressourceoverblik for Projektleder.
-  - ændringer: Tilføj panel på projekt-dashboard, brug `scope=project`, vis badges når planned/actual > capacity, respekter adgangsroller.
+  - Form�l: Vise projekt-specifikt ressourceoverblik for Projektleder.
+  - �ndringer: Tilf�j panel p� projekt-dashboard, brug `scope=project`, vis badges n�r planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
     3) `npm run build`
-  - Accept: Projektleder ser panelet på egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
+  - Accept: Projektleder ser panelet p� egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
   - Afh�ngigheder: RM-005, FE-006.
 
 - [ ] RM-007: Performance & eksport
-  - Formål: Optimere svartid og muliggøre CSV-eksport.
-  - ændringer: Tilføj in-memory caching (TTL) i service, implementer `?format=csv`, skriv tests for cache-hit og CSV-generator, dokumenter interaction med rate-limit.
+  - Form�l: Optimere svartid og muligg�re CSV-eksport.
+  - �ndringer: Tilf�j in-memory caching (TTL) i service, implementer `?format=csv`, skriv tests for cache-hit og CSV-generator, dokumenter interaction med rate-limit.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run test`
     3) `npm run lint --prefix backend`
     4) `npm run lint`
-  - Accept: Første kald beregner data, efterfølgende inden for TTL bruger cache; CSV-download giver korrekte kolonner med danske feltnavne.
-  - Afhængigheder: RM-003, RM-005.
+  - Accept: F�rste kald beregner data, efterf�lgende inden for TTL bruger cache; CSV-download giver korrekte kolonner med danske feltnavne.
+  - Afh�ngigheder: RM-003, RM-005.
 
 - [ ] RM-008: Dokumentation & release notes
-  - Formål: Holde README, ROADMAP og CHANGELOG ajour med ressourcemodulet.
-  - ændringer: Opdater README med nye miljøvariable og UI-flow, ROADMAP-status, CHANGELOG-version bump og screenshots.
+  - Form�l: Holde README, ROADMAP og CHANGELOG ajour med ressourcemodulet.
+  - �ndringer: Opdater README med nye milj�variable og UI-flow, ROADMAP-status, CHANGELOG-version bump og screenshots.
   - Test (TDD):
     1) `npm run lint`
     2) `npm run build`
   - Accept: Dokumentation beskriver feature flag, API-endpoint og frontend-flows; release-notes stemmer med implementeret funktionalitet.
-  - Afhængigheder: RM-007, DOC-001.
+  - Afh�ngigheder: RM-007, DOC-001.
 
 Noter
-- Opgaverne er designet, så hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
-- Ved større refaktoreringer (BE-007) anbefales flag/feature toggles og små commits med hyppige smoke-tests.
-
-
+- Opgaverne er designet, s� hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
+- Ved st�rre refaktoreringer (BE-007) anbefales flag/feature toggles og sm� commits med hyppige smoke-tests.
