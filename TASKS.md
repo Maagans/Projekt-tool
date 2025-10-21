@@ -214,12 +214,12 @@
   - Dependencies: BE-006.
 
 - [x] FE-006: Beskyt mod reload-loops ved 401 i `api.ts`
-  - Form�l: Undg� gentagne `window.location.reload()`-loops.
-  - �ndringer: Indf�r "once"-guard eller redirect til login uden hard reload.
-  - Test (TDD): Invalider token; app g�r til login uden uendelig reload.
+  - Formål: Undgå gentagne `window.location.reload()`-loops.
+  - ændringer: Indfør "once"-guard eller redirect til login uden hard reload.
+  - Test (TDD): Invalider token; app gør til login uden uendelig reload.
   - Accept: Stabil recovery fra 401.
-  - Afh�ngigheder: FE-004.
-  - Status: `fetchWithAuth` h�ndterer 401 med engangs-redirect til `/login` (FE-006).
+  - Afhængigheder: FE-004.
+  - Status: `fetchWithAuth` håndterer 401 med engangs-redirect til `/login` (FE-006).
 
 
 
@@ -237,85 +237,85 @@
 
 ---
 
-## Fase P8 � Ressourcestyring (RM)
+## Fase P8 - Ressourcestyring (RM)
 
 - [ ] RM-001: Feature flag og skeleton-navigation
-  - Form�l: Gate ressourcemodulet bag et env-flag og forberede UI/route-stubs uden funktionel �ndring.
-  - �ndringer: Tilf�j `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun n�r flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
+  - Formål: Gate ressourcemodulet bag et env-flag og forberede UI/route-stubs uden funktionel ændring.
+  - ændringer: Tilføj `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun når flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
   - Test (TDD):
     1) `npm run lint --prefix backend`
     2) `npm run lint`
     3) `npm run build`
   - Accept: Med flag `false` vises ingen nye links eller API-responser; med flag `true` vises en "Coming soon"-placeholder uden dataadgang.
-  - Afh�ngigheder: FE-001, BE-007.
+  - Afhængigheder: FE-001, BE-007.
 
 - [ ] RM-002: ResourceAnalyticsService aggregation
-  - Form�l: Beregne kapacitet, planlagte og faktiske timer pr. uge for department- og project-scopes.
-  - �ndringer: Opret `services/resourceAnalyticsService.js`, brug eksisterende tabeller + `max_capacity_hours_week`, tilf�j fixtures og automatiske tests i `backend/tests/resourceAnalyticsService.test.js`, opret npm-script `test:services`.
+  - Formål: Beregne kapacitet, planlagte og faktiske timer pr. uge for department- og project-scopes.
+  - ændringer: Opret `services/resourceAnalyticsService.js`, brug eksisterende tabeller + `max_capacity_hours_week`, tilf�j fixtures og automatiske tests i `backend/tests/resourceAnalyticsService.test.js`, opret npm-script `test:services`.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run lint --prefix backend`
   - Accept: Testdata viser korrekt summering af capacity/planned/actual og identificerer over-allocated weeks.
-  - Afh�ngigheder: DB-002, DB-003.
+  - Afhængigheder: DB-002, DB-003.
 
 - [ ] RM-003: GET `/analytics/resources` endpoint
-  - Form�l: Eksponere aggregationerne via et sikkert API med input-validering og rolle-tjek.
-  - �ndringer: Opret validator (Zod) til scope/ugeparametre, ny controller/route `routes/analyticsRoutes.js`, opdater `routes/index.js`, tilf�j integrationstests med Supertest og npm-script `test:api`.
+  - Formål: Eksponere aggregationerne via et sikkert API med input-validering og rolle-tjek.
+  - ændringer: Opret validator (Zod) til scope/ugeparametre, ny controller/route `routes/analyticsRoutes.js`, opdater `routes/index.js`, tilf�j integrationstests med Supertest og npm-script `test:api`.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run test:api --prefix backend`
     3) `npm run lint --prefix backend`
-  - Accept: Admin f�r 200 med series-data; ikke-autoriserede f�r 403/401; ugyldige parametre giver 400.
-  - Afh�ngigheder: RM-002, SEC-001, BE-003, BE-007.
+  - Accept: Admin før 200 med series-data; ikke-autoriserede før 403/401; ugyldige parametre giver 400.
+  - Afhængigheder: RM-002, SEC-001, BE-003, BE-007.
 
 - [ ] RM-004: Frontend dataclient + Vitest-setup
-  - Form�l: Hente ressource-data via den nye API og stabilisere data-modeller p� klienten.
-  - �ndringer: Tilf�j `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
+  - Formål: Hente ressource-data via den nye API og stabilisere data-modeller på klienten.
+  - ændringer: Tilføj `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
   - Test (TDD):
     1) `npm run test -- --runInBand`
     2) `npm run lint`
-  - Accept: Hook returnerer normaliserede serier og h�ndterer fejl/401 med eksisterende error boundary.
-  - Afh�ngigheder: RM-003, FE-004, FE-006.
+  - Accept: Hook returnerer normaliserede serier og håndterer fejl/401 med eksisterende error boundary.
+  - Afhængigheder: RM-003, FE-004, FE-006.
 
 - [ ] RM-005: PMO ressourcemodul (Admin)
-  - Form�l: Bygge Ressource Analytics-side med department-filter og line chart.
-  - �ndringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilf�j screenshot i docs.
+  - Formål: Bygge Ressource Analytics-side med department-filter og line chart.
+  - ændringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilføj screenshot i docs.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
     3) `npm run build`
   - Accept: Med flag aktiveret kan Admin skifte department og se kapacitet/plan/aktuel-linjer med tooltips og over-allocation-markering.
-  - Afh�ngigheder: RM-004.
+  - Afhængigheder: RM-004.
 
 - [ ] RM-006: Projekt-dashboard panel
-  - Form�l: Vise projekt-specifikt ressourceoverblik for Projektleder.
-  - �ndringer: Tilf�j panel p� projekt-dashboard, brug `scope=project`, vis badges n�r planned/actual > capacity, respekter adgangsroller.
+  - Formål: Vise projekt-specifikt ressourceoverblik for Projektleder.
+  - ændringer: Tilføj panel på projekt-dashboard, brug `scope=project`, vis badges når planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
     3) `npm run build`
-  - Accept: Projektleder ser panelet p� egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
+  - Accept: Projektleder ser panelet på egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
   - Afh�ngigheder: RM-005, FE-006.
 
 - [ ] RM-007: Performance & eksport
-  - Form�l: Optimere svartid og muligg�re CSV-eksport.
-  - �ndringer: Tilf�j in-memory caching (TTL) i service, implementer `?format=csv`, skriv tests for cache-hit og CSV-generator, dokumenter interaction med rate-limit.
+  - Formål: Optimere svartid og muliggøre CSV-eksport.
+  - ændringer: Tilføj in-memory caching (TTL) i service, implementer `?format=csv`, skriv tests for cache-hit og CSV-generator, dokumenter interaction med rate-limit.
   - Test (TDD):
     1) `npm run test:services --prefix backend`
     2) `npm run test`
     3) `npm run lint --prefix backend`
     4) `npm run lint`
-  - Accept: F�rste kald beregner data, efterf�lgende inden for TTL bruger cache; CSV-download giver korrekte kolonner med danske feltnavne.
-  - Afh�ngigheder: RM-003, RM-005.
+  - Accept: Første kald beregner data, efterfølgende inden for TTL bruger cache; CSV-download giver korrekte kolonner med danske feltnavne.
+  - Afhængigheder: RM-003, RM-005.
 
 - [ ] RM-008: Dokumentation & release notes
-  - Form�l: Holde README, ROADMAP og CHANGELOG ajour med ressourcemodulet.
-  - �ndringer: Opdater README med nye milj�variable og UI-flow, ROADMAP-status, CHANGELOG-version bump og screenshots.
+  - Formål: Holde README, ROADMAP og CHANGELOG ajour med ressourcemodulet.
+  - ændringer: Opdater README med nye miljøvariable og UI-flow, ROADMAP-status, CHANGELOG-version bump og screenshots.
   - Test (TDD):
     1) `npm run lint`
     2) `npm run build`
   - Accept: Dokumentation beskriver feature flag, API-endpoint og frontend-flows; release-notes stemmer med implementeret funktionalitet.
-  - Afh�ngigheder: RM-007, DOC-001.
+  - Afhængigheder: RM-007, DOC-001.
 
 Noter
 - Opgaverne er designet, så hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
