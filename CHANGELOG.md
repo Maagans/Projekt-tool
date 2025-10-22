@@ -4,7 +4,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
-## [1.1.6] - 2025-10-21
+## [1.1.7] - 2025-10-21
 ### Changed
 - Aktiverede strict TypeScript i frontendens build og tilføjede supplerende sikkerhedsflag (`strict`, `noImplicitOverride`, m.fl.) for at fange typefejl tidligt (ST-005).
 - Refaktorerede `useProjectManager` til en delt provider/intern hook-struktur og opdaterede relaterede komponenter/tests, så strict-mode gennemføres uden `any`-smuthuller (ST-005).
