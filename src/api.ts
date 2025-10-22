@@ -10,6 +10,16 @@ const resolveUrl = (path: string) => {
   return `${API_BASE_URL}${path}`;
 };
 
+const toErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Der opstod en ukendt fejl.';
+};
+
 const getCookie = (name: string): string | null => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -108,8 +118,8 @@ export const api = {
         throw new Error(data.message || `Request failed with status ${response.status}`);
       }
       return { success: true, message: data.message };
-    } catch (error: any) {
-      return { success: false, message: error.message };
+    } catch (error: unknown) {
+      return { success: false, message: toErrorMessage(error) };
     }
   },
 
@@ -133,8 +143,8 @@ export const api = {
         return { success: true, user: data.user as User };
       }
       return { success: false, message: 'Login failed: Invalid response from server.' };
-    } catch (error: any) {
-      return { success: false, message: error.message };
+    } catch (error: unknown) {
+      return { success: false, message: toErrorMessage(error) };
     }
   },
 
@@ -152,8 +162,8 @@ export const api = {
         throw new Error(data.message || `Request failed with status ${response.status}`);
       }
       return { success: true, message: data.message };
-    } catch (error: any) {
-      return { success: false, message: error.message };
+    } catch (error: unknown) {
+      return { success: false, message: toErrorMessage(error) };
     }
   },
 
@@ -161,7 +171,7 @@ export const api = {
     // It's good practice to inform the backend about logout to invalidate the session/token.
     try {
         await fetchWithAuth('/api/logout', { method: 'POST' });
-    } catch (error) {
+    } catch (error: unknown) {
         console.warn("Logout API call failed, but logging out on client-side anyway.", error);
     } finally {
         // Always clear local storage regardless of API call success.

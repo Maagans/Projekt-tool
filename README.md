@@ -270,3 +270,4 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
+

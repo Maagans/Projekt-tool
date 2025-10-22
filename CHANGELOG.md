@@ -3,7 +3,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-- Nothing yet.
+
+## [1.1.6] - 2025-10-21
+### Changed
+- Aktiverede strict TypeScript i frontendens build og tilføjede supplerende sikkerhedsflag (`strict`, `noImplicitOverride`, m.fl.) for at fange typefejl tidligt (ST-005).
+- Refaktorerede `useProjectManager` til en delt provider/intern hook-struktur og opdaterede relaterede komponenter/tests, så strict-mode gennemføres uden `any`-smuthuller (ST-005).
+- Strammere typer i UI-komponenter og PMO-overblik, herunder typed rapportmodal, tidslinje-drag og organisationskort uden `any`-afhængigheder (ST-005).
+
 
 ## [1.1.5] - 2025-10-21
 ### Added

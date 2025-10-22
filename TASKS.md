@@ -262,28 +262,28 @@ pm run lint --prefix backend
   - AfhÃ¦ngigheder: ST-001.
   - Status: Konfiguration centraliseret; middleware, scripts og dokumentation bruger nu typed config.
 - [x] ST-003: Udvidet input-validering
-  - Formål: Blokere ugyldige payloads på alle muterende endpoints, inden RM-API'et udvider fladen.
-  - Ændringer: Tilføj Zod-schemas til users, projects, setup m.fl.; centralisér fejlformat; opdater controller-tests.
+  - FormÃ¥l: Blokere ugyldige payloads pÃ¥ alle muterende endpoints, inden RM-API'et udvider fladen.
+  - Ã¦ndringer: TilfÃ¸j Zod-schemas til users, projects, setup m.fl.; centralisÃ©r fejlformat; opdater controller-tests.
   - Test (TDD):
     1) 
 pm run test:api --prefix backend
     2) 
 pm run lint --prefix backend
   - Accept: Alle muterende endpoints returnerer 400 med konsistent fejlrespons ved ugyldige body/params/query.
-  - Afhængigheder: ST-001, ST-002.
-  - Status: Setup- og bruger-APIet validerer nu payloads med Zod og dækkes af nye validator-tests.
+  - AfhÃ¦ngigheder: ST-001, ST-002.
+  - Status: Setup- og bruger-APIet validerer nu payloads med Zod og dÃ¦kkes af nye validator-tests.
 - [x] ST-004: Transaktionsaudit i services
-  - Formål: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilføjes.
-  - Ændringer: Gennemgå workspaceService, usersService, projectsService; introducer transaction-helper; dæk rollback-scenarier med service- og integrationstests.
+  - FormÃ¥l: Sikre dataintegritet for komplekse skriveoperationer inden ressourceaggregationen tilfÃ¸jes.
+  - Ã¦ndringer: GennemgÃ¥ workspaceService, usersService, projectsService; introducer transaction-helper; dÃ¦k rollback-scenarier med service- og integrationstests.
   - Test (TDD):
     1) 
 pm run test:services --prefix backend
     2) 
 pm run test:api --prefix backend
-  - Accept: Alle multi-step writes bruger transaktioner; tests bekræfter korrekt rollback ved fejl.
-  - Afhængigheder: ST-003.
-  - Status: Transaction-helper indført og brugt i auth/setup/projects; vitest dækker commit/rollback.
-- [ ] ST-005: AktivÃ©r strict TypeScript
+  - Accept: Alle multi-step writes bruger transaktioner; tests bekrÃ¦fter korrekt rollback ved fejl.
+  - AfhÃ¦ngigheder: ST-003.
+  - Status: Transaction-helper indfÃ¸rt og brugt i auth/setup/projects; vitest dÃ¦kker commit/rollback.
+- [x] ST-005: AktivÃ©r strict TypeScript
   - FormÃ¥l: Fange typefejl tidligt og gÃ¸re frontendkoden klar til nye moduler.
   - Ã¦ndringer: SÃ¦t `"strict": true` (m.fl.) i `tsconfig.json`; fjern `any`-smuthuller i `src/**`; opdater hooks/components og tests til at opfylde stricte typer.
   - Test (TDD):

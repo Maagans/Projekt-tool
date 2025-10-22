@@ -445,21 +445,23 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     const isCurrentUsersMember = !!currentEmployeeId && member.employeeId === currentEmployeeId;
     const canLogThisMember = canManageMembers || (canLogTime && isCurrentUsersMember);
 
-    return (
-      <MemberCard
-        key={member.id}
-        member={member}
-        employee={employee}
-        canManageMembers={canManageMembers}
-        canLogThisMember={canLogThisMember}
-        onUpdate={onUpdateMember}
-        onDelete={onDeleteMember}
-        onTimeLogClick={() => {
-          if (!canLogThisMember) return;
-          setTimeLogMember(member);
-        }}
-      />
-    );
+    const memberCardProps: MemberCardProps = {
+      member,
+      canManageMembers,
+      canLogThisMember,
+      onUpdate: onUpdateMember,
+      onDelete: onDeleteMember,
+      onTimeLogClick: () => {
+        if (!canLogThisMember) return;
+        setTimeLogMember(member);
+      },
+    };
+
+    if (employee) {
+      memberCardProps.employee = employee;
+    }
+
+    return <MemberCard key={member.id} {...memberCardProps} />;
   };
 
   const canEditPlanned = canManageMembers;
@@ -538,6 +540,5 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     </div>
   );
 };
-
 
 

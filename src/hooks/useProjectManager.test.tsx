@@ -1,6 +1,12 @@
+ï»¿import { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useProjectManager } from './useProjectManager';
+import { ProjectManagerProvider, useProjectManager } from './useProjectManager';
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <ProjectManagerProvider>{children}</ProjectManagerProvider>
+);
+
 
 const baseWorkspace = vi.hoisted(() => ({
   projects: [
@@ -22,7 +28,7 @@ const baseWorkspace = vi.hoisted(() => ({
       id: 'employee-1',
       name: 'Alice',
       email: 'alice@example.com',
-      location: 'København',
+      location: 'Kï¿½benhavn',
       maxCapacityHoursWeek: 37.5,
     },
   ],
@@ -72,7 +78,7 @@ describe('useProjectManager', () => {
   });
 
   it('loads workspace data and marks admin access', async () => {
-    const { result } = renderHook(() => useProjectManager());
+    const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -87,21 +93,29 @@ describe('useProjectManager', () => {
   });
 
   it('creates a new project with default configuration', async () => {
-    const { result } = renderHook(() => useProjectManager());
+    const { result } = renderHook(() => useProjectManager(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const name = 'Nyt Projekt';
-    let createdProject: ReturnType<typeof result.current.createNewProject> = null;
 
     act(() => {
-      createdProject = result.current.createNewProject(name);
+      result.current.createNewProject(name);
     });
 
-    expect(createdProject).not.toBeNull();
-    expect(result.current.projects.some((p) => p.config.projectName === name)).toBe(true);
+    const createdProject = result.current.projects.find((p) => p.config.projectName === name);
+    expect(createdProject).toBeDefined();
     expect(createdProject?.status).toBe('active');
 
     await waitForAutosave();
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(1));
   });
 });
+
+
+
+
+
+
+
+
+

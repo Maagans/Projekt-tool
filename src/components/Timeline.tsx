@@ -392,7 +392,14 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     const initialPos = 'position' in item ? item.position : (item as Phase).start;
     const initialWidth = 'end' in item ? (item as Phase).end - (item as Phase).start : undefined;
 
-    setDraggedItem({ type, id, mode, initialX: e.clientX, initialPos, initialWidth });
+    setDraggedItem({
+      type,
+      id,
+      mode,
+      initialX: e.clientX,
+      initialPos,
+      ...(initialWidth !== undefined ? { initialWidth } : {}),
+    });
   };
   
   const handleMouseMove = useCallback((e: MouseEvent) => {

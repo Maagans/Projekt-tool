@@ -1,76 +1,81 @@
-ï»¿import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '../api'; // Import the new centralized API
 import { 
-  Project, Report, ProjectState, MainTableRow, Risk, Phase, 
-  Milestone, Deliverable, KanbanTask, ProjectConfig, ListItem, Employee, Location, locations, ProjectMember, ProjectStatus, TimeEntry, User, UserRole
+  Project, Report, ProjectState, Phase, 
+  Milestone, Deliverable, ProjectConfig, Employee, Location, locations, ProjectMember, ProjectStatus, User, UserRole
 } from '../types';
 
 
 const generateId = () => (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2, 12));
 
-// --- HOOK LOGIC ---
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Der opstod en uventet fejl.';
+};
 
-const getInitialMainTableRows = (): MainTableRow[] => [
-  { id: generateId(), title: 'Gevinster', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
-  { id: generateId(), title: 'Leverancer', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
-  { id: generateId(), title: 'Tid', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
-  { id: generateId(), title: 'Ã˜konomi', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
-  { id: generateId(), title: 'Ressourcer', status: 'green', note: '<i>Ingen bemÃ¦rkninger.</i>' },
-];
+type TimelineItemType = 'phase' | 'milestone' | 'deliverable';
+type TimelineUpdatePayload = Partial<Phase> | Partial<Milestone> | Partial<Deliverable>;
+
+// --- HOOK LOGIC ---
 
 const getInitialProjectState = (): ProjectState => ({
   statusItems: [
-    { id: generateId(), content: 'Projektets mÃ¥l er defineret, og gevinsterne er klarlagt.' },
-    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er pÃ¥ plads.' },
+    { id: generateId(), content: 'Projektets mål er defineret, og gevinsterne er klarlagt.' },
+    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er på plads.' },
     { id: generateId(), content: 'Projektteamet er bemandet, og aktiviteter er i gang.' },
   ],
   challengeItems: [
-    { id: generateId(), content: 'Hold Ã¸je med afhÃ¦ngigheder til eksterne leverandÃ¸rer i fase 3.' },
-    { id: generateId(), content: 'PlanlÃ¦g overlevering til drift tidligt for at undgÃ¥ forsinkelser.' },
+    { id: generateId(), content: 'Hold øje med afhængigheder til eksterne leverandører i fase 3.' },
+    { id: generateId(), content: 'Planlæg overlevering til drift tidligt for at undgå forsinkelser.' },
   ],
   mainTableRows: [
     { id: generateId(), title: 'Gevinster', status: 'green', note: '<p>De forventede gevinster er beskrevet, og gevinstplanen er igangsat.</p>' },
-    { id: generateId(), title: 'Leverancer', status: 'yellow', note: '<p>Leverancer for fase 3 er under udarbejdelse â€“ krÃ¦ver opfÃ¸lgning pÃ¥ testfeedback.</p>' },
-    { id: generateId(), title: 'Tid', status: 'green', note: '<p>Tidsplanen holder. MilepÃ¦len for fase 2 blev nÃ¥r som planlagt.</p>' },
-    { id: generateId(), title: 'Ã˜konomi', status: 'green', note: '<p>Budgettet er opdateret, og der er ingen afvigelser.</p>' },
-    { id: generateId(), title: 'Ressourcer', status: 'yellow', note: '<p>Vi mangler en specialist i udviklingsfasen â€“ handlinger er igangsat.</p>' },
+    { id: generateId(), title: 'Leverancer', status: 'yellow', note: '<p>Leverancer for fase 3 er under udarbejdelse ? kræver opfølgning på testfeedback.</p>' },
+    { id: generateId(), title: 'Tid', status: 'green', note: '<p>Tidsplanen holder. Milepælen for fase 2 blev når som planlagt.</p>' },
+    { id: generateId(), title: 'Økonomi', status: 'green', note: '<p>Budgettet er opdateret, og der er ingen afvigelser.</p>' },
+    { id: generateId(), title: 'Ressourcer', status: 'yellow', note: '<p>Vi mangler en specialist i udviklingsfasen ? handlinger er igangsat.</p>' },
   ],
   risks: [
-    { id: generateId(), name: 'Manglende tilgÃ¦ngelighed hos nÃ¸glebrugere til test i fase 3', s: 3, k: 3 },
+    { id: generateId(), name: 'Manglende tilgængelighed hos nøglebrugere til test i fase 3', s: 3, k: 3 },
     { id: generateId(), name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation', s: 2, k: 4 },
   ],
   phases: [
     { id: generateId(), text: 'Idebeskrivelse', start: 0, end: 15, highlight: 'blue' },
-    { id: generateId(), text: 'Forberedelse & planlÃ¦gning', start: 15, end: 35, highlight: 'green' },
+    { id: generateId(), text: 'Forberedelse & planlægning', start: 15, end: 35, highlight: 'green' },
     { id: generateId(), text: 'Analyse & udvikling', start: 35, end: 65, highlight: 'yellow' },
     { id: generateId(), text: 'Implementering, idriftsaettelse & evaluering', start: 65, end: 100, highlight: 'purple' },
   ],
   milestones: [
     { id: generateId(), text: 'Go/No-Go fase 2', position: 20 },
     { id: generateId(), text: 'Design godkendt', position: 45 },
-    { id: generateId(), text: 'Klar til idriftsÃ¦ttelse', position: 70 },
+    { id: generateId(), text: 'Klar til idriftsættelse', position: 70 },
     { id: generateId(), text: 'Projektafslutning', position: 95 },
   ],
   deliverables: [
-    { id: generateId(), text: 'Kort ideoplÃ¦g', position: 10 },
-    { id: generateId(), text: 'ForelÃ¸big interessentoversigt', position: 12 },
-    { id: generateId(), text: 'FÃ¸rste risikovurdering', position: 14 },
+    { id: generateId(), text: 'Kort ideoplæg', position: 10 },
+    { id: generateId(), text: 'Foreløbig interessentoversigt', position: 12 },
+    { id: generateId(), text: 'Første risikovurdering', position: 14 },
     { id: generateId(), text: 'Projektbeskrivelse', position: 25 },
-    { id: generateId(), text: 'MÃ¥lhierarki og milepÃ¦lsplan', position: 28 },
+    { id: generateId(), text: 'Målhierarki og milepælsplan', position: 28 },
     { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32 },
     { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34 },
     { id: generateId(), text: 'Kravspecifikation', position: 45 },
     { id: generateId(), text: 'Prototype/testleverance', position: 55 },
     { id: generateId(), text: 'Uddannelses- og implementeringsplan', position: 60 },
-    { id: generateId(), text: 'Implementeret lÃ¸sning', position: 75 },
+    { id: generateId(), text: 'Implementeret løsning', position: 75 },
     { id: generateId(), text: 'Overdragelse til drift', position: 82 },
     { id: generateId(), text: 'Kommunikation til brugere', position: 88 },
-    { id: generateId(), text: 'Evalueringsrapport & gevinstopfÃ¸lgning', position: 95 },
+    { id: generateId(), text: 'Evalueringsrapport & gevinstopfølgning', position: 95 },
   ],
   kanbanTasks: [
-    { id: generateId(), content: 'Afhold opstartsmÃ¸de med styregruppen', status: 'done' },
+    { id: generateId(), content: 'Afhold opstartsmøde med styregruppen', status: 'done' },
     { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing' },
-    { id: generateId(), content: 'PlanlÃ¦g brugertrÃ¦ning', status: 'todo' },
+    { id: generateId(), content: 'Planlæg brugertræning', status: 'todo' },
   ],
 });
 
@@ -109,7 +114,7 @@ const getWeekKey = (date = new Date()): string => {
 
 
 
-export const useProjectManager = () => {
+export const useProjectManagerInternal = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -119,10 +124,6 @@ export const useProjectManager = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
-
-  const editableProjectIds = useMemo(() => new Set(projects.filter(project => project.permissions?.canEdit).map(project => project.id)), [projects]);
-
-  const timeLoggableProjectIds = useMemo(() => new Set(projects.filter(project => project.permissions?.canLogTime).map(project => project.id)), [projects]);
 
   // Tjekker for en aktiv session ved app-start
   useEffect(() => {
@@ -145,9 +146,9 @@ export const useProjectManager = () => {
           setCurrentUser(user);
           setIsAuthenticated(true);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Failed to load session:", error);
-        setApiError("Kunne ikke hente data. PrÃ¸v at genindlÃ¦se siden.");
+        setApiError("Kunne ikke hente data. Prøv at genindlæse siden.");
       } finally {
         setIsLoading(false);
       }
@@ -172,13 +173,13 @@ export const useProjectManager = () => {
           try {
             setApiError(null);
             await api.saveWorkspace({ projects, employees });
-          } catch (error) {
+          } catch (error: unknown) {
             console.error("Autosave failed:", error);
-            setApiError("Ã¦ndringer kunne ikke gemmes. Tjek din forbindelse.");
+            setApiError("Ændringer kunne ikke gemmes. Tjek din forbindelse.");
           } finally {
             setIsSaving(false);
           }
-        }, 1000); // Gem 1 sekund efter sidste Ã¯Â¿Â½ndring
+        }, 1000); // Gem 1 sekund efter sidste ï¿½ndring
     } else {
         setIsSaving(false);
     }
@@ -204,11 +205,11 @@ export const useProjectManager = () => {
         setIsAuthenticated(true);
       }
       return result;
-    } catch (error) {
-      console.error("Login failed:", error);
-      setApiError("Der opstod en fejl under login.");
-      return { success: false, message: "Serverfejl. PrÃ¸v igen senere." };
-    } finally {
+  } catch (error: unknown) {
+    console.error("Login failed:", error);
+    setApiError("Der opstod en fejl under login.");
+    return { success: false, message: getErrorMessage(error) };
+  } finally {
         setIsLoading(false);
     }
   };
@@ -216,9 +217,9 @@ export const useProjectManager = () => {
   const logout = async () => {
     try {
       await api.logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
-    } finally {
+  } catch (error: unknown) {
+    console.error("Logout failed:", error);
+  } finally {
       // Always log out on client-side
       setIsAuthenticated(false);
       setCurrentUser(null);
@@ -242,7 +243,7 @@ export const useProjectManager = () => {
       try {
           const users = await api.getUsers();
           setAllUsers(users);
-      } catch (error) {
+      } catch (error: unknown) {
           console.error("Failed to fetch users:", error);
           setApiError("Kunne ikke hente brugerliste.");
       }
@@ -253,9 +254,9 @@ export const useProjectManager = () => {
       try {
           await api.updateUserRole(userId, role);
           setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
-      } catch (error: any) {
+      } catch (error: unknown) {
           console.error("Failed to update user role:", error);
-          setApiError(`Fejl: ${error.message}`);
+          setApiError(`Fejl: ${getErrorMessage(error)}`);
       }
   };
 
@@ -293,7 +294,7 @@ export const useProjectManager = () => {
   const importEmployeesFromCsv = (csvContent: string) => {
     const lines = csvContent.split('\n').filter(line => line.trim() !== '');
     if (lines.length <= 1) {
-        alert("CSV-filen er tom eller indeholder kun en overskriftsrÃ¦kke.");
+        alert("CSV-filen er tom eller indeholder kun en overskriftsrække.");
         return;
     }
     const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
@@ -304,7 +305,7 @@ export const useProjectManager = () => {
     let updatedCount = 0, addedCount = 0, skippedCount = 0;
     
     updateEmployees(currentEmployees => {
-      let newEmployeesList = [...currentEmployees];
+      const newEmployeesList = [...currentEmployees];
       const existingEmailMap = new Map(newEmployeesList.map(e => [e.email.toLowerCase(), e]));
       const rows = lines.slice(1);
 
@@ -325,7 +326,7 @@ export const useProjectManager = () => {
               addedCount++;
           }
       }
-      alert(`Import fÃ¦rdig.\n- ${addedCount} nye medarbejdere tilfÃ¸jet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rÃ¦kker sprunget over pga. fejl.`);
+      alert(`Import færdig.\n- ${addedCount} nye medarbejdere tilføjet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rækker sprunget over pga. fejl.`);
       return newEmployeesList;
     });
   };
@@ -498,7 +499,7 @@ export const useProjectManager = () => {
     })
     .catch((error) => {
       console.error('Time log sync failed:', error);
-      setApiError('Kunne ikke synkronisere timeregistrering. PrÃ¸v igen.');
+      setApiError('Kunne ikke synkronisere timeregistrering. Prøv igen.');
     });
 };
 const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entriesToUpdate: { weekKey: string, plannedHours: number }[]) => {
@@ -611,28 +612,142 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                 updateStatus: (id: string, status: 'todo' | 'doing' | 'done') => updateState(s => ({...s, kanbanTasks: s.kanbanTasks.map(t => t.id === id ? {...t, status} : t)})),
             },
             timelineManager: {
-                add: (type, pos) => updateState(s => { const newId = generateId();
-                    if (type === 'phase') return { ...s, phases: [...s.phases, { id: newId, text: 'Ny fase', start: pos, end: Math.min(pos + 10, 100), highlight: 'blue' }] };
-                    if (type === 'milestone') return { ...s, milestones: [...s.milestones, { id: newId, text: 'Ny milepÃ¦l', position: pos }] };
-                    if (type === 'deliverable') return { ...s, deliverables: [...s.deliverables, { id: newId, text: 'Ny leverance', position: pos }] };
-                    return s;
-                }),
-                update: (type, id, updates) => updateState(s => {
-                    if (type === 'phase') return { ...s, phases: s.phases.map(item => item.id === id ? { ...item, ...updates } : item) };
-                    if (type === 'milestone') return { ...s, milestones: s.milestones.map(item => item.id === id ? { ...item, ...updates } : item) };
-                    if (type === 'deliverable') return { ...s, deliverables: s.deliverables.map(item => item.id === id ? { ...item, ...updates } : item) };
-                    return s;
-                }),
-                delete: (type, id) => updateState(s => {
-                    if (type === 'phase') return { ...s, phases: s.phases.filter(item => item.id !== id) };
-                    if (type === 'milestone') return { ...s, milestones: s.milestones.filter(item => item.id !== id) };
-                    if (type === 'deliverable') return { ...s, deliverables: s.deliverables.filter(item => item.id !== id) };
-                    return s;
-                }),
-                calculateDateFromPosition: (pos) => { try{const s=new Date(project.config.projectStartDate).getTime(),e=new Date(project.config.projectEndDate).getTime();return new Date(s+((e-s)*pos/100)).toISOString().split('T')[0];}catch{return'';} },
-                calculatePositionFromDate: (date) => { try{const s=new Date(project.config.projectStartDate).getTime(),e=new Date(project.config.projectEndDate).getTime();return Math.max(0,Math.min(100,((new Date(date).getTime()-s)/(e-s))*100));}catch{return 0;} },
-                getTodayPosition: () => { try{const s=new Date(project.config.projectStartDate).getTime(),e=new Date(project.config.projectEndDate).getTime(),t=new Date().getTime();if(t<s||t>e||e<=s)return null;return((t-s)/(e-s))*100;}catch{return null;} },
-                getMonthMarkers: () => { try{const s=new Date(project.config.projectStartDate),e=new Date(project.config.projectEndDate);if(e<=s)return[];const m=[];let c=new Date(s);c.setDate(1);while(c<=e){const p=((c.getTime()-s.getTime())/(e.getTime()-s.getTime()))*100;if(p>=0&&p<=100){m.push({position:p,label:c.toLocaleString('da-DK',{month:'short',year:'2-digit'})});}c.setMonth(c.getMonth()+1);}return m;}catch{return[];} },
+                add: (itemType: TimelineItemType, position: number) => {
+                    updateState((state) => {
+                        const newId = generateId();
+                        if (itemType === 'phase') {
+                            return {
+                                ...state,
+                                phases: [
+                                    ...state.phases,
+                                    {
+                                        id: newId,
+                                        text: 'Ny fase',
+                                        start: position,
+                                        end: Math.min(position + 10, 100),
+                                        highlight: 'blue',
+                                    },
+                                ],
+                            };
+                        }
+                        if (itemType === 'milestone') {
+                            return {
+                                ...state,
+                                milestones: [
+                                    ...state.milestones,
+                                    { id: newId, text: 'Ny milepæl', position },
+                                ],
+                            };
+                        }
+                        if (itemType === 'deliverable') {
+                            return {
+                                ...state,
+                                deliverables: [
+                                    ...state.deliverables,
+                                    { id: newId, text: 'Ny leverance', position },
+                                ],
+                            };
+                        }
+                        return state;
+                    });
+                },
+                update: (itemType: TimelineItemType, id: string, updates: TimelineUpdatePayload) => {
+                    updateState((state) => {
+                        if (itemType === 'phase') {
+                            return {
+                                ...state,
+                                phases: state.phases.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+                            };
+                        }
+                        if (itemType === 'milestone') {
+                            return {
+                                ...state,
+                                milestones: state.milestones.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+                            };
+                        }
+                        if (itemType === 'deliverable') {
+                            return {
+                                ...state,
+                                deliverables: state.deliverables.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+                            };
+                        }
+                        return state;
+                    });
+                },
+                delete: (itemType: TimelineItemType, id: string) => {
+                    updateState((state) => {
+                        if (itemType === 'phase') {
+                            return { ...state, phases: state.phases.filter((item) => item.id !== id) };
+                        }
+                        if (itemType === 'milestone') {
+                            return { ...state, milestones: state.milestones.filter((item) => item.id !== id) };
+                        }
+                        if (itemType === 'deliverable') {
+                            return { ...state, deliverables: state.deliverables.filter((item) => item.id !== id) };
+                        }
+                        return state;
+                    });
+                },
+                calculateDateFromPosition: (position: number) => {
+                    try {
+                        const start = new Date(project.config.projectStartDate).getTime();
+                        const end = new Date(project.config.projectEndDate).getTime();
+                        const date = new Date(start + ((end - start) * position) / 100);
+                        return date.toISOString().split('T')[0] ?? '';
+                    } catch {
+                        return '';
+                    }
+                },
+                calculatePositionFromDate: (date: string) => {
+                    try {
+                        const start = new Date(project.config.projectStartDate).getTime();
+                        const end = new Date(project.config.projectEndDate).getTime();
+                        if (end <= start) {
+                            return 0;
+                        }
+                        return Math.max(0, Math.min(100, ((new Date(date).getTime() - start) / (end - start)) * 100));
+                    } catch {
+                        return 0;
+                    }
+                },
+                getTodayPosition: () => {
+                    try {
+                        const start = new Date(project.config.projectStartDate).getTime();
+                        const end = new Date(project.config.projectEndDate).getTime();
+                        const today = Date.now();
+                        if (today < start || today > end || end <= start) {
+                            return null;
+                        }
+                        return ((today - start) / (end - start)) * 100;
+                    } catch {
+                        return null;
+                    }
+                },
+                getMonthMarkers: () => {
+                    try {
+                        const start = new Date(project.config.projectStartDate);
+                        const end = new Date(project.config.projectEndDate);
+                        if (end <= start) {
+                            return [];
+                        }
+                        const markers: { position: number; label: string }[] = [];
+                        const current = new Date(start);
+                        current.setDate(1);
+                        while (current <= end) {
+                            const position = ((current.getTime() - start.getTime()) / (end.getTime() - start.getTime())) * 100;
+                            if (position >= 0 && position <= 100) {
+                                markers.push({
+                                    position,
+                                    label: current.toLocaleString('da-DK', { month: 'short', year: '2-digit' }),
+                                });
+                            }
+                            current.setMonth(current.getMonth() + 1);
+                        }
+                        return markers;
+                    } catch {
+                        return [];
+                    }
+                },
             },
             reportsManager: {
                 getAvailableWeeks: () => {
@@ -641,7 +756,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                         const start = new Date(project.config.projectStartDate);
                         const end = new Date(project.config.projectEndDate);
                         if (start > end) return [];
-                        let current = start;
+                        const current = new Date(start);
                         while (current <= end) {
                             weeks.add(getWeekKey(new Date(current)));
                             current.setDate(current.getDate() + 7);
@@ -664,8 +779,8 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     try {
                         const start = new Date(project.config.projectStartDate);
                         const end = new Date(project.config.projectEndDate);
-                        if (start > end) { alert("Projektets slutdato er fÃ¸r startdatoen."); return null; }
-                        let current = new Date(start);
+                        if (start > end) { alert("Projektets slutdato er før startdatoen."); return null; }
+                        const current = new Date(start);
                         while (current <= end) { allPossibleWeeksSet.add(getWeekKey(new Date(current))); current.setDate(current.getDate() + 7); }
                     } catch (e) { console.error("Ugyldig dato i projektkonfiguration", e); return null; }
                     
@@ -689,7 +804,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     const nextWeekKey = getWeekKey(d);
 
                     if (!allPossibleWeeksSet.has(nextWeekKey)) {
-                         alert("NÃ¦ste uge er uden for projektets tidsramme.");
+                         alert("Næste uge er uden for projektets tidsramme.");
                          return null;
                     }
                     if (existingWeeks.has(nextWeekKey)) {

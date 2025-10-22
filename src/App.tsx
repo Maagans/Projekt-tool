@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useProjectManager } from './hooks/useProjectManager';
+import { ProjectManagerProvider, useProjectManager } from './hooks/useProjectManager';
 import { api } from './api';
 import { EditableList } from './components/RichTextEditor';
 import { MainStatusTable } from './components/MainStatusTable';
@@ -9,7 +9,7 @@ import { DeliverablesList } from './components/DeliverablesList';
 import { KanbanBoard } from './components/KanbanBoard';
 import { ProjectOrganizationChart } from './components/ProjectOrganizationChart';
 import { locations } from './types';
-import type { Location, Project, ProjectStatus, User, UserRole } from './types';
+import type { Employee, Location, Project, ProjectStatus, User, UserRole } from './types';
 import { EditableField } from './components/EditableField';
 import { StatusToast } from './components/ui/StatusToast';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
@@ -18,9 +18,26 @@ import { PlusIcon, TrashIcon, UploadIcon, UsersIcon, CalendarIcon, StepForwardIc
 const RESOURCES_ANALYTICS_ENABLED =
     String(import.meta.env.VITE_RESOURCES_ANALYTICS_ENABLED ?? 'false').trim().toLowerCase() === 'true';
 
+type ProjectManagerApi = ReturnType<typeof useProjectManager>;
+type ReportsManager = NonNullable<ReturnType<ProjectManagerApi['projectActions']>>['reportsManager'];
+
+type EmployeeProjectSummary = {
+    id: string;
+    name: string;
+    planned: number;
+    actual: number;
+};
+
+type EmployeeWorkload = Employee & {
+    totalPlanned: number;
+    totalActual: number;
+    projectDetails: EmployeeProjectSummary[];
+    projectCount: number;
+};
+
 // --- MAIN APP COMPONENT ---
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
     const [globalError, setGlobalError] = useState<string | null>(null);
     const [showApiToast, setShowApiToast] = useState(false);
     const [page, setPage] = useState<{ name: string; projectId?: string }>({ name: 'home' });
@@ -29,7 +46,7 @@ const App: React.FC = () => {
         if (name === 'resources' && (!RESOURCES_ANALYTICS_ENABLED || !projectManager.isAdministrator)) {
             return;
         }
-        setPage({ name, projectId });
+        setPage(projectId ? { name, projectId } : { name });
     };
     const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
     const { isAuthenticated, isLoading, apiError, projects, isAdministrator, canManage, needsSetup, completeSetup } = projectManager;
@@ -664,24 +681,29 @@ const PmoPage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>, 
         const rangeStart = new Date(dateRange.start);
         const rangeEnd = new Date(dateRange.end);
 
-        const employeeData = employees.map(emp => {
+        const employeeData: EmployeeWorkload[] = employees.map(emp => {
             let totalPlanned = 0;
             let totalActual = 0;
-            const projectDetails: any[] = [];
+            const projectDetails: EmployeeProjectSummary[] = [];
 
-            activeProjects.forEach(p => {
-                const member = p.projectMembers.find(m => m.employeeId === emp.id);
+            activeProjects.forEach(project => {
+                const member = project.projectMembers.find(m => m.employeeId === emp.id);
                 if (!member) return;
 
                 let projectPlanned = 0;
                 let projectActual = 0;
                 
                 member.timeEntries.forEach(entry => {
-                    const [year, week] = entry.weekKey.replace('W', '').split('-').map(Number);
-                    const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-                    const day = d.getUTCDay();
-                    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-                    const weekDate = new Date(d.setUTCDate(diff));
+                    const [yearPart, weekPart] = entry.weekKey.replace('W', '').split('-');
+                    const year = Number(yearPart);
+                    const week = Number(weekPart);
+                    if (!Number.isFinite(year) || !Number.isFinite(week)) {
+                        return;
+                    }
+                    const baseDate = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+                    const day = baseDate.getUTCDay();
+                    const diff = baseDate.getUTCDate() - day + (day === 0 ? -6 : 1);
+                    const weekDate = new Date(baseDate.setUTCDate(diff));
 
                     if (weekDate >= rangeStart && weekDate <= rangeEnd) {
                         projectPlanned += entry.plannedHours;
@@ -692,28 +714,37 @@ const PmoPage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>, 
                 if (projectPlanned > 0 || projectActual > 0) {
                     totalPlanned += projectPlanned;
                     totalActual += projectActual;
-                    projectDetails.push({ id: p.id, name: p.config.projectName, planned: projectPlanned, actual: projectActual });
+                    projectDetails.push({ id: project.id, name: project.config.projectName, planned: projectPlanned, actual: projectActual });
                 }
             });
 
             return { ...emp, totalPlanned, totalActual, projectDetails, projectCount: projectDetails.length };
-        }).filter(d => d.totalPlanned > 0 || d.totalActual > 0);
+        }).filter(summary => summary.totalPlanned > 0 || summary.totalActual > 0);
 
-        const grouped = employeeData.reduce((acc, emp) => {
-            if (!acc[emp.location]) acc[emp.location] = [];
-            acc[emp.location].push(emp);
-            return acc;
-        }, {} as Record<Location, typeof employeeData>);
+        const grouped = Object.fromEntries(
+            locations.map(loc => [loc, [] as EmployeeWorkload[]])
+        ) as Record<Location, EmployeeWorkload[]>;
 
-        const locationTotals = locations.reduce((acc, loc) => {
-            const emps = grouped[loc] || [];
-            acc[loc] = emps.reduce((totals, emp) => {
-                totals.planned += emp.totalPlanned;
-                totals.actual += emp.totalActual;
-                return totals;
-            }, { planned: 0, actual: 0 });
-            return acc;
-        }, {} as Record<Location, { planned: number, actual: number }>);
+        for (const summary of employeeData) {
+            if (!summary.location) {
+                continue;
+            }
+            grouped[summary.location].push(summary);
+        }
+
+        const locationTotals = Object.fromEntries(
+            locations.map(loc => {
+                const summaries = grouped[loc];
+                const totals = summaries.reduce(
+                    (accTotals, summary) => ({
+                        planned: accTotals.planned + summary.totalPlanned,
+                        actual: accTotals.actual + summary.totalActual,
+                    }),
+                    { planned: 0, actual: 0 },
+                );
+                return [loc, totals] as const;
+            })
+        ) as Record<Location, { planned: number; actual: number }>;
         
         return { grouped, totals: locationTotals };
 
@@ -914,7 +945,7 @@ const ReportPage: React.FC<{ project: Project; projectManager: ReturnType<typeof
     );
 };
 
-const NewReportModal: React.FC<{ manager: any, onClose: () => void, onSelect: (weekKey: string) => void }> = ({ manager, onClose, onSelect }) => {
+const NewReportModal: React.FC<{ manager: ReportsManager; onClose: () => void; onSelect: (weekKey: string) => void }> = ({ manager, onClose, onSelect }) => {
     const availableWeeks = manager.getAvailableWeeks();
     const [selectedWeek, setSelectedWeek] = useState<string>(availableWeeks[0] || '');
 
@@ -986,7 +1017,18 @@ const ProjectSettingsPage: React.FC<{ project: Project; projectManager: ReturnTy
     );
 };
 
+const App: React.FC = () => (
+  <ProjectManagerProvider>
+    <AppContent />
+  </ProjectManagerProvider>
+);
+
 export default App;
+
+
+
+
+
 
 
 

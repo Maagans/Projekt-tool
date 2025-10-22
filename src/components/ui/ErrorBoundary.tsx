@@ -13,7 +13,7 @@ interface ErrorBoundaryState {
 }
 
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = {
+  override state: ErrorBoundaryState = {
     hasError: false,
   };
 
@@ -21,7 +21,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     if (typeof window !== 'undefined') {
       console.error('Unhandled UI error', error, errorInfo);
     }
@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     this.setState({ hasError: false });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       const { fallback } = this.props;
       if (typeof fallback === 'function') {
