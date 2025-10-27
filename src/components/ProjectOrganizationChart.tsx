@@ -87,6 +87,8 @@ const MemberCard: React.FC<MemberCardProps> = ({
             {showTimeLog && (
               <button
                 onClick={onTimeLogClick}
+                aria-label={`Åbn timelog for ${employee?.name ?? 'medlem'}`}
+                title="Åbn timelog"
                 className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-blue-500"
               >
                 <ClockIcon />
@@ -234,7 +236,7 @@ interface TimeLogModalProps {
   onBulkUpdateTimeLog: (entries: { weekKey: string; plannedHours: number }[]) => void;
 }
 
-const TimeLogModal: React.FC<TimeLogModalProps> = ({
+export const TimeLogModal: React.FC<TimeLogModalProps> = ({
   project,
   member,
   employee,
@@ -246,6 +248,8 @@ const TimeLogModal: React.FC<TimeLogModalProps> = ({
 }) => {
   const timeEntriesMap = useMemo(() => new Map(member.timeEntries.map((te) => [te.weekKey, te])), [member.timeEntries]);
   const [bulkHours, setBulkHours] = useState('');
+  const [plannedValues, setPlannedValues] = useState<Record<string, string>>({});
+  const [actualValues, setActualValues] = useState<Record<string, string>>({});
 
   const projectWeeks = useMemo(() => {
     const weeks: string[] = [];
@@ -269,6 +273,26 @@ const TimeLogModal: React.FC<TimeLogModalProps> = ({
     }
   }, [project.config.projectStartDate, project.config.projectEndDate]);
 
+  useEffect(() => {
+    const nextPlanned: Record<string, string> = {};
+    const nextActual: Record<string, string> = {};
+
+    projectWeeks.forEach((weekKey) => {
+      const entry = timeEntriesMap.get(weekKey);
+      nextPlanned[weekKey] =
+        typeof entry?.plannedHours === 'number' && Number.isFinite(entry.plannedHours)
+          ? String(entry.plannedHours)
+          : '';
+      nextActual[weekKey] =
+        typeof entry?.actualHours === 'number' && Number.isFinite(entry.actualHours)
+          ? String(entry.actualHours)
+          : '';
+    });
+
+    setPlannedValues(nextPlanned);
+    setActualValues(nextActual);
+  }, [projectWeeks, timeEntriesMap]);
+
   const totals = useMemo(
     () =>
       member.timeEntries.reduce(
@@ -289,6 +313,15 @@ const TimeLogModal: React.FC<TimeLogModalProps> = ({
     const entriesToUpdate = projectWeeks
       .filter((_, index) => index % interval === 0)
       .map((weekKey) => ({ weekKey, plannedHours: hours }));
+
+    setPlannedValues((prev) => {
+      const next = { ...prev };
+      const value = Number.isFinite(hours) ? String(hours) : '';
+      entriesToUpdate.forEach(({ weekKey }) => {
+        next[weekKey] = value;
+      });
+      return next;
+    });
 
     onBulkUpdateTimeLog(entriesToUpdate);
   };
@@ -349,44 +382,89 @@ const TimeLogModal: React.FC<TimeLogModalProps> = ({
         </div>
         <div className="flex-grow overflow-y-auto -mx-6 px-6 border-x border-b border-slate-200 rounded-b-md">
           <div className="space-y-1 py-1">
-            {projectWeeks.map((weekKey) => {
-              const entry = timeEntriesMap.get(weekKey);
-              return (
-                <div key={weekKey} className="grid grid-cols-3 gap-x-4 items-center p-2 rounded-md hover:bg-slate-50">
-                  <span className="font-semibold">{weekKey}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    defaultValue={entry?.plannedHours ?? ''}
-                    disabled={!canEditPlanned}
-                    onBlur={
-                      canEditPlanned
-                        ? (e) => onUpdateTimeLog(weekKey, { planned: Math.max(0, Number(e.target.value || 0)) })
-                        : undefined
-                    }
-                    className={plannedInputClass}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    defaultValue={entry?.actualHours ?? ''}
-                    disabled={!canEditActual}
-                    onBlur={
-                      canEditActual
-                        ? (e) => onUpdateTimeLog(weekKey, { actual: Math.max(0, Number(e.target.value || 0)) })
-                        : undefined
-                    }
-                    className={actualInputClass}
-                  />
-                </div>
-              );
-            })}
+            {projectWeeks.map((weekKey) => (
+              <div key={weekKey} className="grid grid-cols-3 gap-x-4 items-center p-2 rounded-md hover:bg-slate-50">
+                <span className="font-semibold">{weekKey}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={plannedValues[weekKey] ?? ''}
+                  disabled={!canEditPlanned}
+                  onChange={
+                    canEditPlanned
+                      ? (e) =>
+                          setPlannedValues((prev) => ({
+                            ...prev,
+                            [weekKey]: e.target.value,
+                          }))
+                      : undefined
+                  }
+                  onBlur={
+                    canEditPlanned
+                      ? (e) => {
+                          const rawValue = e.target.value;
+                          const numericValue = Number(rawValue);
+                          if (!rawValue || Number.isNaN(numericValue)) {
+                            setPlannedValues((prev) => ({ ...prev, [weekKey]: '' }));
+                            onUpdateTimeLog(weekKey, { planned: 0 });
+                            return;
+                          }
+
+                          const normalisedValue = Math.max(0, numericValue);
+                          const nextValue = String(normalisedValue);
+                          setPlannedValues((prev) => ({ ...prev, [weekKey]: nextValue }));
+                          onUpdateTimeLog(weekKey, { planned: normalisedValue });
+                        }
+                      : undefined
+                  }
+                  className={plannedInputClass}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={actualValues[weekKey] ?? ''}
+                  disabled={!canEditActual}
+                  onChange={
+                    canEditActual
+                      ? (e) =>
+                          setActualValues((prev) => ({
+                            ...prev,
+                            [weekKey]: e.target.value,
+                          }))
+                      : undefined
+                  }
+                  onBlur={
+                    canEditActual
+                      ? (e) => {
+                          const rawValue = e.target.value;
+                          const numericValue = Number(rawValue);
+                          if (!rawValue || Number.isNaN(numericValue)) {
+                            setActualValues((prev) => ({ ...prev, [weekKey]: '' }));
+                            onUpdateTimeLog(weekKey, { actual: 0 });
+                            return;
+                          }
+
+                          const normalisedValue = Math.max(0, numericValue);
+                          const nextValue = String(normalisedValue);
+                          setActualValues((prev) => ({ ...prev, [weekKey]: nextValue }));
+                          onUpdateTimeLog(weekKey, { actual: normalisedValue });
+                        }
+                      : undefined
+                  }
+                  className={actualInputClass}
+                />
+              </div>
+            ))}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-x-4 px-2 py-3 mt-2 font-bold border-t border-slate-200">
           <div>Total</div>
-          <div className="text-right">{totals.planned.toFixed(1)}</div>
-          <div className="text-right">{totals.actual.toFixed(1)}</div>
+          <div data-testid="timelog-total-planned" className="text-right">
+            {totals.planned.toFixed(1)}
+          </div>
+          <div data-testid="timelog-total-actual" className="text-right">
+            {totals.actual.toFixed(1)}
+          </div>
         </div>
         <div className="flex justify-end pt-4">
           <button
@@ -416,7 +494,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
 }) => {
   const [draggedOverGroup, setDraggedOverGroup] = useState<MemberGroup | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [timeLogMember, setTimeLogMember] = useState<ProjectMember | null>(null);
+  const [timeLogMemberId, setTimeLogMemberId] = useState<string | null>(null);
 
   const employeeMap = useMemo(() => new Map(allEmployees.map((e) => [e.id, e])), [allEmployees]);
 
@@ -429,6 +507,20 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   const groupOrder: MemberGroup[] = ['styregruppe', 'projektgruppe', 'partnere', 'referencegruppe'];
 
   const currentEmployeeId = currentUserEmployeeId ?? null;
+
+  const activeMember = useMemo(() => {
+    if (!timeLogMemberId) return null;
+    return members.find((member) => member.id === timeLogMemberId) ?? null;
+  }, [timeLogMemberId, members]);
+
+  const activeEmployee = activeMember ? employeeMap.get(activeMember.employeeId) ?? null : null;
+
+  useEffect(() => {
+    if (!timeLogMemberId) return;
+    if (!activeMember || !activeEmployee) {
+      setTimeLogMemberId(null);
+    }
+  }, [timeLogMemberId, activeMember, activeEmployee]);
 
   const handleDrop = (e: React.DragEvent, group: MemberGroup) => {
     if (!canManageMembers) return;
@@ -453,7 +545,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
       onDelete: onDeleteMember,
       onTimeLogClick: () => {
         if (!canLogThisMember) return;
-        setTimeLogMember(member);
+        setTimeLogMemberId(member.id);
       },
     };
 
@@ -480,7 +572,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center justify-center gap-1 text-sm text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors font-semibold export-hide"
           >
-            <PlusIcon /> Tilfoj medlem
+            <PlusIcon /> Tilføj medlem
           </button>
         )}
       </div>
@@ -525,20 +617,18 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
         />
       )}
 
-      {timeLogMember && employeeMap.get(timeLogMember.employeeId) && (
+      {activeMember && activeEmployee && (
         <TimeLogModal
           project={project}
-          member={timeLogMember}
-          employee={employeeMap.get(timeLogMember.employeeId)!}
+          member={activeMember}
+          employee={activeEmployee}
           canEditPlanned={canEditPlanned}
-          canEditActual={canEditActual(timeLogMember)}
-          onClose={() => setTimeLogMember(null)}
-          onUpdateTimeLog={(weekKey, hours) => onUpdateTimeLog(timeLogMember.id, weekKey, hours)}
-          onBulkUpdateTimeLog={(entries) => onBulkUpdateTimeLog(timeLogMember.id, entries)}
+          canEditActual={canEditActual(activeMember)}
+          onClose={() => setTimeLogMemberId(null)}
+          onUpdateTimeLog={(weekKey, hours) => onUpdateTimeLog(activeMember.id, weekKey, hours)}
+          onBulkUpdateTimeLog={(entries) => onBulkUpdateTimeLog(activeMember.id, entries)}
         />
       )}
     </div>
   );
 };
-
-

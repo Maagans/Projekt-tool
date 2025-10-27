@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+ï»¿import { useState, useCallback, useEffect } from 'react';
 import { api } from '../api'; // Import the new centralized API
 import { 
   Project, Report, ProjectState, Phase, 
@@ -25,57 +25,57 @@ type TimelineUpdatePayload = Partial<Phase> | Partial<Milestone> | Partial<Deliv
 
 const getInitialProjectState = (): ProjectState => ({
   statusItems: [
-    { id: generateId(), content: 'Projektets mål er defineret, og gevinsterne er klarlagt.' },
-    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er på plads.' },
+    { id: generateId(), content: 'Projektets mÃ¥l er defineret, og gevinsterne er klarlagt.' },
+    { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er pÃ¥ plads.' },
     { id: generateId(), content: 'Projektteamet er bemandet, og aktiviteter er i gang.' },
   ],
   challengeItems: [
-    { id: generateId(), content: 'Hold øje med afhængigheder til eksterne leverandører i fase 3.' },
-    { id: generateId(), content: 'Planlæg overlevering til drift tidligt for at undgå forsinkelser.' },
+    { id: generateId(), content: 'Hold Ã¸je med afhÃ¦ngigheder til eksterne leverandÃ¸rer i fase 3.' },
+    { id: generateId(), content: 'PlanlÃ¦g overlevering til drift tidligt for at undgÃ¥ forsinkelser.' },
   ],
   mainTableRows: [
     { id: generateId(), title: 'Gevinster', status: 'green', note: '<p>De forventede gevinster er beskrevet, og gevinstplanen er igangsat.</p>' },
-    { id: generateId(), title: 'Leverancer', status: 'yellow', note: '<p>Leverancer for fase 3 er under udarbejdelse ? kræver opfølgning på testfeedback.</p>' },
-    { id: generateId(), title: 'Tid', status: 'green', note: '<p>Tidsplanen holder. Milepælen for fase 2 blev når som planlagt.</p>' },
-    { id: generateId(), title: 'Økonomi', status: 'green', note: '<p>Budgettet er opdateret, og der er ingen afvigelser.</p>' },
+    { id: generateId(), title: 'Leverancer', status: 'yellow', note: '<p>Leverancer for fase 3 er under udarbejdelse ? krÃ¦ver opfÃ¸lgning pÃ¥ testfeedback.</p>' },
+    { id: generateId(), title: 'Tid', status: 'green', note: '<p>Tidsplanen holder. MilepÃ¦len for fase 2 blev nÃ¥r som planlagt.</p>' },
+    { id: generateId(), title: 'Ã˜konomi', status: 'green', note: '<p>Budgettet er opdateret, og der er ingen afvigelser.</p>' },
     { id: generateId(), title: 'Ressourcer', status: 'yellow', note: '<p>Vi mangler en specialist i udviklingsfasen ? handlinger er igangsat.</p>' },
   ],
   risks: [
-    { id: generateId(), name: 'Manglende tilgængelighed hos nøglebrugere til test i fase 3', s: 3, k: 3 },
+    { id: generateId(), name: 'Manglende tilgÃ¦ngelighed hos nÃ¸glebrugere til test i fase 3', s: 3, k: 3 },
     { id: generateId(), name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation', s: 2, k: 4 },
   ],
   phases: [
     { id: generateId(), text: 'Idebeskrivelse', start: 0, end: 15, highlight: 'blue' },
-    { id: generateId(), text: 'Forberedelse & planlægning', start: 15, end: 35, highlight: 'green' },
+    { id: generateId(), text: 'Forberedelse & planlÃ¦gning', start: 15, end: 35, highlight: 'green' },
     { id: generateId(), text: 'Analyse & udvikling', start: 35, end: 65, highlight: 'yellow' },
     { id: generateId(), text: 'Implementering, idriftsaettelse & evaluering', start: 65, end: 100, highlight: 'purple' },
   ],
   milestones: [
     { id: generateId(), text: 'Go/No-Go fase 2', position: 20 },
     { id: generateId(), text: 'Design godkendt', position: 45 },
-    { id: generateId(), text: 'Klar til idriftsættelse', position: 70 },
+    { id: generateId(), text: 'Klar til idriftsÃ¦ttelse', position: 70 },
     { id: generateId(), text: 'Projektafslutning', position: 95 },
   ],
   deliverables: [
-    { id: generateId(), text: 'Kort ideoplæg', position: 10 },
-    { id: generateId(), text: 'Foreløbig interessentoversigt', position: 12 },
-    { id: generateId(), text: 'Første risikovurdering', position: 14 },
+    { id: generateId(), text: 'Kort ideoplÃ¦g', position: 10 },
+    { id: generateId(), text: 'ForelÃ¸big interessentoversigt', position: 12 },
+    { id: generateId(), text: 'FÃ¸rste risikovurdering', position: 14 },
     { id: generateId(), text: 'Projektbeskrivelse', position: 25 },
-    { id: generateId(), text: 'Målhierarki og milepælsplan', position: 28 },
+    { id: generateId(), text: 'MÃ¥lhierarki og milepÃ¦lsplan', position: 28 },
     { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32 },
     { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34 },
     { id: generateId(), text: 'Kravspecifikation', position: 45 },
     { id: generateId(), text: 'Prototype/testleverance', position: 55 },
     { id: generateId(), text: 'Uddannelses- og implementeringsplan', position: 60 },
-    { id: generateId(), text: 'Implementeret løsning', position: 75 },
+    { id: generateId(), text: 'Implementeret lÃ¸sning', position: 75 },
     { id: generateId(), text: 'Overdragelse til drift', position: 82 },
     { id: generateId(), text: 'Kommunikation til brugere', position: 88 },
-    { id: generateId(), text: 'Evalueringsrapport & gevinstopfølgning', position: 95 },
+    { id: generateId(), text: 'Evalueringsrapport & gevinstopfÃ¸lgning', position: 95 },
   ],
   kanbanTasks: [
-    { id: generateId(), content: 'Afhold opstartsmøde med styregruppen', status: 'done' },
+    { id: generateId(), content: 'Afhold opstartsmÃ¸de med styregruppen', status: 'done' },
     { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing' },
-    { id: generateId(), content: 'Planlæg brugertræning', status: 'todo' },
+    { id: generateId(), content: 'PlanlÃ¦g brugertrÃ¦ning', status: 'todo' },
   ],
 });
 
@@ -148,7 +148,7 @@ export const useProjectManagerInternal = () => {
         }
       } catch (error: unknown) {
         console.error("Failed to load session:", error);
-        setApiError("Kunne ikke hente data. Prøv at genindlæse siden.");
+        setApiError("Kunne ikke hente data. PrÃ¸v at genindlÃ¦se siden.");
       } finally {
         setIsLoading(false);
       }
@@ -175,11 +175,11 @@ export const useProjectManagerInternal = () => {
             await api.saveWorkspace({ projects, employees });
           } catch (error: unknown) {
             console.error("Autosave failed:", error);
-            setApiError("Ændringer kunne ikke gemmes. Tjek din forbindelse.");
+            setApiError("Ã†ndringer kunne ikke gemmes. Tjek din forbindelse.");
           } finally {
             setIsSaving(false);
           }
-        }, 1000); // Gem 1 sekund efter sidste ï¿½ndring
+        }, 1000); // Gem 1 sekund efter sidste Ã¯Â¿Â½ndring
     } else {
         setIsSaving(false);
     }
@@ -294,7 +294,7 @@ export const useProjectManagerInternal = () => {
   const importEmployeesFromCsv = (csvContent: string) => {
     const lines = csvContent.split('\n').filter(line => line.trim() !== '');
     if (lines.length <= 1) {
-        alert("CSV-filen er tom eller indeholder kun en overskriftsrække.");
+        alert("CSV-filen er tom eller indeholder kun en overskriftsrÃ¦kke.");
         return;
     }
     const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''));
@@ -326,7 +326,7 @@ export const useProjectManagerInternal = () => {
               addedCount++;
           }
       }
-      alert(`Import færdig.\n- ${addedCount} nye medarbejdere tilføjet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rækker sprunget over pga. fejl.`);
+      alert(`Import fÃ¦rdig.\n- ${addedCount} nye medarbejdere tilfÃ¸jet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rÃ¦kker sprunget over pga. fejl.`);
       return newEmployeesList;
     });
   };
@@ -355,6 +355,10 @@ export const useProjectManagerInternal = () => {
     };
     updateProjects(prev => [...prev, newProject]);
     return newProject;
+  };
+
+  const deleteProject = (projectId: string) => {
+    setProjects(prev => prev.filter(project => project.id !== projectId));
   };
   
   const updateProjectConfig = (projectId: string, newConfig: Partial<ProjectConfig>) => {
@@ -499,7 +503,7 @@ export const useProjectManagerInternal = () => {
     })
     .catch((error) => {
       console.error('Time log sync failed:', error);
-      setApiError('Kunne ikke synkronisere timeregistrering. Prøv igen.');
+      setApiError('Kunne ikke synkronisere timeregistrering. PrÃ¸v igen.');
     });
 };
 const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entriesToUpdate: { weekKey: string, plannedHours: number }[]) => {
@@ -552,6 +556,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
     importEmployeesFromCsv,
     // Projekt-funktioner
     createNewProject,
+    deleteProject,
     updateProjectConfig,
     updateProjectStatus,
     getProjectById,
@@ -635,7 +640,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                                 ...state,
                                 milestones: [
                                     ...state.milestones,
-                                    { id: newId, text: 'Ny milepæl', position },
+                                    { id: newId, text: 'Ny milepÃ¦l', position },
                                 ],
                             };
                         }
@@ -779,7 +784,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     try {
                         const start = new Date(project.config.projectStartDate);
                         const end = new Date(project.config.projectEndDate);
-                        if (start > end) { alert("Projektets slutdato er før startdatoen."); return null; }
+                        if (start > end) { alert("Projektets slutdato er fÃ¸r startdatoen."); return null; }
                         const current = new Date(start);
                         while (current <= end) { allPossibleWeeksSet.add(getWeekKey(new Date(current))); current.setDate(current.getDate() + 7); }
                     } catch (e) { console.error("Ugyldig dato i projektkonfiguration", e); return null; }
@@ -804,7 +809,7 @@ const bulkUpdateTimeLogForMember = (projectId: string, memberId: string, entries
                     const nextWeekKey = getWeekKey(d);
 
                     if (!allPossibleWeeksSet.has(nextWeekKey)) {
-                         alert("Næste uge er uden for projektets tidsramme.");
+                         alert("NÃ¦ste uge er uden for projektets tidsramme.");
                          return null;
                     }
                     if (existingWeeks.has(nextWeekKey)) {

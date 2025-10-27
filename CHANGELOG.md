@@ -1,10 +1,13 @@
-# Changelog
+﻿# Changelog
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
 ## [1.1.7] - 2025-10-21
+### Added
+- Mulighed for at slette projekter direkte fra dashboardet med bekræftelse, hvilket samtidig fjerner tilhørende rapportdata.
+
 ### Changed
 - Aktiverede strict TypeScript i frontendens build og tilføjede supplerende sikkerhedsflag (`strict`, `noImplicitOverride`, m.fl.) for at fange typefejl tidligt (ST-005).
 - Refaktorerede `useProjectManager` til en delt provider/intern hook-struktur og opdaterede relaterede komponenter/tests, så strict-mode gennemføres uden `any`-smuthuller (ST-005).
@@ -90,5 +93,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og miljøbaseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
 
 

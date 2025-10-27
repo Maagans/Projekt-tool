@@ -109,6 +109,33 @@ describe('useProjectManager', () => {
     await waitForAutosave();
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(1));
   });
+
+  it('deletes a project and removes it from the workspace', async () => {
+    const { result } = renderHook(() => useProjectManager(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let createdProjectId: string | undefined;
+    act(() => {
+      const project = result.current.createNewProject('Projekt Beta');
+      createdProjectId = project?.id;
+    });
+
+    expect(createdProjectId).toBeDefined();
+
+    await waitForAutosave();
+    await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      if (createdProjectId) {
+        result.current.deleteProject(createdProjectId);
+      }
+    });
+
+    expect(result.current.projects.some((p) => p.id === createdProjectId)).toBe(false);
+
+    await waitForAutosave();
+    await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(2));
+  });
 });
 
 

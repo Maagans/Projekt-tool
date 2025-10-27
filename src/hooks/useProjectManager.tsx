@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+﻿import { createContext, useContext, ReactNode } from 'react';
 import { useProjectManagerInternal } from './useProjectManagerInternal';
 
 type ProjectManagerValue = ReturnType<typeof useProjectManagerInternal>;
@@ -22,6 +22,7 @@ type WorkspaceContextValue = Pick<ProjectManagerValue,
   | 'projects'
   | 'employees'
   | 'createNewProject'
+  | 'deleteProject'
   | 'updateProjectConfig'
   | 'updateProjectStatus'
   | 'getProjectById'
@@ -65,6 +66,7 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
     projects: value.projects,
     employees: value.employees,
     createNewProject: value.createNewProject,
+    deleteProject: value.deleteProject,
     updateProjectConfig: value.updateProjectConfig,
     updateProjectStatus: value.updateProjectStatus,
     getProjectById: value.getProjectById,

@@ -445,9 +445,9 @@ const AppHeader: React.FC<{
     const showHalo = Boolean(haloClasses);
 
     return (
-        <header className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-wrap justify-between items-center gap-4 export-hide">
-            <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
-            <div className="flex items-center gap-4">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-blue-500/5 backdrop-blur export-hide">
+            <h1 className="text-3xl font-semibold text-slate-900">{title}</h1>
+            <div className="flex flex-wrap items-center gap-4">
                 {children}
                 <div className="flex items-center gap-3 text-sm" title={apiError || 'API Status'}>
                     <span className="relative flex items-center justify-center">
@@ -463,12 +463,16 @@ const AppHeader: React.FC<{
                     </span>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-lg">
-                    <div className="w-8 h-8 grid place-items-center bg-slate-200 text-slate-600 rounded-full"><UserIcon/></div>
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-slate-600 shadow-inner">
+                        <UserIcon/>
+                    </div>
                     <div>
-                        <div className="font-semibold text-sm text-slate-800">{user?.name}</div>
+                        <div className="text-sm font-semibold text-slate-800">{user?.name}</div>
                         <div className="text-xs text-slate-500">{user?.email} ({user?.role})</div>
                     </div>
-                    <button onClick={onLogout} title="Log ud" className="ml-2 text-slate-500 hover:text-red-600"><LogOutIcon /></button>
+                    <button onClick={onLogout} title="Log ud" className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600">
+                        <LogOutIcon />
+                    </button>
                 </div>
             </div>
         </header>
@@ -479,8 +483,15 @@ const AppHeader: React.FC<{
 // --- PAGES ---
 
 const HomePage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>, navigateTo: (name: string, projectId?: string) => void }> = ({ projectManager, navigateTo }) => {
-    const { projects, createNewProject, logout, currentUser, isSaving, apiError, canManage, isAdministrator } = projectManager;
+    const { projects, createNewProject, deleteProject, logout, currentUser, isSaving, apiError, canManage, isAdministrator } = projectManager;
     const [newProjectName, setNewProjectName] = useState("");
+    const metrics = useMemo(() => {
+        const total = projects.length;
+        const active = projects.filter(project => project.status === 'active').length;
+        const completed = projects.filter(project => project.status === 'completed').length;
+        const reports = projects.reduce((sum, project) => sum + project.reports.length, 0);
+        return { total, active, completed, reports };
+    }, [projects]);
     
     const handleCreateProject = () => {
         if (!newProjectName.trim()) return;
@@ -491,39 +502,174 @@ const HomePage: React.FC<{ projectManager: ReturnType<typeof useProjectManager>,
         setNewProjectName("");
     };
 
+    const handleDeleteProject = (projectId: string, projectName: string) => {
+        if (!window.confirm(`Vil du slette projektet "${projectName}"? Dette fjerner alle tilknyttede rapporter.`)) {
+            return;
+        }
+        deleteProject(projectId);
+    };
+
     return (
-        <div>
-             <AppHeader title="Projekt Dashboard" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
-                   {canManage && <button onClick={() => navigateTo('employees')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold"><UsersIcon /> Database</button>}
-                   {canManage && <button onClick={() => navigateTo('pmo')} className="flex items-center gap-2 text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 font-semibold">PMO</button>}
-                   {RESOURCES_ANALYTICS_ENABLED && isAdministrator && (
-                       <button
-                           onClick={() => navigateTo('resources')}
-                           className="flex items-center gap-2 text-sm bg-teal-200 text-teal-900 px-4 py-2 rounded-md hover:bg-teal-300 font-semibold"
-                       >
-                           <AnalyticsIcon /> Ressource Analytics
-                       </button>
-                   )}
-                   {isAdministrator && <button onClick={() => navigateTo('admin')} className="flex items-center gap-2 text-sm bg-purple-200 text-purple-800 px-4 py-2 rounded-md hover:bg-purple-300 font-semibold">Admin</button>}
-              </AppHeader>
-            <main>
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h2 className="text-xl font-bold text-slate-700 mb-4">Projekter</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {projects.map(p => (
-                            <div key={p.id} onClick={() => navigateTo('project', p.id)} className="bg-slate-50 p-4 rounded-lg border border-slate-200 hover:shadow-md hover:border-blue-400 cursor-pointer transition-all">
-                                <h3 className="font-bold text-lg text-slate-800">{p.config.projectName}</h3>
-                                <p className="text-sm text-slate-500">{p.reports.length} rapport(er) - <span className={`font-semibold ${p.status === 'active' ? 'text-green-600' : 'text-slate-500'}`}>{p.status}</span></p>
+        <div className="min-h-screen bg-slate-100">
+            <AppHeader title="Dashboard" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+                {canManage && (
+                    <button
+                        onClick={() => navigateTo('employees')}
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-800"
+                    >
+                        <UsersIcon /> Database
+                    </button>
+                )}
+                {canManage && (
+                    <button
+                        onClick={() => navigateTo('pmo')}
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-800"
+                    >
+                        PMO
+                    </button>
+                )}
+                {RESOURCES_ANALYTICS_ENABLED && isAdministrator && (
+                    <button
+                        onClick={() => navigateTo('resources')}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-teal-500/90 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition hover:bg-teal-500"
+                    >
+                        <AnalyticsIcon /> Ressource Analytics
+                    </button>
+                )}
+                {isAdministrator && (
+                    <button
+                        onClick={() => navigateTo('admin')}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-purple-500/90 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:bg-purple-500"
+                    >
+                        Admin
+                    </button>
+                )}
+            </AppHeader>
+            <main className="px-4 pb-12 sm:px-6 lg:px-10">
+                <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 px-6 py-10 text-white shadow-xl">
+                    <div className="absolute inset-0 opacity-30 blur-3xl" style={{ background: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.2), transparent 55%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.15), transparent 55%)' }} />
+                    <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-sm font-semibold uppercase tracking-wide text-white/80 backdrop-blur-md">
+                                <span className="h-2 w-2 rounded-full bg-emerald-300" aria-hidden /> Live overblik
+                            </span>
+                            <h2 className="mt-4 text-3xl font-semibold sm:text-4xl lg:text-5xl">Velkommen tilbage, {currentUser?.name?.split(' ')[0] ?? 'projektleder'}</h2>
+                            <p className="mt-3 max-w-2xl text-base text-white/80 sm:text-lg">
+                                Hold styr på alle projekter, ressourcer og PMO-indsigter fra ét samlet dashboard. Her finder du de seneste rapporter, statusser og værktøjer til at holde momentum.
+                            </p>
+                        </div>
+                        <div className="grid w-full max-w-xl grid-cols-2 gap-4 sm:grid-cols-4 lg:max-w-none">
+                            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-center shadow-lg backdrop-blur">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-white/70">Projekter</span>
+                                <p className="mt-2 text-2xl font-bold">{metrics.total}</p>
+                                <p className="text-xs text-white/70">Total registreret</p>
                             </div>
-                        ))}
+                            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-center shadow-lg backdrop-blur">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-white/70">Aktive</span>
+                                <p className="mt-2 text-2xl font-bold">{metrics.active}</p>
+                                <p className="text-xs text-white/70">I fremdrift</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-center shadow-lg backdrop-blur">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-white/70">Afsluttede</span>
+                                <p className="mt-2 text-2xl font-bold">{metrics.completed}</p>
+                                <p className="text-xs text-white/70">Leveret til drift</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 text-center shadow-lg backdrop-blur">
+                                <span className="text-xs font-semibold uppercase tracking-wide text-white/70">Rapporter</span>
+                                <p className="mt-2 text-2xl font-bold">{metrics.reports}</p>
+                                <p className="text-xs text-white/70">Fordelt på projekter</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="mt-10">
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-2xl font-semibold text-slate-800">Dine projekter</h2>
+                            <p className="text-sm text-slate-500">Klik på et projekt for at åbne den seneste ugerapport og styre fremdriften.</p>
+                        </div>
                         {canManage && (
-                            <div className="bg-slate-100/50 p-4 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-2">
-                                <input type="text" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} placeholder="Nyt projektnavn..." className="bg-white text-slate-900 border border-slate-300 rounded-md p-2 text-sm w-full" onKeyDown={e => e.key === 'Enter' && handleCreateProject()} />
-                                <button onClick={handleCreateProject} className="w-full flex items-center justify-center gap-1 text-sm bg-blue-500 text-white px-3 py-2 rounded-md hover:bg-blue-600"><PlusIcon /> Opret Projekt</button>
+                            <div className="flex items-center gap-2 rounded-full bg-white px-2 py-2 shadow-sm ring-1 ring-slate-200">
+                                <input
+                                    type="text"
+                                    value={newProjectName}
+                                    onChange={e => setNewProjectName(e.target.value)}
+                                    placeholder="Navngiv nyt projekt..."
+                                    onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
+                                    className="w-48 rounded-full border border-transparent bg-slate-50 px-4 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                                />
+                                <button
+                                    onClick={handleCreateProject}
+                                    className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-500"
+                                >
+                                    <PlusIcon /> Opret
+                                </button>
                             </div>
                         )}
                     </div>
-                </div>
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        {projects.map(project => {
+                            const lastReport = [...project.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0];
+                            const statusBadgeClasses = project.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : project.status === 'completed'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-amber-100 text-amber-700';
+                            return (
+                                <button
+                                    key={project.id}
+                                    onClick={() => navigateTo('project', project.id)}
+                                    className="group rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-600">{project.config.projectName}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusBadgeClasses}`}>
+                                                {project.status === 'active' ? 'Aktiv' : project.status === 'completed' ? 'Fuldf�rt' : 'P� hold'}
+                                            </span>
+                                            {canManage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleDeleteProject(project.id, project.config.projectName);
+                                                    }}
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent bg-white text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                                    title="Slet projekt"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="mt-3 text-sm text-slate-500">
+                                        {project.reports.length} rapport{project.reports.length === 1 ? '' : 'er'} Seneste uge: {lastReport?.weekKey ?? 'Ikke oprettet'}
+                                    </p>
+                                    <div className="mt-6 flex items-center justify-between text-xs text-slate-400">
+                                        <span className="inline-flex items-center gap-2 text-slate-500">
+                                            <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                                            Se ugerapporter
+                                        </span>
+                                        <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">Åbn</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                        {projects.length === 0 && !canManage && (
+                            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-700">Ingen projekter endnu</h3>
+                                <p className="mt-2 text-sm text-slate-500">Når der oprettes projekter, vises de her på oversigten.</p>
+                            </div>
+                        )}
+                        {canManage && projects.length === 0 && (
+                            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-700">Start dit første projekt</h3>
+                                <p className="mt-2 text-sm text-slate-500">Navngiv projektet i feltet ovenfor og klik på Opret for at komme i gang.</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
             </main>
         </div>
     );
@@ -560,7 +706,7 @@ const EmployeePage: React.FC<{ projectManager: ReturnType<typeof useProjectManag
             <main className="bg-white p-4 rounded-lg shadow-sm">
                  <div className="flex justify-end mb-4">
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".csv" className="hidden" />
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-semibold"><UploadIcon/> Importér fra CSV</button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-semibold"><UploadIcon/> Importør fra CSV</button>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full">
@@ -1024,6 +1170,7 @@ const App: React.FC = () => (
 );
 
 export default App;
+
 
 
 
