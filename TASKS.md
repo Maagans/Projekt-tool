@@ -327,11 +327,11 @@ pm run test:api --prefix backend
 
 ## Fase P9 - Frontend struktur og DX
 
-- [ ] DX-001: ModularisÃ©r `useProjectManager`
+- [x] DX-001: ModularisÃ©r `useProjectManager`
   - FormÃ¥l: Reducere kompleksitet og gÃ¸re state-hÃ¥ndtering testbar fÃ¸r yderligere features.
   - Ã¦ndringer: Opdel hooken i domÃ¦nespecifikke hooks/contexts (auth, projekter, medarbejdere); opdater komponenter og tests; dokumenter ny arkitektur.
   - Test (TDD):
-    1) `npm run test -- --runInBand`
+    1) `npm run test`
     2) `npm run lint`
   - Accept: `useProjectManager`-filen er reduceret markant (<500 linjer) og tests dÃ¦kker de nye hooks.
   - AfhÃ¦ngigheder: ST-001, ST-005.

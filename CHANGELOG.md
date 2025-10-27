@@ -4,6 +4,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.1.9] - 2025-10-27
+### Changed
+- Modulariseret useProjectManager til dedikerede auth-, workspace- og admin-moduler med fælles store, så hooken er under 500 linjer (DX-001).
+- Flyttet hjælpefunktioner (generateId, getWeekKey, m.fl.) til projectManager/utils og forbedret autosave-/statehåndtering gennem de nye moduler.
+
+### Added
+- Separate modulfiler (useAuthModule, useWorkspaceModule, useAdminModule, store) med fortsat Vitest-dækning for kerneflow.
 ## [1.1.7] - 2025-10-21
 ### Added
 - Mulighed for at slette projekter direkte fra dashboardet med bekræftelse, hvilket samtidig fjerner tilhørende rapportdata.
@@ -93,6 +100,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og miljøbaseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
 
 
 
