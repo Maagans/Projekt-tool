@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.2.6] - 2025-10-28
+### Changed
+- Synkroniserer nu `employees.location` og `employees.department` via backend helper, backfill-migration og ekstra tests, så ressourcemodulet kan regne på ét felt (RM-009).
+
 ## [1.2.5] - 2025-10-28
 ### Added
 - CSV-eksport (`?format=csv`) af resource analytics API med metadata og data-rækker (RM-007).

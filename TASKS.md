@@ -407,6 +407,15 @@ pm run test:api --prefix backend
   - AfhÃ¦ngigheder: RM-004.
 
 - [x] RM-006: Projekt-dashboard panel
+
+- [x] RM-009: Synkroniser `location` og `department`
+  - Formål: Sikre at medarbejderens afdeling og lokation altid matcher, så ressourcemodulet kan bygge på ét felt.
+  - ændringer: Tilføj helper i backend der spejler felterne ved read/write, opdater persist/import/sync-flow, og lav valgfri migration/backfill.
+  - Test (TDD):
+    1) unit-test for helperen, der viser location ↔ department synkronisering i begge retninger.
+    2) integrationstest af workspace API (POST/GET) der bekræfter at begge felter matches efter gem.
+  - Accept: API-responser returnerer `department === location`, nye/ændrede medarbejdere gemmes i sync, eksisterende data backfilles.
+  - Afhængigheder: RM-005, RM-007.
   - FormÃ¥l: Vise projekt-specifikt ressourceoverblik for Projektleder.
   - Ã¦ndringer: TilfÃ¸j panel pÃ¥ projekt-dashboard, brug `scope=project`, vis badges nÃ¥r planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):
@@ -436,6 +445,9 @@ pm run test:api --prefix backend
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved stÃ¸rre refaktoreringer (BE-007) anbefales flag/feature toggles og smÃ¥ commits med hyppige smoke-tests.
+
+
+
 
 
 

@@ -8,6 +8,30 @@ const logDebug = (category, ...args) => {
         logger.debug({ category, args });
     }
 };
+
+const normalizeMirrorValue = (value) => {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+};
+
+export const resolveDepartmentLocation = (source = {}, fallback = {}) => {
+    const normalizedLocation = normalizeMirrorValue(source.location);
+    const normalizedDepartment = normalizeMirrorValue(source.department);
+    const fallbackLocation = normalizeMirrorValue(fallback.location);
+    const fallbackDepartment = normalizeMirrorValue(fallback.department);
+
+    const canonical =
+        normalizedLocation ?? normalizedDepartment ?? fallbackLocation ?? fallbackDepartment ?? null;
+
+    return {
+        canonical,
+        location: canonical ?? '',
+        department: canonical,
+    };
+};
 export const loadFullWorkspace = async (clientOverride) => {
     const executor = clientOverride ?? pool;
 
@@ -27,18 +51,21 @@ export const loadFullWorkspace = async (clientOverride) => {
         ORDER BY name ASC
     `);
 
-    const employees = employeesResult.rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        location: row.location ?? '',
-        maxCapacityHoursWeek: Number(row.max_capacity_hours_week ?? 0),
-        azureAdId: row.azure_ad_id ?? null,
-        department: row.department ?? null,
-        jobTitle: row.job_title ?? null,
-        accountEnabled: row.account_enabled ?? true,
-        syncedAt: row.synced_at ? new Date(row.synced_at).toISOString() : null,
-    }));
+    const employees = employeesResult.rows.map((row) => {
+        const mirrored = resolveDepartmentLocation(row);
+        return {
+            id: row.id,
+            name: row.name,
+            email: row.email,
+            location: mirrored.location,
+            maxCapacityHoursWeek: Number(row.max_capacity_hours_week ?? 0),
+            azureAdId: row.azure_ad_id ?? null,
+            department: mirrored.department,
+            jobTitle: row.job_title ?? null,
+            accountEnabled: row.account_enabled ?? true,
+            syncedAt: row.synced_at ? new Date(row.synced_at).toISOString() : null,
+        };
+    });
 
     const projectsResult = await executor.query(`
         SELECT id::text, name, start_date, end_date, status, description
@@ -456,7 +483,7 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
     if (!employeesArray.length) return;
 
     const existingResult = await client.query(`
-        SELECT id::text, email, azure_ad_id, department, job_title, account_enabled, synced_at
+        SELECT id::text, email, location, azure_ad_id, department, job_title, account_enabled, synced_at
         FROM employees
     `);
     const existingById = new Map(existingResult.rows.map((row) => [row.id, row]));
@@ -501,32 +528,37 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
         }
 
         const maxCapacity = toNonNegativeCapacity(employee.maxCapacityHoursWeek);
+        const { canonical: canonicalDepartmentLocation, location: mirroredLocation, department: mirroredDepartment } =
+            resolveDepartmentLocation(employee, persistedRow ?? undefined);
 
         await client.query(
             `
-            INSERT INTO employees (id, name, email, location, max_capacity_hours_week)
-            VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''), $5::numeric)
+            INSERT INTO employees (id, name, email, location, department, max_capacity_hours_week)
+            VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''), NULLIF($5, ''), $6::numeric)
             ON CONFLICT (id)
             DO UPDATE
             SET name = EXCLUDED.name,
                 email = EXCLUDED.email,
                 location = EXCLUDED.location,
+                department = EXCLUDED.department,
                 max_capacity_hours_week = EXCLUDED.max_capacity_hours_week;
         `,
             [
                 employeeId,
                 (employee.name ?? '').trim() || 'Ukendt navn',
                 email,
-                typeof employee.location === 'string' ? employee.location.trim() : null,
+                mirroredLocation,
+                mirroredDepartment,
                 maxCapacity,
             ],
         );
 
         employee.id = employeeId;
         employee.maxCapacityHoursWeek = maxCapacity;
+        employee.location = mirroredLocation;
+        employee.department = mirroredDepartment;
 
         const azureAdId = persistedRow?.azure_ad_id ?? employee.azureAdId ?? null;
-        const department = persistedRow?.department ?? employee.department ?? null;
         const jobTitle = persistedRow?.job_title ?? employee.jobTitle ?? null;
         const accountEnabled =
             typeof employee.accountEnabled === 'boolean'
@@ -536,7 +568,6 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
         const syncedAtIso = syncedAtRaw ? new Date(syncedAtRaw).toISOString() : null;
 
         employee.azureAdId = azureAdId;
-        employee.department = department;
         employee.jobTitle = jobTitle;
         employee.accountEnabled = accountEnabled;
         employee.syncedAt = syncedAtIso;
@@ -545,7 +576,8 @@ const syncEmployees = async (client, employeesPayload, projectsPayload, user, ed
             id: employeeId,
             email,
             azure_ad_id: azureAdId,
-            department,
+            location: canonicalDepartmentLocation,
+            department: canonicalDepartmentLocation,
             job_title: jobTitle,
             account_enabled: accountEnabled,
             synced_at: syncedAtIso,

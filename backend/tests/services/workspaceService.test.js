@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { loadFullWorkspace } from '../../services/workspaceService.js';
+import { loadFullWorkspace, resolveDepartmentLocation } from '../../services/workspaceService.js';
 
 describe('workspaceService.loadFullWorkspace', () => {
   it('maps database rows into workspace structure', async () => {
@@ -104,6 +104,7 @@ describe('workspaceService.loadFullWorkspace', () => {
       name: 'Alice Anderson',
       maxCapacityHoursWeek: 37.5,
     });
+    expect(employee.department).toBe(employee.location);
 
     const [project] = workspace.projects;
     expect(project.config.projectName).toBe('Apollo');
@@ -113,5 +114,25 @@ describe('workspaceService.loadFullWorkspace', () => {
       '2025-W02',
     ]);
     expect(project.reports).toHaveLength(1);
+  });
+});
+
+describe('resolveDepartmentLocation', () => {
+  it('prefers the location value and mirrors department', () => {
+    const result = resolveDepartmentLocation({ location: 'Sano Aarhus', department: 'IT' });
+    expect(result).toEqual({
+      canonical: 'Sano Aarhus',
+      location: 'Sano Aarhus',
+      department: 'Sano Aarhus',
+    });
+  });
+
+  it('falls back to department when location is missing or blank', () => {
+    const result = resolveDepartmentLocation({ location: '   ', department: 'Sekretariatet' });
+    expect(result).toEqual({
+      canonical: 'Sekretariatet',
+      location: 'Sekretariatet',
+      department: 'Sekretariatet',
+    });
   });
 });
