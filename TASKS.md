@@ -406,7 +406,7 @@ pm run test:api --prefix backend
   - Accept: Med flag aktiveret kan Admin skifte department og se kapacitet/plan/aktuel-linjer med tooltips og over-allocation-markering.
   - AfhÃ¦ngigheder: RM-004.
 
-- [ ] RM-006: Projekt-dashboard panel
+- [x] RM-006: Projekt-dashboard panel
   - FormÃ¥l: Vise projekt-specifikt ressourceoverblik for Projektleder.
   - Ã¦ndringer: TilfÃ¸j panel pÃ¥ projekt-dashboard, brug `scope=project`, vis badges nÃ¥r planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):

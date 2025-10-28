@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.2.4] - 2025-10-28
+### Added
+- Projekt-dashboard panel med ressourceoverblik på projektsiden inkl. Recharts-visualisering, over-allokeringsmarkering og rangevalg (RM-006).
+- Vitest-dækning for projektpanelet samt genbrug af resource analytics hook til projekt-scope.
+
+
 ## [1.2.0] - 2025-10-28
 ### Added
 - Router-baseret `AppShell` med lazy-loaded sider for dashboard, projekter, PMO, medarbejdere og administration; nye delte komponenter (`AppHeader`, `GlobalErrorScreen`) og konstanter under `src/app/` (DX-003).
@@ -110,6 +116,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og miljøbaseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
+
 
 
 
