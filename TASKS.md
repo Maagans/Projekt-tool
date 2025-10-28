@@ -364,7 +364,7 @@ pm run test:api --prefix backend
 
 ## Fase P10 - Ressourcestyring (RM)
 
-- [ ] RM-001: Feature flag og skeleton-navigation
+- [x] RM-001: Feature flag og skeleton-navigation
   - FormÃ¥l: Gate ressourcemodulet bag et env-flag og forberede UI/route-stubs uden funktionel Ã¦ndring.
   - Ã¦ndringer: TilfÃ¸j `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun nÃ¥r flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
   - Test (TDD):
@@ -372,7 +372,7 @@ pm run test:api --prefix backend
   - Accept: Med flag `false` vises ingen nye links eller API-responser; med flag `true` vises en "Coming soon"-placeholder uden dataadgang.
   - AfhÃ¦ngigheder: FE-001, BE-007.
 
-- [ ] RM-002: ResourceAnalyticsService aggregation
+- [x] RM-002: ResourceAnalyticsService aggregation
   - FormÃ¥l: Beregne kapacitet, planlagte og faktiske timer pr. uge for department- og project-scopes.
   - Ã¦ndringer: Opret `services/resourceAnalyticsService.js`, brug eksisterende tabeller + `max_capacity_hours_week`, tilfÃ¸j fixtures og automatiske tests i `backend/tests/resourceAnalyticsService.test.js`, opret npm-script `test:services`.
   - Test (TDD):
