@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import {
   Deliverable,
@@ -14,6 +15,7 @@ import {
   Report,
   locations,
 } from '../../types';
+import type { WorkspaceData } from '../../types';
 import type { ProjectManagerStore } from './store';
 import {
   TimelineItemType,
@@ -38,9 +40,55 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     currentUser,
     isAuthenticated,
     isLoading,
+    setIsLoading,
     setIsSaving,
     setApiError,
   } = store;
+
+  const workspaceQuery = useQuery<WorkspaceData>({
+    queryKey: ['workspace'],
+    queryFn: api.getWorkspace,
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { mutateAsync: persistWorkspace } = useMutation({
+    mutationFn: (workspaceData: WorkspaceData) => api.saveWorkspace(workspaceData),
+    onMutate: () => {
+      setIsSaving(true);
+      setApiError(null);
+    },
+    onError: (error: unknown) => {
+      console.error('Autosave failed:', error);
+      setApiError('Ændringer kunne ikke gemmes. Tjek din forbindelse.');
+    },
+    onSettled: () => {
+      setIsSaving(false);
+    },
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(workspaceQuery.isLoading || workspaceQuery.isFetching);
+  }, [isAuthenticated, setIsLoading, workspaceQuery.isFetching, workspaceQuery.isLoading]);
+
+  useEffect(() => {
+    if (workspaceQuery.data) {
+      setProjects(workspaceQuery.data.projects);
+      setEmployees(workspaceQuery.data.employees);
+    }
+  }, [setEmployees, setProjects, workspaceQuery.data]);
+
+  useEffect(() => {
+    if (workspaceQuery.error) {
+      console.error('Workspace fetch failed:', workspaceQuery.error);
+      setApiError('Kunne ikke hente data. Prøv at genindlæse siden.');
+    }
+  }, [setApiError, workspaceQuery.error]);
 
   const updateProjects = useCallback(
     (updater: ProjectUpdater) => {
@@ -57,40 +105,29 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   );
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const canPersist =
       !isLoading &&
       isAuthenticated &&
       currentUser &&
       (currentUser.role === 'Administrator' || currentUser.role === 'Projektleder');
 
-    if (canPersist) {
-      setIsSaving(true);
-      timeoutId = setTimeout(async () => {
-        try {
-          setApiError(null);
-          await api.saveWorkspace({ projects: store.projects, employees: store.employees });
-        } catch (error: unknown) {
-          console.error('Autosave failed:', error);
-          setApiError('Ændringer kunne ikke gemmes. Tjek din forbindelse.');
-        } finally {
-          setIsSaving(false);
-        }
-      }, 1000);
-    } else {
+    if (!canPersist) {
       setIsSaving(false);
+      return;
     }
 
+    const timeoutId = setTimeout(() => {
+      void persistWorkspace({ projects: store.projects, employees: store.employees });
+    }, 1000);
+
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
     };
   }, [
     currentUser,
     isAuthenticated,
     isLoading,
-    setApiError,
+    persistWorkspace,
     setIsSaving,
     store.employees,
     store.projects,

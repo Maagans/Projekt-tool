@@ -1,12 +1,11 @@
-﻿import { ReactNode } from 'react';
+﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ProjectManagerProvider, useProjectManager } from './useProjectManager';
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <ProjectManagerProvider>{children}</ProjectManagerProvider>
-);
-
+let queryClient: QueryClient;
+let wrapper: ({ children }: { children: ReactNode }) => JSX.Element;
 
 const baseWorkspace = vi.hoisted(() => ({
   projects: [
@@ -28,7 +27,7 @@ const baseWorkspace = vi.hoisted(() => ({
       id: 'employee-1',
       name: 'Alice',
       email: 'alice@example.com',
-      location: 'K�benhavn',
+      location: 'København',
       maxCapacityHoursWeek: 37.5,
     },
   ],
@@ -66,6 +65,19 @@ const waitForAutosave = () =>
 
 describe('useProjectManager', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <ProjectManagerProvider>{children}</ProjectManagerProvider>
+      </QueryClientProvider>
+    );
+
     Object.values(mockApi).forEach((fn) => fn.mockClear());
     mockApi.getAuthenticatedUser.mockResolvedValue({
       id: 'user-1',
@@ -77,13 +89,17 @@ describe('useProjectManager', () => {
     localStorage.clear();
   });
 
+  afterEach(() => {
+    queryClient.clear();
+  });
+
   it('loads workspace data and marks admin access', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
+    await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockApi.checkSetupStatus).toHaveBeenCalledTimes(1);
-    expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1);
     expect(result.current.isAdministrator).toBe(true);
     expect(result.current.projects).toHaveLength(1);
     expect(result.current.projects[0].config.projectName).toBe('Projekt Alpha');
@@ -94,6 +110,7 @@ describe('useProjectManager', () => {
 
   it('creates a new project with default configuration', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
+    await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const name = 'Nyt Projekt';
@@ -112,6 +129,7 @@ describe('useProjectManager', () => {
 
   it('deletes a project and removes it from the workspace', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
+    await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     let createdProjectId: string | undefined;
@@ -137,12 +155,3 @@ describe('useProjectManager', () => {
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(2));
   });
 });
-
-
-
-
-
-
-
-
-

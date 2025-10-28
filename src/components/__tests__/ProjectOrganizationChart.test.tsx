@@ -1,6 +1,6 @@
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { ProjectOrganizationChart, TimeLogModal } from '../ProjectOrganizationChart';
 import type { Project, ProjectMember, Employee } from '../../types';

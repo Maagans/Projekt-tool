@@ -4,6 +4,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-10-28
+### Added
+- Router-baseret `AppShell` med lazy-loaded sider for dashboard, projekter, PMO, medarbejdere og administration; nye delte komponenter (`AppHeader`, `GlobalErrorScreen`) og konstanter under `src/app/` (DX-003).
+- Dashboard-hilsen der tiltaler den aktuelle bruger og diskret hjælpetooltip for hurtigt overblik.
+
+### Changed
+- Migreret session-, workspace- og autosave-håndtering til TanStack Query med mutations/invalidations i auth- og workspace-modulerne; relaterede tests opdateret til at køre via `QueryClientProvider` (DX-002).
+- Omlagt projektvisningen til nested routes med kontekstbaseret actions, hvilket reducerer filstørrelser og gør rapport-/organisation-/indstillingssider uafhængige (DX-003).
+- Frontend afhængigheder opdateret med `react-router-dom` og øvrige filer tilpasset den nye struktur.
+
 ## [1.1.9] - 2025-10-27
 ### Changed
 - Modulariseret useProjectManager til dedikerede auth-, workspace- og admin-moduler med fælles store, så hooken er under 500 linjer (DX-001).

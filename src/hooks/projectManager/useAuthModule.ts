@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import type { ProjectManagerStore } from './store';
 import { getErrorMessage } from './utils';
@@ -16,10 +17,12 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     setIsSaving,
   } = store;
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     let isMounted = true;
 
-    const checkAuthAndLoad = async () => {
+    const bootstrap = async () => {
       setIsLoading(true);
       setApiError(null);
       try {
@@ -27,7 +30,6 @@ export const useAuthModule = (store: ProjectManagerStore) => {
         if (!isMounted) return;
         if (setupStatus.needsSetup) {
           setNeedsSetup(true);
-          setIsLoading(false);
           return;
         }
 
@@ -38,12 +40,9 @@ export const useAuthModule = (store: ProjectManagerStore) => {
           return;
         }
 
-        const workspace = await api.getWorkspace();
-        if (!isMounted) return;
-        setProjects(workspace.projects);
-        setEmployees(workspace.employees);
         setCurrentUser(user);
         setIsAuthenticated(true);
+        await queryClient.invalidateQueries({ queryKey: ['workspace'] });
       } catch (error: unknown) {
         if (isMounted) {
           console.error('Failed to load session:', error);
@@ -56,60 +55,56 @@ export const useAuthModule = (store: ProjectManagerStore) => {
       }
     };
 
-    checkAuthAndLoad();
+    bootstrap();
 
     return () => {
       isMounted = false;
     };
-  }, [
-    setApiError,
-    setCurrentUser,
-    setEmployees,
-    setIsAuthenticated,
-    setIsLoading,
-    setNeedsSetup,
-    setProjects,
-  ]);
+  }, [queryClient, setApiError, setCurrentUser, setIsAuthenticated, setIsLoading, setNeedsSetup]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
+  const loginMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) => api.login(email, password),
+    onMutate: () => {
       setIsLoading(true);
       setApiError(null);
-      try {
-        const result = await api.login(email, password);
-        if (result.success && result.user) {
-          const workspace = await api.getWorkspace();
-          setProjects(workspace.projects);
-          setEmployees(workspace.employees);
-          setCurrentUser(result.user);
-          setIsAuthenticated(true);
-        }
-        return result;
-      } catch (error: unknown) {
-        console.error('Login failed:', error);
-        setApiError('Der opstod en fejl under login.');
-        return { success: false, message: getErrorMessage(error) };
-      } finally {
-        setIsLoading(false);
+    },
+    onSuccess: async (result) => {
+      if (result.success && result.user) {
+        setCurrentUser(result.user);
+        setIsAuthenticated(true);
+        await queryClient.invalidateQueries({ queryKey: ['workspace'] });
+      } else {
+        setApiError(result.message ?? 'Der opstod en fejl under login.');
       }
     },
-    [setApiError, setCurrentUser, setEmployees, setIsAuthenticated, setIsLoading, setProjects],
-  );
+    onError: (error: unknown) => {
+      console.error('Login failed:', error);
+      setApiError('Der opstod en fejl under login.');
+    },
+    onSettled: () => {
+      setIsLoading(false);
+    },
+  });
 
-  const logout = useCallback(async () => {
-    try {
-      await api.logout();
-    } catch (error: unknown) {
+  const logoutMutation = useMutation({
+    mutationFn: () => api.logout(),
+    onMutate: () => {
+      setIsLoading(true);
+    },
+    onError: (error: unknown) => {
       console.error('Logout failed:', error);
-    } finally {
+    },
+    onSettled: () => {
+      setIsLoading(false);
       setIsAuthenticated(false);
       setCurrentUser(null);
       setProjects([]);
       setEmployees([]);
       setAllUsers([]);
       setIsSaving(false);
-    }
-  }, [setAllUsers, setCurrentUser, setEmployees, setIsAuthenticated, setIsSaving, setProjects]);
+      queryClient.removeQueries({ queryKey: ['workspace'] });
+    },
+  });
 
   const register = useCallback(
     async (email: string, name: string, password: string) => api.register(email, name, password),
@@ -125,8 +120,16 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     isSaving: store.isSaving,
     apiError: store.apiError,
     needsSetup: store.needsSetup,
-    login,
-    logout,
+    login: async (email: string, password: string) => {
+      try {
+        return await loginMutation.mutateAsync({ email, password });
+      } catch (error: unknown) {
+        console.error('Login mutation failed:', error);
+        setApiError('Der opstod en fejl under login.');
+        return { success: false, message: getErrorMessage(error) };
+      }
+    },
+    logout: () => logoutMutation.mutateAsync(),
     register,
     completeSetup,
   };

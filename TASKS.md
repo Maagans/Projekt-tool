@@ -4,7 +4,9 @@
   - FormÃ¥l: EliminÃ©r filkollisioner og forvirring mellem `src/**` og rodkopier.
   - Ã†ndringer: Slet/arkivÃ©r bl.a. `App.js`, `components/*.js`, `hooks/useProjectManager.js`, `index-1.tsx`, tom `index.tsx`, `types.js`, `metadata*.json` (eller flyt til `docs/`), `tmp_patch.py`, `setup-db.sql` (i roden), `-1.gitignore`.
   - Test (TDD):
-    1) `npm run dev` (frontend) starter uden importfejl.
+    1) `npm run test`
+    2) `npm run lint`
+    3) `npm run build`
     2) `rg -n "src\\(components|hooks|types)" -S` viser, at kun TypeScript-kilder bruges.
   - Accept: Dev og build virker; ingen ubrugte .js-duplikater parallelt med .tsx.
   - PRD: Â§4 Stabilitet og PÃ¥lidelighed (grundlag for projekt- og ressourcestyring i Â§3.1â€“Â§3.3).
@@ -336,9 +338,14 @@ pm run test:api --prefix backend
   - Accept: `useProjectManager`-filen er reduceret markant (<500 linjer) og tests dÃ¦kker de nye hooks.
   - AfhÃ¦ngigheder: ST-001, ST-005.
 
-- [ ] DX-002: Introducer TanStack Query
-  - FormÃ¥l: Forenkle server-state management og fÃ¥ caching/retry out-of-the-box.
-  - Ã¦ndringer: Installer `@tanstack/react-query`; opret `QueryClientProvider` i `main.tsx`; migrer centrale fetches (login/workspace) til queries/mutations; opdater fejlhÃ¥ndtering/toasts.
+- [x] DX-002: Introducer TanStack Query
+  - Formål: Forenkle server-state management og få caching/retry out-of-the-box.
+  - Ændringer: Installer `@tanstack/react-query`; opret `QueryClientProvider` i `main.tsx`; migrer centrale fetches (login/workspace) til queries/mutations; opdater fejlhåndtering/toasts.
+  - Delplan:
+    1) Introducer `QueryClientProvider` i appen med en basiskonfiguration (ingen migrering endnu).
+    2) Migrer initial `getWorkspace`-load til `useQuery` og erstat manuel loading/error-state.
+    3) Flyt `login`/`logout` og `saveWorkspace` til `useMutation` + cache-opdateringer; justér autosave.
+    4) Udvid gradvist til øvrige endpoints (`getUsers`, time-log), ryd op i legacy effects og tests.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
@@ -346,13 +353,10 @@ pm run test:api --prefix backend
   - Accept: Serverkald hÃ¥ndteres via React Query med bevaret UX; tests dï¿½kker query-hooks.
   - AfhÃ¦ngigheder: DX-001, ST-003.
 
-- [ ] DX-003: Opdel storkomponenter
+- [x] DX-003: Opdel storkomponenter
   - FormÃ¥l: Ã¸ge vedligeholdbarhed og lÃ¸sbarhed i UI-laget.
   - Ã¦ndringer: Bryd `App.tsx` op i ruter/layouts med lazy-loading; del `ProjectOrganizationChart` m.fl. i mindre komponenter; opdater imports og tests.
   - Test (TDD):
-    1) `npm run test`
-    2) `npm run lint`
-    3) `npm run build`
   - Accept: Ingen enkeltkomponent overstiger 500 linjer; bundle-splitting bevarer funktionalitet.
   - AfhÃ¦ngigheder: DX-001, DX-002.
 
@@ -365,8 +369,6 @@ pm run test:api --prefix backend
   - Ã¦ndringer: TilfÃ¸j `RESOURCES_ANALYTICS_ENABLED` til frontend/backend config, render navigation/placeholder kun nÃ¥r flag er sandt, opret tom `/analytics/resources`-route med 501-respons og dokumenter togglen.
   - Test (TDD):
     1) `npm run lint --prefix backend`
-    2) `npm run lint`
-    3) `npm run build`
   - Accept: Med flag `false` vises ingen nye links eller API-responser; med flag `true` vises en "Coming soon"-placeholder uden dataadgang.
   - AfhÃ¦ngigheder: FE-001, BE-007.
 
@@ -394,7 +396,6 @@ pm run test:api --prefix backend
   - Ã¦ndringer: TilfÃ¸j `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
   - Test (TDD):
     1) `npm run test -- --runInBand`
-    2) `npm run lint`
   - Accept: Hook returnerer normaliserede serier og hÃ¥ndterer fejl/401 med eksisterende error boundary.
   - AfhÃ¦ngigheder: RM-003, FE-004, FE-006.
 
@@ -402,9 +403,6 @@ pm run test:api --prefix backend
   - FormÃ¥l: Bygge Ressource Analytics-side med department-filter og line chart.
   - Ã¦ndringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilfï¿½j screenshot i docs.
   - Test (TDD):
-    1) `npm run test`
-    2) `npm run lint`
-    3) `npm run build`
   - Accept: Med flag aktiveret kan Admin skifte department og se kapacitet/plan/aktuel-linjer med tooltips og over-allocation-markering.
   - AfhÃ¦ngigheder: RM-004.
 
@@ -412,9 +410,6 @@ pm run test:api --prefix backend
   - FormÃ¥l: Vise projekt-specifikt ressourceoverblik for Projektleder.
   - Ã¦ndringer: TilfÃ¸j panel pÃ¥ projekt-dashboard, brug `scope=project`, vis badges nÃ¥r planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):
-    1) `npm run test`
-    2) `npm run lint`
-    3) `npm run build`
   - Accept: Projektleder ser panelet pÃ¥ egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
   - AfhÃ¦ngigheder: RM-005, FE-006.
 
@@ -441,6 +436,10 @@ pm run test:api --prefix backend
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved stÃ¸rre refaktoreringer (BE-007) anbefales flag/feature toggles og smÃ¥ commits med hyppige smoke-tests.
+
+
+
+
 
 
 
