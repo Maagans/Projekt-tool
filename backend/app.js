@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import pool from './db.js';
 import logger from './logger.js';
-import apiRoutes from './routes/index.js';
+import createApiRouter from './routes/index.js';
 import { createAppError } from './utils/errors.js';
 import { config } from './config/index.js';
 
@@ -47,16 +47,8 @@ export const createApp = ({ dbClient, resourcesAnalyticsEnabled } = {}) => {
   app.use(cors(corsOptions));
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
-  app.use('/api', apiRoutes);
-
-  if (resourcesEnabled) {
-    app.get('/api/analytics/resources', (req, res) => {
-      res.status(501).json({
-        success: false,
-        message: 'Ressourceanalytics er aktiveret, men selve modulet er endnu ikke klar.',
-      });
-    });
-  }
+  const apiRouter = createApiRouter({ resourcesEnabled });
+  app.use('/api', apiRouter);
 
   app.get('/health', async (req, res, next) => {
     try {

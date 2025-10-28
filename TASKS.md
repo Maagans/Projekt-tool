@@ -381,7 +381,7 @@ pm run test:api --prefix backend
   - Accept: Testdata viser korrekt summering af capacity/planned/actual og identificerer over-allocated weeks.
   - AfhÃ¦ngigheder: DB-002, DB-003.
 
-- [ ] RM-003: GET `/analytics/resources` endpoint
+- [x] RM-003: GET `/analytics/resources` endpoint
   - FormÃ¥l: Eksponere aggregationerne via et sikkert API med input-validering og rolle-tjek.
   - Ã¦ndringer: Opret validator (Zod) til scope/ugeparametre, ny controller/route `routes/analyticsRoutes.js`, opdater `routes/index.js`, tilfï¿½j integrationstests med Supertest og npm-script `test:api`.
   - Test (TDD):

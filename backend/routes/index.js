@@ -4,13 +4,22 @@ import setupRoutes from "./setupRoutes.js";
 import workspaceRoutes from "./workspaceRoutes.js";
 import projectsRoutes from "./projectsRoutes.js";
 import usersRoutes from "./usersRoutes.js";
+import analyticsRoutes from "./analyticsRoutes.js";
 
-const router = Router();
+export const createApiRouter = ({ resourcesEnabled } = {}) => {
+  const router = Router();
 
-router.use('/', authRoutes);
-router.use('/setup', setupRoutes);
-router.use('/workspace', workspaceRoutes);
-router.use('/projects', projectsRoutes);
-router.use('/users', usersRoutes);
+  router.use("/", authRoutes);
+  router.use("/setup", setupRoutes);
+  router.use("/workspace", workspaceRoutes);
+  router.use("/projects", projectsRoutes);
+  router.use("/users", usersRoutes);
 
-export default router;
+  if (resourcesEnabled) {
+    router.use("/analytics", analyticsRoutes);
+  }
+
+  return router;
+};
+
+export default createApiRouter;
