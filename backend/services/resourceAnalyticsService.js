@@ -3,6 +3,35 @@ import { createAppError } from "../utils/errors.js";
 
 const isoWeekPattern = /^(\d{4})-W(\d{2})$/;
 const MAX_SUPPORTED_RANGE_WEEKS = 520;
+const DEFAULT_CACHE_TTL_MS = 2 * 60 * 1000;
+
+const defaultCache = new Map();
+
+const buildCacheKey = ({ scope, scopeId, fromWeek, toWeek }) =>
+  `${scope}:${scopeId}:${fromWeek}:${toWeek}`;
+
+const getFromCache = (cache, key, now = Date.now) => {
+  const cached = cache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAt <= now()) {
+    cache.delete(key);
+    return null;
+  }
+  return cached.value;
+};
+
+const setCacheEntry = (cache, key, value, ttlMs = DEFAULT_CACHE_TTL_MS, now = Date.now) => {
+  cache.set(key, {
+    expiresAt: now() + ttlMs,
+    value,
+  });
+};
+
+export const clearResourceAnalyticsCache = () => {
+  defaultCache.clear();
+};
 
 const isLeapYear = (year) => {
   if (!Number.isInteger(year)) {
@@ -269,12 +298,33 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
   };
 };
 
-export const aggregateResourceAnalytics = async ({ scope, scopeId, range, dbClient } = {}) => {
+export const aggregateResourceAnalytics = async (
+  { scope, scopeId, range, dbClient } = {},
+  { cache = defaultCache, ttlMs = DEFAULT_CACHE_TTL_MS, now = Date.now } = {},
+) => {
+  const normalizedRange = normalizeRange(range);
+
+  const cacheKey = buildCacheKey({
+    scope,
+    scopeId,
+    fromWeek: normalizedRange.fromWeek,
+    toWeek: normalizedRange.toWeek,
+  });
+
+  const cached = getFromCache(cache, cacheKey, now);
+  if (cached) {
+    return cached;
+  }
+
   if (scope === "department") {
-    return calcDepartmentSeries(scopeId, { range, dbClient });
+    const result = await calcDepartmentSeries(scopeId, { range: normalizedRange, dbClient });
+    setCacheEntry(cache, cacheKey, result, ttlMs, now);
+    return result;
   }
   if (scope === "project") {
-    return calcProjectSeries(scopeId, { range, dbClient });
+    const result = await calcProjectSeries(scopeId, { range: normalizedRange, dbClient });
+    setCacheEntry(cache, cacheKey, result, ttlMs, now);
+    return result;
   }
   throw createAppError("Unsupported scope type. Use 'department' or 'project'.", 400);
 };
@@ -283,4 +333,5 @@ export default {
   calcDepartmentSeries,
   calcProjectSeries,
   aggregateResourceAnalytics,
+  clearResourceAnalyticsCache,
 };

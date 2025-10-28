@@ -216,31 +216,25 @@ export const ProjectResourcePanel = () => {
                 />
                 <Line type="monotone" dataKey="capacity" name="Kapacitet" stroke="#0ea5e9" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                <Line
-                  type="monotone"
-                  dataKey="actual"
-                  name="Faktisk"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={(props) => {
-                    if (!props || typeof props.cx !== "number" || typeof props.cy !== "number") {
-                      return null;
-                    }
-                    const weekKey = (props.payload as { week: string }).week;
-                    const isOverAllocated = overAllocated.has(weekKey);
-                    return (
-                      <circle
-                        cx={props.cx}
-                        cy={props.cy}
-                        r={isOverAllocated ? 6 : 3}
-                        fill={isOverAllocated ? "#dc2626" : "#10b981"}
-                        stroke="#ffffff"
-                        strokeWidth={isOverAllocated ? 2 : 1}
-                      />
-                    );
-                  }}
-                  activeDot={{ r: 6 }}
-                />
+          <Line
+            type="monotone"
+            dataKey="actual"
+            name="Faktisk"
+            stroke="#10b981"
+            strokeWidth={2}
+            dot={(props) => {
+              if (!props || typeof props.cx !== "number" || typeof props.cy !== "number") {
+                return <circle cx={0} cy={0} r={3} fill="#10b981" stroke="#ffffff" strokeWidth={1} />;
+              }
+              const weekKey = (props.payload as { week: string }).week;
+              const isOverAllocated = overAllocated.has(weekKey);
+              const radius = isOverAllocated ? 6 : 3;
+              const fill = isOverAllocated ? "#dc2626" : "#10b981";
+              const strokeWidth = isOverAllocated ? 2 : 1;
+              return <circle cx={props.cx} cy={props.cy} r={radius} fill={fill} stroke="#ffffff" strokeWidth={strokeWidth} />;
+            }}
+            activeDot={{ r: 6 }}
+          />
               </LineChart>
             </ResponsiveContainer>
           )}

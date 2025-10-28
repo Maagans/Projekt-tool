@@ -4,6 +4,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.2.5] - 2025-10-28
+### Added
+- CSV-eksport (`?format=csv`) af resource analytics API med metadata og data-rækker (RM-007).
+- In-memory caching af aggregationsresultater med TTL for at aflaste databasen og forbedre svartid (RM-007).
+
 ## [1.2.4] - 2025-10-28
 ### Added
 - Projekt-dashboard panel med ressourceoverblik på projektsiden inkl. Recharts-visualisering, over-allokeringsmarkering og rangevalg (RM-006).
@@ -116,6 +121,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og miljøbaseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
+
+
 
 
 

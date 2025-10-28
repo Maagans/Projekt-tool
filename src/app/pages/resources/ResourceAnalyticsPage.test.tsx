@@ -1,5 +1,6 @@
 ﻿import type { ReactNode } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -33,8 +34,8 @@ import { ResourceAnalyticsPage } from './ResourceAnalyticsPage';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import { useResourceAnalytics } from '../../../hooks/useResourceAnalytics';
 
-const mockProjectManager = useProjectManager as unknown as vi.Mock;
-const mockResourceAnalytics = useResourceAnalytics as unknown as vi.Mock;
+const mockProjectManager = useProjectManager as unknown as Mock;
+const mockResourceAnalytics = useResourceAnalytics as unknown as Mock;
 
 const createProjectManagerMock = () => ({
   logout: vi.fn(),

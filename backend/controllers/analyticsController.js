@@ -3,6 +3,25 @@ import { config } from "../config/index.js";
 import { aggregateResourceAnalytics } from "../services/resourceAnalyticsService.js";
 import { createAppError } from "../utils/errors.js";
 
+const buildCsv = ({ scope, series }, range) => {
+  const header = ["scope_type", "scope_id", "from_week", "to_week", "week", "capacity", "planned", "actual"];
+  const rows = [
+    header,
+    ...series.map((point) => [
+      scope.type,
+      scope.id,
+      range.fromWeek,
+      range.toWeek,
+      point.week,
+      point.capacity,
+      point.planned,
+      point.actual,
+    ]),
+  ];
+
+  return rows.map((line) => line.join(",")).join("\n");
+};
+
 const ensureFeatureEnabled = () => {
   if (!config.features.resourcesAnalyticsEnabled) {
     throw createAppError("Resource analytics are not enabled.", 404);
@@ -49,6 +68,7 @@ export const getResourceAnalytics = async (req, res, next) => {
     ensureFeatureEnabled();
 
     const { scope, scopeId, fromWeek, toWeek } = req.validatedQuery ?? {};
+    const { format } = req.query ?? {};
 
     if (!scope || !scopeId || !fromWeek || !toWeek) {
       throw createAppError("Missing required analytics parameters.", 400);
@@ -71,6 +91,17 @@ export const getResourceAnalytics = async (req, res, next) => {
       scopeId,
       range: { fromWeek, toWeek },
     });
+
+    if (typeof format === "string" && format.toLowerCase() === "csv") {
+      const csvContent = buildCsv(analytics, { fromWeek, toWeek });
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=resource-analytics-${scope}-${scopeId}-${fromWeek}-${toWeek}.csv`,
+      );
+      res.send(csvContent);
+      return;
+    }
 
     res.json({ success: true, data: analytics });
   } catch (error) {

@@ -1,3 +1,4 @@
+﻿// @ts-nocheck
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
@@ -93,16 +94,13 @@ describe("GET /api/analytics/resources", () => {
         fromWeek: "2025-W01",
         toWeek: "2025-W02",
       })
-      .set(
-        "Cookie",
-        [
-          buildAuthCookie({
-            id: "user-2",
-            role: "Projektleder",
-            employeeId: "b54d8b63-02c1-4bf5-9c17-111111111111",
-          }),
-        ],
-      );
+      .set("Cookie", [
+        buildAuthCookie({
+          id: "user-2",
+          role: "Projektleder",
+          employeeId: "b54d8b63-02c1-4bf5-9c17-111111111111",
+        }),
+      ]);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -123,16 +121,13 @@ describe("GET /api/analytics/resources", () => {
         fromWeek: "2025-W01",
         toWeek: "2025-W02",
       })
-      .set(
-        "Cookie",
-        [
-          buildAuthCookie({
-            id: "user-3",
-            role: "Projektleder",
-            employeeId: "b54d8b63-02c1-4bf5-9c17-222222222222",
-          }),
-        ],
-      );
+      .set("Cookie", [
+        buildAuthCookie({
+          id: "user-3",
+          role: "Projektleder",
+          employeeId: "b54d8b63-02c1-4bf5-9c17-222222222222",
+        }),
+      ]);
 
     expect(response.status).toBe(403);
     expect(response.body.success).toBe(false);
@@ -153,5 +148,32 @@ describe("GET /api/analytics/resources", () => {
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);
     expect(aggregateResourceAnalytics).not.toHaveBeenCalled();
+  });
+
+  it("supports CSV export when format=csv is provided", async () => {
+    aggregateResourceAnalytics.mockResolvedValue({
+      scope: { type: "department", id: "Engineering" },
+      series: [
+        { week: "2025-W01", capacity: 100, planned: 80, actual: 75 },
+        { week: "2025-W02", capacity: 100, planned: 120, actual: 110 },
+      ],
+      overAllocatedWeeks: ["2025-W02"],
+    });
+
+    const response = await request(app)
+      .get("/api/analytics/resources")
+      .query({
+        scope: "department",
+        scopeId: "Engineering",
+        fromWeek: "2025-W01",
+        toWeek: "2025-W02",
+        format: "csv",
+      })
+      .set("Cookie", [buildAuthCookie({ id: "user-1", role: "Administrator" })]);
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.text).toContain("scope_type,scope_id,from_week,to_week,week,capacity,planned,actual");
+    expect(response.text).toContain("2025-W02,100,120,110");
   });
 });

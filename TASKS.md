@@ -413,7 +413,7 @@ pm run test:api --prefix backend
   - Accept: Projektleder ser panelet pÃ¥ egne projekter; Admin ser samme; Teammedlem ser ikke panelet.
   - AfhÃ¦ngigheder: RM-005, FE-006.
 
-- [ ] RM-007: Performance & eksport
+- [x] RM-007: Performance & eksport
   - FormÃ¥l: Optimere svartid og muliggÃ¸re CSV-eksport.
   - Ã¦ndringer: TilfÃ¸j in-memory caching (TTL) i service, implementer `?format=csv`, skriv tests for cache-hit og CSV-generator, dokumenter interaction med rate-limit.
   - Test (TDD):

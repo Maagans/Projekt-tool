@@ -350,17 +350,20 @@ const AnalyticsContent = ({
             strokeWidth={2.5}
             dot={(props) => {
               if (!props || typeof props.cx !== 'number' || typeof props.cy !== 'number') {
-                return null;
+                return <circle cx={0} cy={0} r={3} fill="#10b981" stroke="#ffffff" strokeWidth={1} />;
               }
               const isOverAllocated = overAllocatedSet.has((props.payload as { week: string }).week);
+              const radius = isOverAllocated ? 6 : 3;
+              const fill = isOverAllocated ? '#dc2626' : '#10b981';
+              const strokeWidth = isOverAllocated ? 2 : 1;
               return (
                 <circle
                   cx={props.cx}
                   cy={props.cy}
-                  r={isOverAllocated ? 6 : 3}
-                  fill={isOverAllocated ? '#dc2626' : '#10b981'}
+                  r={radius}
+                  fill={fill}
                   stroke="#ffffff"
-                  strokeWidth={isOverAllocated ? 2 : 1}
+                  strokeWidth={strokeWidth}
                 />
               );
             }}

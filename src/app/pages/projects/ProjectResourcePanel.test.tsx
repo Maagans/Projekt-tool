@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { Mock } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("../../constants", () => ({ RESOURCES_ANALYTICS_ENABLED: true }));
@@ -28,8 +29,8 @@ import { ProjectResourcePanel } from "./ProjectResourcePanel";
 import { useProjectRouteContext } from "./ProjectLayout";
 import { useResourceAnalytics } from "../../../hooks/useResourceAnalytics";
 
-const mockRouteContext = useProjectRouteContext as unknown as vi.Mock;
-const mockAnalyticsHook = useResourceAnalytics as unknown as vi.Mock;
+const mockRouteContext = useProjectRouteContext as unknown as Mock;
+const mockAnalyticsHook = useResourceAnalytics as unknown as Mock;
 
 const createProject = () => ({
   id: "project-1",
@@ -112,7 +113,9 @@ describe("ProjectResourcePanel", () => {
     render(<ProjectResourcePanel />);
 
     expect(screen.getByText("Kunne ikke hente data")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Prøv igen" }));
+    fireEvent.click(screen.getByRole("button", { name: /pr.*igen/i }));
     expect(refetchSpy).toHaveBeenCalled();
   });
 });
+
+

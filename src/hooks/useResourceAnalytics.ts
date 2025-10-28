@@ -63,7 +63,7 @@ const normalizeAnalytics = (
 
 export const useResourceAnalytics = (
   params: ResourceAnalyticsQuery | null | undefined,
-  options?: UseQueryOptions<NormalizedResourceAnalytics, Error, NormalizedResourceAnalytics>,
+  options?: Partial<UseQueryOptions<NormalizedResourceAnalytics, Error, NormalizedResourceAnalytics>>,
 ): UseResourceAnalyticsResult => {
   const hasCompleteParams = Boolean(
     params?.scope && params.scopeId && params.fromWeek && params.toWeek,
