@@ -1,0 +1,87 @@
+import { useQuery, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query';
+import { api } from '../api';
+import type { ResourceAnalyticsPayload, ResourceAnalyticsQuery } from '../types';
+
+export interface NormalizedResourceAnalytics extends ResourceAnalyticsPayload {
+  range: {
+    fromWeek: string;
+    toWeek: string;
+  };
+  overAllocatedWeeksSet: Set<string>;
+  hasData: boolean;
+  hasOverAllocation: boolean;
+}
+
+export type UseResourceAnalyticsResult = UseQueryResult<NormalizedResourceAnalytics, Error>;
+
+export const resourceAnalyticsKeys = {
+  all: ['resource-analytics'] as const,
+  detail: (params: ResourceAnalyticsQuery | null | undefined) =>
+    [
+      'resource-analytics',
+      params?.scope ?? null,
+      params?.scopeId ?? null,
+      params?.fromWeek ?? null,
+      params?.toWeek ?? null,
+    ] as const,
+};
+
+const normalizeAnalytics = (
+  payload: ResourceAnalyticsPayload,
+  params: ResourceAnalyticsQuery,
+): NormalizedResourceAnalytics => {
+  const orderedSeries = [...payload.series].sort((a, b) => a.week.localeCompare(b.week));
+
+  const sanitizedSeries = orderedSeries.map((point) => ({
+    week: point.week,
+    capacity: Number.isFinite(point.capacity) ? point.capacity : 0,
+    planned: Number.isFinite(point.planned) ? point.planned : 0,
+    actual: Number.isFinite(point.actual) ? point.actual : 0,
+  }));
+
+  const overAllocatedWeeksSet = new Set(
+    (payload.overAllocatedWeeks ?? []).filter((week): week is string => typeof week === 'string'),
+  );
+  const overAllocatedWeeks = Array.from(overAllocatedWeeksSet).sort((a, b) => a.localeCompare(b));
+
+  const hasData = sanitizedSeries.length > 0;
+  const hasOverAllocation = overAllocatedWeeksSet.size > 0;
+
+  return {
+    scope: payload.scope,
+    series: sanitizedSeries,
+    overAllocatedWeeks,
+    overAllocatedWeeksSet,
+    hasData,
+    hasOverAllocation,
+    range: {
+      fromWeek: params.fromWeek,
+      toWeek: params.toWeek,
+    },
+  };
+};
+
+export const useResourceAnalytics = (
+  params: ResourceAnalyticsQuery | null | undefined,
+  options?: UseQueryOptions<NormalizedResourceAnalytics, Error, NormalizedResourceAnalytics>,
+): UseResourceAnalyticsResult => {
+  const hasCompleteParams = Boolean(
+    params?.scope && params.scopeId && params.fromWeek && params.toWeek,
+  );
+  const enabled = options?.enabled ?? hasCompleteParams;
+  const staleTime = options?.staleTime ?? 5 * 60 * 1000; // 5 minutes
+
+  return useQuery<NormalizedResourceAnalytics, Error, NormalizedResourceAnalytics>({
+    queryKey: resourceAnalyticsKeys.detail(params),
+    queryFn: async () => {
+      if (!params) {
+        throw new Error('Analytics parametre mangler.');
+      }
+      const payload = await api.fetchResourceAnalytics(params);
+      return normalizeAnalytics(payload, params);
+    },
+    ...options,
+    enabled,
+    staleTime,
+  });
+};

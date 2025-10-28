@@ -391,7 +391,7 @@ pm run test:api --prefix backend
   - Accept: Admin fÃ¸r 200 med series-data; ikke-autoriserede fÃ¥r 403/401; ugyldige parametre giver 400.
   - AfhÃ¦ngigheder: RM-002, SEC-001, BE-003, BE-007.
 
-- [ ] RM-004: Frontend dataclient + Vitest-setup
+- [x] RM-004: Frontend dataclient + Vitest-setup
   - FormÃ¥l: Hente ressource-data via den nye API og stabilisere data-modeller pÃ¥ klienten.
   - Ã¦ndringer: TilfÃ¸j `vitest` og `@testing-library/react` som dev-deps, opret `npm run test`, implementer `fetchResourceAnalytics` i `src/api.ts` og `useResourceAnalytics` hook med Vitest-mocks.
   - Test (TDD):

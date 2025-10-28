@@ -126,3 +126,28 @@ export interface WorkspaceData {
   projects: Project[];
   employees: Employee[];
 }
+
+export type ResourceAnalyticsScope = 'department' | 'project';
+
+export interface ResourceAnalyticsPoint {
+  week: string;
+  capacity: number;
+  planned: number;
+  actual: number;
+}
+
+export interface ResourceAnalyticsPayload {
+  scope: {
+    type: ResourceAnalyticsScope;
+    id: string;
+  };
+  series: ResourceAnalyticsPoint[];
+  overAllocatedWeeks: string[];
+}
+
+export interface ResourceAnalyticsQuery {
+  scope: ResourceAnalyticsScope;
+  scopeId: string;
+  fromWeek: string;
+  toWeek: string;
+}

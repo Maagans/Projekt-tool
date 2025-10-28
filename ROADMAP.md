@@ -346,3 +346,70 @@ section Frontend & Ops
 M6 Login button: m6, after m5, 2d
 M7 Scheduling/backoff/docs: m7, after m6, 3d
 ```
+
+# Risk Analysis Revamp Roadmap
+
+Modernise the project risk workflow with a dedicated analysis module, draggable matrix, and tighter report integration.
+
+## Objectives
+- Centralise project risks in a reusable analysis tab with mitigation tracking.
+- Prevent ad-hoc risks in reports; the matrix references curated risk entries only.
+- Refresh the risk matrix UX with scoring badges and drag-and-drop adjustments.
+
+## Scope
+- In scope: backend/domain model for project risks, CRUD APIs, feature flag, new frontend tab with forms, new matrix component, reporting integration, documentation.
+- Out of scope (initial pass): portfolio-level risk analytics, automated notifications, deep workflow automation.
+
+## Milestones
+
+### RISK-000 – Discovery & Experience Blueprint
+- Align stakeholders on target roles, terminology, and probability/impact scales.
+- Produce wireframes for the project “Risici” tab and updated report matrix.
+- Deliverable: UX brief with glossary, acceptance examples, and open decisions.
+
+### RISK-001 – Data Model & Migration
+- Create `project_risks` (id, project_id, title, description, probability, impact, mitigation, owner_id, due_date, status, score).
+- Add optional `project_risk_history` for audit trail (created_by, change log, timestamps).
+- Backfill existing report risks into the new schema as read-only historical records.
+- Acceptance: migration runs cleanly on staging with zero data loss.
+
+### RISK-002 – Backend Services & APIs
+- Implement risk service with CRUD, soft delete, scoring helper, and matrix coordinate mapping.
+- Add routes: `GET/POST /projects/:projectId/risks`, `PATCH/DELETE /risks/:riskId`.
+- Enforce roles: Administrator + Projektleder can edit, others read-only.
+- Replace report risk creation with reference-only lookups.
+- Tests: Vitest unit coverage and Supertest integration suite.
+
+### RISK-003 – Feature Flag & Config
+- Introduce `PROJECT_RISK_ANALYSIS_ENABLED` flag, documented in `.env.example`.
+- Wire guard rails into routes and report exports when disabled.
+- Update README/TASKS with rollout plan and ops considerations.
+
+### RISK-004 – Frontend Risk Analysis Tab
+- Create new route (e.g. `/projects/:id/risks`) with React Query client and optimistic updates.
+- Build list + drawer editor (title, description, probability, impact, mitigation, owner, due date, status).
+- Add owner picker leveraging existing employee catalogue.
+- Tests: Vitest + Testing Library for hooks, components, and error states.
+
+### RISK-005 – Modern Risk Matrix UX
+- Rebuild matrix component with draggable cards, touch support, score colour-coding, keyboard accessibility.
+- Dragging updates probability/impact with debounced API persistence.
+- Enhance styling with Tailwind, transitions, and responsive layout.
+
+### RISK-006 – Reporting & Export Integration
+- Reports module fetches risks from analysis service, filter by status, snapshot scoring.
+- Persist per-report risk snapshots so historical reports remain unchanged even if risks are edited or archived later.
+- Display a badge (e.g. “Arkiveret siden uge X”) when a snapshot references a risk that has been archived in the analysis module.
+- Add CSV/PDF export for current matrix, including mitigation notes and owners.
+- Update report templates to surface risk counts and criticality badges.
+
+### RISK-007 – QA, UAT & Documentation
+- Full regression: backend services/APIs, frontend components, end-to-end smoke path (create risk → drag in matrix → include in report).
+- UAT script for PMO/Projektleder roles.
+- Documentation refresh: README module guide, CHANGELOG entry, release checklist.
+
+## Dependencies & Considerations
+- Requires reliable employee directory data for owner selection.
+- Confirm standard probability/impact scale (e.g. 1–5) before milestone RISK-001.
+- Coordinate deprecation of legacy `report_risks` writes; plan migration cut-over.
+- Future extension: dashboards for risk trends, automated reminders, portfolio summaries.

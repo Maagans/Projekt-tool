@@ -1,4 +1,11 @@
-﻿import type { ProjectMember, User, UserRole, WorkspaceData } from './types';
+﻿import type {
+  ProjectMember,
+  ResourceAnalyticsPayload,
+  ResourceAnalyticsQuery,
+  User,
+  UserRole,
+  WorkspaceData,
+} from './types';
 
 const AUTH_USER_KEY = 'authUser';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
@@ -90,6 +97,42 @@ const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
     return response.json();
   }
   return {};
+};
+
+type ResourceAnalyticsQueryParams = ResourceAnalyticsQuery;
+
+type ResourceAnalyticsApiResponse =
+  | {
+      success: true;
+      data: ResourceAnalyticsPayload;
+    }
+  | {
+      success: false;
+      message?: string;
+    }
+  | ResourceAnalyticsPayload;
+
+const normalizeResourceAnalyticsPayload = (payload: ResourceAnalyticsPayload): ResourceAnalyticsPayload => {
+  const series = Array.isArray(payload.series) ? payload.series : [];
+  const normalizedSeries = series.map((point) => ({
+    week: point.week ?? '',
+    capacity: Number(point.capacity ?? 0),
+    planned: Number(point.planned ?? 0),
+    actual: Number(point.actual ?? 0),
+  }));
+
+  const overAllocatedWeeks = Array.isArray(payload.overAllocatedWeeks)
+    ? payload.overAllocatedWeeks.filter((week): week is string => typeof week === 'string')
+    : [];
+
+  return {
+    scope: {
+      type: payload.scope?.type ?? 'department',
+      id: payload.scope?.id ?? '',
+    },
+    series: normalizedSeries,
+    overAllocatedWeeks,
+  };
 };
 
 
@@ -233,8 +276,37 @@ export const api = {
         body: JSON.stringify({ role }),
     });
     return { success: true };
-  }
+  },
+
+  async fetchResourceAnalytics(params: ResourceAnalyticsQueryParams): Promise<ResourceAnalyticsPayload> {
+    const { scope, scopeId, fromWeek, toWeek } = params;
+
+    if (!scope || !scopeId || !fromWeek || !toWeek) {
+      throw new Error('Alle parametre (scope, scopeId, fromWeek, toWeek) er påkrævet.');
+    }
+
+    const query = new URLSearchParams({
+      scope,
+      scopeId,
+      fromWeek,
+      toWeek,
+    });
+
+    const response = (await fetchWithAuth(`/api/analytics/resources?${query.toString()}`)) as ResourceAnalyticsApiResponse;
+
+    if ('success' in response) {
+      if (!response.success) {
+        throw new Error(response.message ?? 'Kunne ikke hente resource analytics.');
+      }
+      return normalizeResourceAnalyticsPayload(response.data);
+    }
+
+    return normalizeResourceAnalyticsPayload(response);
+  },
 };
+
+
+
 
 
 
