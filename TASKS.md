@@ -399,7 +399,7 @@ pm run test:api --prefix backend
   - Accept: Hook returnerer normaliserede serier og hÃ¥ndterer fejl/401 med eksisterende error boundary.
   - AfhÃ¦ngigheder: RM-003, FE-004, FE-006.
 
-- [ ] RM-005: PMO ressourcemodul (Admin)
+- [x] RM-005: PMO ressourcemodul (Admin)
   - FormÃ¥l: Bygge Ressource Analytics-side med department-filter og line chart.
   - Ã¦ndringer: Installer `recharts`, opret side-komponent + filterpanel, integrer hook og feature-flag, tilfï¿½j screenshot i docs.
   - Test (TDD):

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+﻿import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { StatusToast } from '../components/ui/StatusToast';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
@@ -13,7 +13,7 @@ const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const EmployeePage = lazy(() => import('./pages/employees/EmployeePage'));
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
 const PmoPage = lazy(() => import('./pages/pmo/PmoPage'));
-const ResourcesPlaceholder = lazy(() => import('./pages/resources/ResourcesPlaceholder'));
+const ResourceAnalyticsPage = lazy(() => import('./pages/resources/ResourceAnalyticsPage'));
 const ProjectLayout = lazy(() => import('./pages/projects/ProjectLayout'));
 const ProjectReportsPage = lazy(
   () => import('./pages/projects/ProjectReportsPage').then((module) => ({ default: module.ProjectReportsPage })),
@@ -90,13 +90,13 @@ export const AppShell = () => {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Fejl ved indlæsning af data</h2>
+          <h2 className="text-xl font-bold text-red-600 mb-2">Fejl ved indlÃ¦sning af data</h2>
           <p className="text-slate-600">{apiError}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-4 bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600"
           >
-            Prøv igen
+            PrÃ¸v igen
           </button>
         </div>
       </div>
@@ -144,7 +144,7 @@ export const AppShell = () => {
               <Route
                 path="/resources"
                 element={
-                  RESOURCES_ANALYTICS_ENABLED && isAdministrator ? <ResourcesPlaceholder /> : <Navigate to="/" replace />
+                  RESOURCES_ANALYTICS_ENABLED && isAdministrator ? <ResourceAnalyticsPage /> : <Navigate to="/" replace />
                 }
               />
               <Route path="/admin" element={isAdministrator ? <AdminPage /> : <Navigate to="/" replace />} />
@@ -167,3 +167,5 @@ export const AppShell = () => {
 };
 
 export default AppShell;
+
+
