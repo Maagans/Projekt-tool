@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { RESOURCES_ANALYTICS_ENABLED } from '../../constants';
 import { useProjectManager } from '../../../hooks/useProjectManager';
-import { AnalyticsIcon, PlusIcon, TrashIcon, UsersIcon } from '../../../components/Icons';
+import { AnalyticsIcon, PlusIcon, TrashIcon, UsersIcon, UserIcon, OrganizationIcon } from '../../../components/Icons';
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,54 @@ export const DashboardPage = () => {
     const reports = projects.reduce((sum, project) => sum + project.reports.length, 0);
     return { total, active, completed, reports };
   }, [projects]);
+
+  type NavItem = {
+    label: string;
+    description?: string;
+    onClick: () => void;
+    icon: ComponentType;
+    variant?: 'default' | 'primary';
+  };
+
+  const navItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    if (canManage) {
+      items.push({
+        label: 'Database',
+        description: 'Administrer medarbejdere og lokationer',
+        onClick: () => navigate('/employees'),
+        icon: UsersIcon,
+      });
+      items.push({
+        label: 'PMO',
+        description: 'Overblik over lokationer og kapacitet',
+        onClick: () => navigate('/pmo'),
+        icon: OrganizationIcon,
+      });
+    }
+
+    if (RESOURCES_ANALYTICS_ENABLED && isAdministrator) {
+      items.push({
+        label: 'Ressource Analytics',
+        description: 'Plan vs. faktisk forbrug',
+        onClick: () => navigate('/resources'),
+        icon: AnalyticsIcon,
+        variant: 'primary',
+      });
+    }
+
+    if (isAdministrator) {
+      items.push({
+        label: 'Admin',
+        description: 'Bruger- og adgangsstyring',
+        onClick: () => navigate('/admin'),
+        icon: UserIcon,
+      });
+    }
+
+    return items;
+  }, [canManage, isAdministrator, navigate]);
 
   const handleCreateProject = () => {
     if (!newProjectName.trim()) return;
@@ -37,6 +86,7 @@ export const DashboardPage = () => {
   };
 
   const greetingName = currentUser?.name?.split(' ')[0] ?? currentUser?.name ?? 'der';
+  const [navCollapsed, setNavCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -49,42 +99,91 @@ export const DashboardPage = () => {
         >
           ?
         </button>
-        {canManage && (
-          <button
-            onClick={() => navigate('/employees')}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-800"
-          >
-            <UsersIcon /> Database
-          </button>
-        )}
-        {canManage && (
-          <button
-            onClick={() => navigate('/pmo')}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-800"
-          >
-            PMO
-          </button>
-        )}
-        {RESOURCES_ANALYTICS_ENABLED && isAdministrator && (
-          <button
-            onClick={() => navigate('/resources')}
-            className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-teal-500/90 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition hover:bg-teal-500"
-          >
-            <AnalyticsIcon /> Ressource Analytics
-          </button>
-        )}
-        {isAdministrator && (
-          <button
-            onClick={() => navigate('/admin')}
-            className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-purple-500/90 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:bg-purple-500"
-          >
-            Admin
-          </button>
-        )}
       </AppHeader>
 
-      <main className="px-4 pb-12 sm:px-6 lg:px-10">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 px-6 py-10 text-white shadow-xl">
+      <div className="flex flex-col gap-6 px-2 pb-12 sm:px-4 lg:flex-row lg:px-6 xl:px-10">
+        <aside
+          className={`rounded-3xl bg-white p-4 shadow-sm transition-all duration-300 ${
+            navCollapsed ? 'lg:w-20' : 'lg:w-72'
+          } w-full lg:sticky lg:top-24 lg:self-start`}
+        >
+          <div className={`flex items-center ${navCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+            {!navCollapsed && (
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Navigation</div>
+            )}
+            <button
+              type="button"
+              onClick={() => setNavCollapsed((state) => !state)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-blue-300 hover:text-blue-600"
+              aria-label={navCollapsed ? 'Udvid navigation' : 'Sammenfold navigation'}
+            >
+              {navCollapsed ? '›' : '‹'}
+            </button>
+          </div>
+          <nav className="mt-4 space-y-2">
+            {navItems.length === 0 ? (
+              <p className="text-sm text-slate-500">{navCollapsed ? 'Ingen genveje' : 'Ingen genveje tilgængelige.'}</p>
+            ) : (
+              navItems.map((item) => {
+                const Icon = item.icon;
+                const isPrimary = item.variant === 'primary';
+                const baseButton =
+                  'flex w-full items-center rounded-2xl border px-3 py-3 text-left text-sm font-semibold shadow-sm transition';
+                const defaultStyles =
+                  'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600';
+                const primaryStyles = 'border-transparent bg-teal-500 text-white hover:bg-teal-600';
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={item.onClick}
+                    title={navCollapsed ? item.label : undefined}
+                    className={`${baseButton} ${isPrimary ? primaryStyles : defaultStyles} ${
+                      navCollapsed ? 'justify-center' : 'justify-between'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
+                          isPrimary ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        <Icon />
+                      </span>
+                      {!navCollapsed && (
+                        <span>
+                          {item.label}
+                          {item.description ? (
+                            <span
+                              className={`mt-0.5 block text-xs font-normal ${
+                                isPrimary ? 'text-white/80' : 'text-slate-500'
+                              }`}
+                            >
+                              {item.description}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
+                    </span>
+                    {!navCollapsed && (
+                      <span
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${
+                          isPrimary ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        ›
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </nav>
+        </aside>
+
+        <main className="flex-1 space-y-10">
+          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 px-6 py-10 text-white shadow-xl">
           <div
             className="absolute inset-0 opacity-30 blur-3xl"
             style={{
@@ -146,7 +245,7 @@ export const DashboardPage = () => {
           </div>
         </section>
 
-        <section className="mt-10">
+        <section className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => {
               const lastReport = project.reports[0];
@@ -229,9 +328,11 @@ export const DashboardPage = () => {
             </div>
           )}
         </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
 
 export default DashboardPage;
+

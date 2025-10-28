@@ -1,7 +1,7 @@
 ﻿import type { ReactNode } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../constants', () => ({ RESOURCES_ANALYTICS_ENABLED: true }));
@@ -61,6 +61,20 @@ const createAnalyticsResult = () => ({
     hasData: true,
     hasOverAllocation: true,
     range: { fromWeek: '2025-W01', toWeek: '2025-W02' },
+    latestPoint: { week: '2025-W02', capacity: 100, planned: 110, actual: 120 },
+    summary: {
+      totalCapacity: 200,
+      totalPlanned: 200,
+      totalActual: 205,
+      averageCapacity: 100,
+      averagePlanned: 100,
+      averageActual: 102.5,
+      weeks: 2,
+    },
+    cumulativeSeries: [
+      { week: '2025-W01', capacity: 100, planned: 90, actual: 85 },
+      { week: '2025-W02', capacity: 200, planned: 200, actual: 205 },
+    ],
   },
   isPending: false,
   isFetching: false,
@@ -84,9 +98,14 @@ describe('ResourceAnalyticsPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('Kapacitet')).toBeInTheDocument();
-    expect(screen.getByText('Planlagte timer')).toBeInTheDocument();
+    expect(screen.getByText('Kapacitet (seneste uge)')).toBeInTheDocument();
+    expect(screen.getByText('Planlagt (seneste uge)')).toBeInTheDocument();
     expect(screen.getAllByText('Over-allokerede uger').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Opsummeret' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kumulativ' })).toBeInTheDocument();
     expect(screen.getByTestId('chart')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kumulativ' }));
+    expect(screen.getByText('Kumulativ kapacitet')).toBeInTheDocument();
   });
 });

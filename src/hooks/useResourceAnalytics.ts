@@ -1,6 +1,23 @@
 import { useQuery, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query';
 import { api } from '../api';
-import type { ResourceAnalyticsPayload, ResourceAnalyticsQuery } from '../types';
+import type { ResourceAnalyticsPayload, ResourceAnalyticsPoint, ResourceAnalyticsQuery } from '../types';
+
+export interface ResourceAnalyticsCumulativePoint {
+  week: string;
+  capacity: number;
+  planned: number;
+  actual: number;
+}
+
+export interface ResourceAnalyticsSummary {
+  totalCapacity: number;
+  totalPlanned: number;
+  totalActual: number;
+  averageCapacity: number;
+  averagePlanned: number;
+  averageActual: number;
+  weeks: number;
+}
 
 export interface NormalizedResourceAnalytics extends ResourceAnalyticsPayload {
   range: {
@@ -10,6 +27,9 @@ export interface NormalizedResourceAnalytics extends ResourceAnalyticsPayload {
   overAllocatedWeeksSet: Set<string>;
   hasData: boolean;
   hasOverAllocation: boolean;
+  latestPoint: ResourceAnalyticsPoint | null;
+  summary: ResourceAnalyticsSummary;
+  cumulativeSeries: ResourceAnalyticsCumulativePoint[];
 }
 
 export type UseResourceAnalyticsResult = UseQueryResult<NormalizedResourceAnalytics, Error>;
@@ -46,6 +66,42 @@ const normalizeAnalytics = (
 
   const hasData = sanitizedSeries.length > 0;
   const hasOverAllocation = overAllocatedWeeksSet.size > 0;
+  const latestPoint = hasData ? sanitizedSeries[sanitizedSeries.length - 1] : null;
+
+  const totals = sanitizedSeries.reduce(
+    (acc, point) => ({
+      capacity: acc.capacity + point.capacity,
+      planned: acc.planned + point.planned,
+      actual: acc.actual + point.actual,
+    }),
+    { capacity: 0, planned: 0, actual: 0 },
+  );
+
+  let cumulativeCapacity = 0;
+  let cumulativePlanned = 0;
+  let cumulativeActual = 0;
+  const cumulativeSeries: ResourceAnalyticsCumulativePoint[] = sanitizedSeries.map((point) => {
+    cumulativeCapacity += point.capacity;
+    cumulativePlanned += point.planned;
+    cumulativeActual += point.actual;
+    return {
+      week: point.week,
+      capacity: cumulativeCapacity,
+      planned: cumulativePlanned,
+      actual: cumulativeActual,
+    };
+  });
+
+  const weeks = sanitizedSeries.length;
+  const summary: ResourceAnalyticsSummary = {
+    totalCapacity: totals.capacity,
+    totalPlanned: totals.planned,
+    totalActual: totals.actual,
+    averageCapacity: weeks > 0 ? totals.capacity / weeks : 0,
+    averagePlanned: weeks > 0 ? totals.planned / weeks : 0,
+    averageActual: weeks > 0 ? totals.actual / weeks : 0,
+    weeks,
+  };
 
   return {
     scope: payload.scope,
@@ -58,6 +114,9 @@ const normalizeAnalytics = (
       fromWeek: params.fromWeek,
       toWeek: params.toWeek,
     },
+    latestPoint,
+    summary,
+    cumulativeSeries,
   };
 };
 

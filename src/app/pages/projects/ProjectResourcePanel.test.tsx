@@ -60,6 +60,20 @@ const createAnalyticsData = () => ({
     hasData: true,
     hasOverAllocation: true,
     range: { fromWeek: "2025-W01", toWeek: "2025-W02" },
+    latestPoint: { week: "2025-W02", capacity: 80, planned: 90, actual: 85 },
+    summary: {
+      totalCapacity: 160,
+      totalPlanned: 160,
+      totalActual: 145,
+      averageCapacity: 80,
+      averagePlanned: 80,
+      averageActual: 72.5,
+      weeks: 2,
+    },
+    cumulativeSeries: [
+      { week: "2025-W01", capacity: 80, planned: 70, actual: 60 },
+      { week: "2025-W02", capacity: 160, planned: 160, actual: 145 },
+    ],
   },
   isPending: false,
   isFetching: false,
@@ -84,9 +98,11 @@ describe("ProjectResourcePanel", () => {
     render(<ProjectResourcePanel />);
 
     expect(screen.getByText("Ressourceoverblik")).toBeInTheDocument();
-    expect(screen.getByText("Kapacitet")).toBeInTheDocument();
-    expect(screen.getByText("Planlagt")).toBeInTheDocument();
-    expect(screen.getByText("Faktisk")).toBeInTheDocument();
+    expect(screen.getByText("Kapacitet (seneste uge)")).toBeInTheDocument();
+    expect(screen.getByText("Planlagt (seneste uge)")).toBeInTheDocument();
+    expect(screen.getByText("Faktisk (seneste uge)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opsummeret" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kumulativ" })).toBeInTheDocument();
     expect(screen.getByTestId("chart")).toBeInTheDocument();
   });
 
@@ -115,6 +131,26 @@ describe("ProjectResourcePanel", () => {
     expect(screen.getByText("Kunne ikke hente data")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /pr.*igen/i }));
     expect(refetchSpy).toHaveBeenCalled();
+  });
+
+  it("shows aggregated totals when switching to summary view", () => {
+    render(<ProjectResourcePanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Opsummeret" }));
+
+    expect(screen.getByText("Total kapacitet")).toBeInTheDocument();
+    expect(screen.getByText("Total planlagt")).toBeInTheDocument();
+    expect(screen.getByText("Total faktisk")).toBeInTheDocument();
+  });
+
+  it("switches to cumulative view and shows cumulative cards", () => {
+    render(<ProjectResourcePanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Kumulativ" }));
+
+    expect(screen.getByText("Kumulativ kapacitet")).toBeInTheDocument();
+    expect(screen.getByText("Kumulativ planlagt")).toBeInTheDocument();
+    expect(screen.getByText("Kumulativ faktisk")).toBeInTheDocument();
   });
 });
 

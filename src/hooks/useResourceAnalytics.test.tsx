@@ -70,6 +70,19 @@ describe('useResourceAnalytics', () => {
     expect(data?.hasOverAllocation).toBe(true);
     expect(data?.range).toEqual({ fromWeek: '2025-W01', toWeek: '2025-W04' });
     expect(data?.scope).toEqual({ type: 'department', id: 'IT' });
+    expect(data?.latestPoint).toMatchObject({ week: '2025-W03', planned: 320, actual: 315 });
+    expect(data?.summary.totalCapacity).toBe(600);
+    expect(data?.summary.totalPlanned).toBe(850);
+    expect(data?.summary.totalActual).toBe(830);
+    expect(data?.summary.weeks).toBe(3);
+    expect(data?.summary.averageCapacity).toBeCloseTo(200, 5);
+    expect(data?.summary.averagePlanned).toBeCloseTo(283.33, 2);
+    expect(data?.summary.averageActual).toBeCloseTo(276.6667, 4);
+    expect(data?.cumulativeSeries).toEqual([
+      { week: '2025-W01', capacity: 300, planned: 260, actual: 250 },
+      { week: '2025-W02', capacity: 300, planned: 530, actual: 515 },
+      { week: '2025-W03', capacity: 600, planned: 850, actual: 830 },
+    ]);
     queryClient.clear();
   });
 

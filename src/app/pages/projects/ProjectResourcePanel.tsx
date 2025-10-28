@@ -10,13 +10,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useResourceAnalytics } from "../../../hooks/useResourceAnalytics";
+import { useResourceAnalytics, type ResourceAnalyticsSummary } from "../../../hooks/useResourceAnalytics";
 import { RESOURCES_ANALYTICS_ENABLED } from "../../constants";
 import type { ResourceAnalyticsQuery } from "../../../types";
 import { useProjectRouteContext } from "./ProjectLayout";
+import { ResourceSummaryCard, type ResourceSummaryTone } from "../../../components/ResourceSummaryCard";
 
 const RANGE_OPTIONS = [6, 12, 24] as const;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+type ViewMode = "weekly" | "summary" | "cumulative";
+const VIEW_OPTIONS: Array<{ value: ViewMode; label: string }> = [
+  { value: "weekly", label: "Ugentlig" },
+  { value: "summary", label: "Opsummeret" },
+  { value: "cumulative", label: "Kumulativ" },
+];
 
 const startOfUtcDay = (date: Date) =>
   new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -66,6 +73,7 @@ export const ProjectResourcePanel = () => {
 
   const [rangeWeeks, setRangeWeeks] = useState<number>(12);
   const [range, setRange] = useState(() => deriveDefaultRange(12));
+  const [viewMode, setViewMode] = useState<ViewMode>("weekly");
 
   useEffect(() => {
     if (!isAllowed) return;
@@ -93,9 +101,65 @@ export const ProjectResourcePanel = () => {
 
   const { data, isPending, isFetching, isError, error, refetch } = analytics;
   const chartData = data?.series ?? [];
-  const latestPoint = chartData.at(-1);
   const overAllocated = data?.overAllocatedWeeksSet ?? new Set<string>();
   const hasData = Boolean(chartData.length);
+  const latestPoint = data?.latestPoint ?? chartData.at(-1) ?? null;
+  const summary = data?.summary ?? null;
+  const cumulativeSeries = data?.cumulativeSeries ?? [];
+
+  const summaryCardConfigs = (() => {
+    if (!data) return null;
+    if (viewMode === "weekly") {
+      return [
+        {
+          label: "Kapacitet (seneste uge)",
+          value: formatHours(latestPoint?.capacity ?? 0),
+          suffix: "timer",
+          tone: "capacity" as ResourceSummaryTone,
+          helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
+        },
+        {
+          label: "Planlagt (seneste uge)",
+          value: formatHours(latestPoint?.planned ?? 0),
+          suffix: "timer",
+          tone: getSummaryTone(latestPoint?.planned ?? 0, latestPoint?.capacity ?? 0, "planned"),
+          helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
+        },
+        {
+          label: "Faktisk (seneste uge)",
+          value: formatHours(latestPoint?.actual ?? 0),
+          suffix: "timer",
+          tone: getSummaryTone(latestPoint?.actual ?? 0, latestPoint?.capacity ?? 0, "actual"),
+          helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
+        },
+      ];
+    }
+    if (!summary) return null;
+    const labelPrefix = viewMode === "cumulative" ? "Kumulativ " : "Total ";
+    return [
+      {
+        label: `${labelPrefix}kapacitet`,
+        value: formatHours(summary.totalCapacity),
+        suffix: "timer",
+        tone: "capacity" as ResourceSummaryTone,
+        helper: `Gns. ${formatHours(summary.averageCapacity)} timer/uge - ${summary.weeks} uger`,
+      },
+      {
+        label: `${labelPrefix}planlagt`,
+        value: formatHours(summary.totalPlanned),
+        suffix: "timer",
+        tone: getSummaryTone(summary.totalPlanned, summary.totalCapacity, "planned"),
+        helper: `Gns. ${formatHours(summary.averagePlanned)} timer/uge`,
+      },
+      {
+        label: `${labelPrefix}faktisk`,
+        value: formatHours(summary.totalActual),
+        suffix: "timer",
+        tone: getSummaryTone(summary.totalActual, summary.totalCapacity, "actual"),
+        helper: `Gns. ${formatHours(summary.averageActual)} timer/uge`,
+      },
+    ];
+  })();
 
   return (
     <section className="w-full rounded-3xl border border-slate-100 bg-white shadow-sm">
@@ -125,6 +189,25 @@ export const ProjectResourcePanel = () => {
             ))}
           </div>
         </div>
+        <div className="flex flex-col gap-1 text-xs text-slate-500">
+          <span>Visning:</span>
+          <div className="flex items-center gap-2">
+            {VIEW_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`rounded-full border px-3 py-1 font-semibold transition ${
+                  viewMode === option.value
+                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                }`}
+                onClick={() => setViewMode(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="ml-auto flex items-center gap-3">
           {isFetching && (
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
@@ -145,26 +228,17 @@ export const ProjectResourcePanel = () => {
 
       <div className="grid gap-4 p-5 md:grid-cols-2">
         <div className="flex flex-col gap-3">
-          <SummaryCard
-            label="Kapacitet"
-            value={formatHours(latestPoint?.capacity ?? 0)}
-            suffix="timer"
-            tone="capacity"
-          />
-          <SummaryCard
-            label="Planlagt"
-            value={formatHours(latestPoint?.planned ?? 0)}
-            suffix="timer"
-            tone={latestPoint && latestPoint.planned > (latestPoint.capacity ?? 0) ? "alert" : "planned"}
-          />
-          <SummaryCard
-            label="Faktisk"
-            value={formatHours(latestPoint?.actual ?? 0)}
-            suffix="timer"
-            tone={latestPoint && latestPoint.actual > (latestPoint.capacity ?? 0) ? "alert" : "actual"}
-          />
+          {summaryCardConfigs && summaryCardConfigs.length > 0 ? (
+            summaryCardConfigs.map((card) => <ResourceSummaryCard key={card.label} {...card} />)
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+              Ingen data i den valgte periode.
+            </div>
+          )}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <div className="font-semibold text-slate-700">Over-allokerede uger</div>
+            <div className="font-semibold text-slate-700">
+              {viewMode === "weekly" ? "Over-allokerede uger" : "Over-allokerede uger i perioden"}
+            </div>
             {!hasData ? (
               <p className="mt-1 text-xs text-slate-500">Ingen data i den valgte periode.</p>
             ) : overAllocated.size === 0 ? (
@@ -184,6 +258,7 @@ export const ProjectResourcePanel = () => {
               </ul>
             )}
           </div>
+          {(viewMode === "summary" || viewMode === "cumulative") && summary ? <SummaryDiffs summary={summary} /> : null}
         </div>
 
         <div className="h-60 rounded-2xl border border-slate-100 bg-white p-3">
@@ -195,7 +270,7 @@ export const ProjectResourcePanel = () => {
             <div className="grid h-full place-items-center text-sm text-slate-500">
               Ingen ressourcedata tilgaengelig endnu.
             </div>
-          ) : (
+          ) : viewMode === "weekly" ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -216,27 +291,56 @@ export const ProjectResourcePanel = () => {
                 />
                 <Line type="monotone" dataKey="capacity" name="Kapacitet" stroke="#0ea5e9" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
-          <Line
-            type="monotone"
-            dataKey="actual"
-            name="Faktisk"
-            stroke="#10b981"
-            strokeWidth={2}
-            dot={(props) => {
-              if (!props || typeof props.cx !== "number" || typeof props.cy !== "number") {
-                return <circle cx={0} cy={0} r={3} fill="#10b981" stroke="#ffffff" strokeWidth={1} />;
-              }
-              const weekKey = (props.payload as { week: string }).week;
-              const isOverAllocated = overAllocated.has(weekKey);
-              const radius = isOverAllocated ? 6 : 3;
-              const fill = isOverAllocated ? "#dc2626" : "#10b981";
-              const strokeWidth = isOverAllocated ? 2 : 1;
-              return <circle cx={props.cx} cy={props.cy} r={radius} fill={fill} stroke="#ffffff" strokeWidth={strokeWidth} />;
-            }}
-            activeDot={{ r: 6 }}
-          />
+                <Line
+                  type="monotone"
+                  dataKey="actual"
+                  name="Faktisk"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={(props) => {
+                    if (!props || typeof props.cx !== "number" || typeof props.cy !== "number") {
+                      return <circle cx={0} cy={0} r={3} fill="#10b981" stroke="#ffffff" strokeWidth={1} />;
+                    }
+                    const weekKey = (props.payload as { week: string }).week;
+                    const isOverAllocated = overAllocated.has(weekKey);
+                    const radius = isOverAllocated ? 6 : 3;
+                    const fill = isOverAllocated ? "#dc2626" : "#10b981";
+                    const strokeWidth = isOverAllocated ? 2 : 1;
+                    return <circle cx={props.cx} cy={props.cy} r={radius} fill={fill} stroke="#ffffff" strokeWidth={strokeWidth} />;
+                  }}
+                  activeDot={{ r: 6 }}
+                />
               </LineChart>
             </ResponsiveContainer>
+          ) : viewMode === "cumulative" ? (
+            cumulativeSeries.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cumulativeSeries}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="week" tickFormatter={formatWeekLabel} stroke="#475569" />
+                  <YAxis stroke="#475569" tickFormatter={formatHours} />
+                  <Tooltip
+                    formatter={(value: number) => `${formatHours(value)} timer (kumulativt)`}
+                    labelFormatter={formatWeekLabel}
+                    contentStyle={{ borderRadius: "0.75rem", borderColor: "#cbd5f5" }}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="capacity" name="Kumulativ kapacitet" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="grid h-full place-items-center text-sm text-slate-500">
+                Ingen ressourcedata til den kumulative visning.
+              </div>
+            )
+          ) : summary ? (
+            <SummaryComparison summary={summary} />
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-slate-500">
+              Ingen ressourcedata tilgaengelig endnu.
+            </div>
           )}
         </div>
       </div>
@@ -244,52 +348,89 @@ export const ProjectResourcePanel = () => {
   );
 };
 
-type SummaryTone = "capacity" | "planned" | "actual" | "alert";
-
-const toneStyles: Record<SummaryTone, { container: string; badge: string; value: string }> = {
-  capacity: {
-    container: "border-sky-100 bg-sky-50",
-    badge: "bg-sky-100 text-sky-600",
-    value: "text-sky-700",
-  },
-  planned: {
-    container: "border-amber-100 bg-amber-50",
-    badge: "bg-amber-100 text-amber-600",
-    value: "text-amber-700",
-  },
-  actual: {
-    container: "border-emerald-100 bg-emerald-50",
-    badge: "bg-emerald-100 text-emerald-600",
-    value: "text-emerald-700",
-  },
-  alert: {
-    container: "border-rose-100 bg-rose-50",
-    badge: "bg-rose-100 text-rose-600",
-    value: "text-rose-700",
-  },
+const getSummaryTone = (value: number, capacity: number, fallback: ResourceSummaryTone): ResourceSummaryTone => {
+  if (!Number.isFinite(value) || !Number.isFinite(capacity)) {
+    return fallback;
+  }
+  return value > capacity ? "alert" : fallback;
 };
 
-const SummaryCard = ({
-  label,
-  value,
-  suffix,
-  tone,
-}: {
-  label: string;
-  value: string;
-  suffix?: string;
-  tone: SummaryTone;
-}) => {
-  const palette = toneStyles[tone];
+const SummaryDiffs = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
+  const plannedVsCapacity = summary.totalPlanned - summary.totalCapacity;
+  const actualVsCapacity = summary.totalActual - summary.totalCapacity;
+  const actualVsPlanned = summary.totalActual - summary.totalPlanned;
+
+  const items: Array<{ label: string; value: number }> = [
+    { label: "Planlagt vs. kapacitet", value: plannedVsCapacity },
+    { label: "Faktisk vs. kapacitet", value: actualVsCapacity },
+    { label: "Faktisk vs. planlagt", value: actualVsPlanned },
+  ];
+
   return (
-    <div className={`rounded-2xl border ${palette.container} px-4 py-3`}>
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`mt-1 flex items-baseline gap-2 text-2xl font-semibold ${palette.value}`}>
-        {value}
-        {suffix && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${palette.badge}`}>{suffix}</span>}
-      </div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+      <div className="font-semibold text-slate-700">Afvigelser</div>
+      <ul className="mt-2 space-y-2">
+        {items.map((item) => (
+          <li key={item.label} className="flex items-center justify-between gap-3">
+            <span>{item.label}</span>
+            <DiffBadge value={item.value} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
+};
+
+const SummaryComparison = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
+  const maxValue = Math.max(summary.totalCapacity, summary.totalPlanned, summary.totalActual, 1);
+  const rows: Array<{ label: string; value: number; barClass: string }> = [
+    { label: "Kapacitet", value: summary.totalCapacity, barClass: "bg-sky-400" },
+    { label: "Planlagt", value: summary.totalPlanned, barClass: "bg-amber-400" },
+    { label: "Faktisk", value: summary.totalActual, barClass: "bg-emerald-500" },
+  ];
+
+  return (
+    <div className="flex h-full flex-col justify-center gap-4">
+      {rows.map((row) => {
+        const rawWidth = (row.value / maxValue) * 100;
+        const width = row.value === 0 ? 0 : Math.min(100, Math.max(4, rawWidth));
+        return (
+          <div key={row.label} className="space-y-1">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+              <span>{row.label}</span>
+              <span>{formatHours(row.value)} timer</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100">
+              <div className={`h-full rounded-full ${row.barClass}`} style={{ width: `${width}%` }} />
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-xs text-slate-500">
+        Viser summen for den valgte periode. Bredden af soejlerne afspejler forholdet mellem totalerne.
+      </p>
+    </div>
+  );
+};
+
+const DiffBadge = ({ value }: { value: number }) => {
+  const isPositive = value > 0;
+  const isNegative = value < 0;
+  const baseClasses = "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold";
+  const toneClass = isPositive
+    ? "border-rose-200 bg-rose-50 text-rose-600"
+    : isNegative
+      ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+      : "border-slate-200 bg-slate-100 text-slate-600";
+  return <span className={`${baseClasses} ${toneClass}`}>{formatDiffHours(value)}</span>;
+};
+
+const formatDiffHours = (value: number) => {
+  if (!Number.isFinite(value) || value === 0) {
+    return "0 timer";
+  }
+  const prefix = value > 0 ? "+" : "-";
+  return `${prefix}${formatHours(Math.abs(value))} timer`;
 };
 
 const PanelLoading = () => (

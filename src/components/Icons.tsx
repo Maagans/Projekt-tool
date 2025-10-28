@@ -100,5 +100,15 @@ export const XIcon = () => (
   <svg {...iconProps}><path d="m18 6-12 12M6 6l12 12" /></svg>
 );
 
+export const OrganizationIcon = () => (
+  <svg {...iconProps}>
+    <circle cx="12" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="18" r="3" />
+    <path d="M12 9l-4 6" />
+    <path d="M12 9l4 6" />
+  </svg>
+);
+
 
 

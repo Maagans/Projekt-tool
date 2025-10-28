@@ -6,6 +6,28 @@ import { withTransaction } from "../utils/transactions.js";
 export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, plannedHours, actualHours }, user) => {
     try {
         return await withTransaction(async (client) => {
+            const existingEntryResult = await client.query(
+                `
+                    SELECT planned_hours::float AS planned_hours, actual_hours::float AS actual_hours
+                    FROM project_member_time_entries
+                    WHERE project_member_id = $1::uuid AND week_key = $2
+                    LIMIT 1
+                `,
+                [memberId, weekKey],
+            );
+
+            const existingEntry = existingEntryResult.rows[0] ?? null;
+
+            const normaliseHours = (value, fallback = 0) => {
+                if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+                    return value;
+                }
+                if (typeof fallback === 'number' && Number.isFinite(fallback) && fallback >= 0) {
+                    return fallback;
+                }
+                return 0;
+            };
+
             const memberResult = await client.query(
                 `
                     SELECT id::text, project_id::text, employee_id::text, role, member_group, is_project_lead
@@ -38,11 +60,11 @@ export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, p
                 await client.query(
                     `
                         INSERT INTO project_member_time_entries (project_member_id, week_key, planned_hours, actual_hours)
-                        VALUES ($1::uuid, $2, 0, $3)
+                        VALUES ($1::uuid, $2, $3, $4)
                         ON CONFLICT (project_member_id, week_key)
-                        DO UPDATE SET actual_hours = EXCLUDED.actual_hours
+                        DO UPDATE SET planned_hours = EXCLUDED.planned_hours, actual_hours = EXCLUDED.actual_hours
                     `,
-                    [memberId, weekKey, actualHours],
+                    [memberId, weekKey, normaliseHours(existingEntry?.planned_hours ?? 0), normaliseHours(actualHours)],
                 );
             } else {
                 if (userRole === 'Projektleder') {
@@ -62,8 +84,8 @@ export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, p
                         throw createAppError('Forbidden: Insufficient permissions.', 403);
                     }
                 }
-                const planned = plannedHours ?? 0;
-                const actual = actualHours ?? 0;
+                const planned = normaliseHours(plannedHours, existingEntry?.planned_hours ?? 0);
+                const actual = normaliseHours(actualHours, existingEntry?.actual_hours ?? 0);
                 await client.query(
                     `
                         INSERT INTO project_member_time_entries (project_member_id, week_key, planned_hours, actual_hours)

@@ -7,7 +7,6 @@ import { DeliverablesList } from '../../../components/DeliverablesList';
 import { RiskMatrix } from '../../../components/RiskMatrix';
 import { CalendarIcon, PlusIcon, StepForwardIcon, TrashIcon } from '../../../components/Icons';
 import { useProjectRouteContext } from './ProjectLayout';
-import { ProjectResourcePanel } from './ProjectResourcePanel';
 
 export const ProjectReportsPage = () => {
   const { project, projectManager } = useProjectRouteContext();
@@ -73,7 +72,6 @@ export const ProjectReportsPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProjectResourcePanel />
       <div className="flex flex-col lg:flex-row gap-6 items-start">
       <aside className="w-full lg:w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm flex flex-col export-hide self-stretch">
         <h3 className="text-lg font-bold mb-3 text-slate-700">Rapporter</h3>
