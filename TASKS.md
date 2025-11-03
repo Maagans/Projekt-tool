@@ -479,7 +479,7 @@ pm run test:api --prefix backend
     - Accept: Hooken returnerer eksisterende struktur + projektfordeling uden at bryde kaldere.
     - Afh�ngigheder: RM-010a.
 
-- [ ] RM-010c: PMO UI donutdiagrammer
+- [x] RM-010c: PMO UI donutdiagrammer
     - Form�l: Visualisere projektfordelingen i Ressource Analytics-fanen.
     - �ndringer:
       - Tilf�j toggle og to donut-diagrammer (planlagt/faktisk) i PMO-varianten, kun for admin scope.
