@@ -26,7 +26,7 @@ import {
 import type { ResourceAnalyticsQuery } from '../../../types';
 
 const DEFAULT_WEEK_RANGE = 12;
-const RANGE_OPTIONS = [6, 12, 24] as const;
+const RANGE_OPTIONS = [6, 12, 24, 52] as const;
 type ViewMode = 'weekly' | 'summary' | 'cumulative';
 const VIEW_OPTIONS: Array<{ value: ViewMode; label: string }> = [
   { value: 'weekly', label: 'Ugentlig' },
@@ -331,15 +331,6 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
           <ErrorState message={error?.message ?? 'Kunne ikke hente data.'} onRetry={() => refetch()} />
         ) : (
           <>
-            {canShowProjectBreakdown && (
-              <ProjectBreakdownSection
-                breakdown={projectBreakdown}
-                totals={projectBreakdownTotals}
-                isFetching={isFetching}
-                showBreakdown={showProjectBreakdown}
-                onToggle={() => setShowProjectBreakdown((state) => !state)}
-              />
-            )}
             <AnalyticsContent
               chartData={chartData}
               cumulativeSeries={cumulativeSeries}
@@ -350,6 +341,15 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
               viewMode={viewMode}
               summary={summary}
             />
+            {canShowProjectBreakdown && (
+              <ProjectBreakdownSection
+                breakdown={projectBreakdown}
+                totals={projectBreakdownTotals}
+                isFetching={isFetching}
+                showBreakdown={showProjectBreakdown}
+                onToggle={() => setShowProjectBreakdown((state) => !state)}
+              />
+            )}
           </>
         )}
       </section>
