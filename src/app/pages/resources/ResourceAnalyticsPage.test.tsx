@@ -54,7 +54,7 @@ const createProjectManagerMock = () => ({
 
 const createAnalyticsResult = () => ({
   data: {
-    scope: { type: 'department', id: 'IT' },
+    scope: { type: 'department', id: '__ALL__' },
     series: [
       { week: '2025-W01', capacity: 100, planned: 90, actual: 85 },
       { week: '2025-W02', capacity: 100, planned: 110, actual: 120 },
@@ -108,6 +108,7 @@ describe('ResourceAnalyticsPage', () => {
 
     expect(screen.getByText('Kapacitet (seneste uge)')).toBeInTheDocument();
     expect(screen.getByText('Planlagt (seneste uge)')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Alle afdelinger' })).toBeInTheDocument();
     expect(screen.getAllByText('Over-allokerede uger').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Opsummeret' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kumulativ' })).toBeInTheDocument();

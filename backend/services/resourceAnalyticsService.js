@@ -166,6 +166,8 @@ const mapEntriesByWeek = (rows) => {
 const calculateOverAllocatedWeeks = (series) =>
   series.filter((point) => point.planned > point.capacity || point.actual > point.capacity).map((point) => point.week);
 
+const ALL_DEPARTMENTS_KEY = "__ALL__";
+
 const ensureDepartment = (department) => {
   if (typeof department !== "string" || department.trim() === "") {
     throw createAppError("department must be a non-empty string.", 400);
@@ -184,19 +186,20 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
   const validatedDepartment = ensureDepartment(department);
   const { fromWeek, toWeek } = normalizeRange(range);
   const database = dbClient ?? pool;
+  const isAllDepartments = validatedDepartment === ALL_DEPARTMENTS_KEY;
 
   const employeesResult = await database.query(
     `
       SELECT id::text, COALESCE(max_capacity_hours_week, 0)::float AS capacity
       FROM employees
-      WHERE department = $1
+      ${isAllDepartments ? "" : "WHERE department = $1"}
     `,
-    [validatedDepartment],
+    isAllDepartments ? [] : [validatedDepartment],
   );
 
   const totalCapacity = (employeesResult.rows ?? []).reduce((sum, row) => sum + Number(row.capacity ?? 0), 0);
 
-  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, 2);
+  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, isAllDepartments ? 1 : 2);
   const timeEntriesResult = await database.query(
     `
       SELECT t.week_key,
@@ -205,11 +208,11 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       FROM project_member_time_entries t
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN employees e ON e.id = pm.employee_id
-      WHERE e.department = $1${rangeClause}
+      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}${rangeClause}
       GROUP BY t.week_key
       ORDER BY t.week_key ASC
     `,
-    [validatedDepartment, ...rangeParams],
+    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
   );
 
   const projectBreakdownResult = await database.query(
@@ -223,12 +226,12 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN projects p ON p.id = pm.project_id
       JOIN employees e ON e.id = pm.employee_id
-      WHERE e.department = $1
+      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}
         AND p.status = 'active'${rangeClause}
       GROUP BY p.id, p.name
       ORDER BY p.name ASC
     `,
-    [validatedDepartment, ...rangeParams],
+    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
   );
 
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);

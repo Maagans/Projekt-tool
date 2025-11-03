@@ -60,6 +60,29 @@ describe('resourceAnalyticsService', () => {
     ]);
   });
 
+  it('aggregates department data across all departments when requested', async () => {
+    const mockDb = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
+    };
+
+    const result = await calcDepartmentSeries('__ALL__', {
+      range: { fromWeek: '2025-W01', toWeek: '2025-W03' },
+      dbClient: mockDb,
+    });
+
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
+    expect(mockDb.query.mock.calls[0][1]).toEqual([]);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['2025-W01', '2025-W03']);
+
+    expect(result.scope).toEqual({ type: 'department', id: '__ALL__' });
+    expect(result.projectBreakdown).toHaveLength(2);
+  });
+
   it('aggregates project data across ISO week-year boundaries', async () => {
     const projectId = '5ac7b3f2-318e-40ff-9c3a-222222222222';
     const mockDb = {
@@ -134,6 +157,31 @@ describe('resourceAnalyticsService', () => {
       { week: '2025-W01', capacity: 112.5, planned: 90, actual: 84 },
       { week: '2025-W02', capacity: 112.5, planned: 130, actual: 120 },
     ]);
+    expect(result.projectBreakdown).toHaveLength(2);
+  });
+
+  it('aggregates all departments via aggregateResourceAnalytics when scopeId is __ALL__', async () => {
+    const mockDb = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
+    };
+
+    const result = await aggregateResourceAnalytics({
+      scope: 'department',
+      scopeId: '__ALL__',
+      range: { fromWeek: '2025-W01', toWeek: '2025-W02' },
+      dbClient: mockDb,
+    });
+
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
+    expect(mockDb.query.mock.calls[0][1]).toEqual([]);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['2025-W01', '2025-W02']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['2025-W01', '2025-W02']);
+
+    expect(result.scope).toEqual({ type: 'department', id: '__ALL__' });
     expect(result.projectBreakdown).toHaveLength(2);
   });
 

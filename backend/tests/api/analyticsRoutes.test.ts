@@ -79,6 +79,32 @@ describe("GET /api/analytics/resources", () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
+  it("returns analytics data for all departments", async () => {
+    aggregateResourceAnalytics.mockResolvedValue({
+      scope: { type: "department", id: "__ALL__" },
+      series: [],
+      overAllocatedWeeks: [],
+      projectBreakdown: [],
+    });
+
+    const response = await request(app)
+      .get("/api/analytics/resources")
+      .query({
+        scope: "department",
+        scopeId: "__ALL__",
+        fromWeek: "2025-W01",
+        toWeek: "2025-W02",
+      })
+      .set("Cookie", [buildAuthCookie({ id: "user-1", role: "Administrator" })]);
+
+    expect(response.status).toBe(200);
+    expect(aggregateResourceAnalytics).toHaveBeenCalledWith({
+      scope: "department",
+      scopeId: "__ALL__",
+      range: { fromWeek: "2025-W01", toWeek: "2025-W02" },
+    });
+  });
+
   it("allows project leads to fetch project analytics", async () => {
     aggregateResourceAnalytics.mockResolvedValue({
       scope: { type: "project", id: "5ac7b3f2-318e-40ff-9c3a-222222222222" },

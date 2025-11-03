@@ -33,6 +33,7 @@ const VIEW_OPTIONS: Array<{ value: ViewMode; label: string }> = [
   { value: 'summary', label: 'Opsummeret' },
   { value: 'cumulative', label: 'Kumulativ' },
 ];
+const ALL_DEPARTMENTS_OPTION = '__ALL__';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -88,12 +89,13 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
         unique.add(employee.department);
       }
     });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'da'));
+    const sorted = Array.from(unique).sort((a, b) => a.localeCompare(b, 'da'));
+    return [ALL_DEPARTMENTS_OPTION, ...sorted];
   }, [employees]);
 
   const [rangeWeeks, setRangeWeeks] = useState<number>(DEFAULT_WEEK_RANGE);
   const [range, setRange] = useState(() => deriveDefaultRange(DEFAULT_WEEK_RANGE));
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>(ALL_DEPARTMENTS_OPTION);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [showProjectBreakdown, setShowProjectBreakdown] = useState(true);
 
@@ -249,7 +251,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
               {departments.length > 0 ? (
                 departments.map((department) => (
                   <option key={department} value={department}>
-                    {department}
+                    {department === ALL_DEPARTMENTS_OPTION ? 'Alle afdelinger' : department}
                   </option>
                 ))
               ) : (
@@ -347,6 +349,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
                 totals={projectBreakdownTotals}
                 isFetching={isFetching}
                 showBreakdown={showProjectBreakdown}
+                isAllDepartments={selectedDepartment === ALL_DEPARTMENTS_OPTION}
                 onToggle={() => setShowProjectBreakdown((state) => !state)}
               />
             )}
@@ -401,12 +404,14 @@ const ProjectBreakdownSection = ({
   totals,
   isFetching,
   showBreakdown,
+  isAllDepartments,
   onToggle,
 }: {
   breakdown: BreakdownItem[];
   totals: BreakdownTotals;
   isFetching: boolean;
   showBreakdown: boolean;
+  isAllDepartments: boolean;
   onToggle: () => void;
 }) => {
   const plannedItems = buildChartItems(breakdown, 'planned', totals.planned);
@@ -419,7 +424,9 @@ const ProjectBreakdownSection = ({
         <div>
           <h3 className="text-base font-semibold text-slate-700">Projektfordeling</h3>
           <p className="text-sm text-slate-500">
-            Fordeling af planlagt og faktisk tid på aktive projekter for den valgte afdeling.
+            {isAllDepartments
+              ? 'Fordeling af planlagt og faktisk tid på aktive projekter på tværs af alle afdelinger.'
+              : 'Fordeling af planlagt og faktisk tid på aktive projekter for den valgte afdeling.'}
           </p>
         </div>
         <button
