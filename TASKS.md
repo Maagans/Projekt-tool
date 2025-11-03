@@ -408,7 +408,7 @@ pm run test:api --prefix backend
 
 - [x] RM-006: Projekt-dashboard panel
 
-- [ ] PMO-010: Integrer Ressource Analytics som fane i PMO
+- [x] PMO-010: Integrer Ressource Analytics som fane i PMO
   - Formål: Samle alle ressourcerelaterede indsigter under PMO-sektionen og reducere navigation mellem sider.
   - ændringer:
     - Tilføj tab-navigation på PMO-siden og flyt nuværende Ressource Analytics-komponent ind som `resources`-fane.
@@ -448,7 +448,7 @@ pm run test:api --prefix backend
   - Accept: FÃ¸rste kald beregner data, efterfÃ¸lgende inden for TTL bruger cache; CSV-download giver korrekte kolonner med danske feltnavne.
   - AfhÃ¦ngigheder: RM-003, RM-005.
 
-- [ ] RM-008: Dokumentation & release notes
+- [x] RM-008: Dokumentation & release notes
   - FormÃ¥l: Holde README, ROADMAP og CHANGELOG ajour med ressourcemodulet.
   - Ã¦ndringer: Opdater README med nye miljÃ¸variable og UI-flow, ROADMAP-status, CHANGELOG-version bump og screenshots.
   - Test (TDD):
