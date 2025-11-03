@@ -28,9 +28,12 @@ vi.mock('recharts', () => ({
   Tooltip: () => null,
   Legend: () => null,
   ReferenceArea: () => null,
+  PieChart: ({ children }: { children: ReactNode }) => <div data-testid="pie">{children}</div>,
+  Pie: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Cell: () => null,
 }));
 
-import { ResourceAnalyticsPage } from './ResourceAnalyticsPage';
+import { ResourceAnalyticsPage, ResourceAnalyticsEmbeddedView } from './ResourceAnalyticsPage';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import { useResourceAnalytics } from '../../../hooks/useResourceAnalytics';
 
@@ -75,6 +78,11 @@ const createAnalyticsResult = () => ({
       { week: '2025-W01', capacity: 100, planned: 90, actual: 85 },
       { week: '2025-W02', capacity: 200, planned: 200, actual: 205 },
     ],
+    projectBreakdown: [
+      { projectId: 'p-1', projectName: 'Alpha', planned: 120, actual: 110 },
+      { projectId: 'p-2', projectName: 'Beta', planned: 80, actual: 95 },
+    ],
+    projectBreakdownTotals: { planned: 200, actual: 205 },
   },
   isPending: false,
   isFetching: false,
@@ -107,5 +115,21 @@ describe('ResourceAnalyticsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Kumulativ' }));
     expect(screen.getByText('Kumulativ kapacitet')).toBeInTheDocument();
+  });
+
+  it('renders project breakdown toggle in embedded variant', () => {
+    render(
+      <MemoryRouter>
+        <ResourceAnalyticsEmbeddedView />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Skjul projektfordeling' })).toBeInTheDocument();
+    expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Beta').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skjul projektfordeling' }));
+    expect(screen.getByRole('button', { name: 'Vis projektfordeling' })).toBeInTheDocument();
+    expect(screen.queryAllByText('Alpha')).toHaveLength(0);
   });
 });

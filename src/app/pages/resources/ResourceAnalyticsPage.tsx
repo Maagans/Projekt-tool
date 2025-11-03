@@ -10,6 +10,9 @@ import {
   ResponsiveContainer,
   Legend,
   ReferenceArea,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 import { AppHeader } from '../../components/AppHeader';
 import { ResourceSummaryCard, type ResourceSummaryTone } from '../../../components/ResourceSummaryCard';
@@ -92,6 +95,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const [range, setRange] = useState(() => deriveDefaultRange(DEFAULT_WEEK_RANGE));
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
+  const [showProjectBreakdown, setShowProjectBreakdown] = useState(true);
 
   useEffect(() => {
     if (!departments.length) {
@@ -128,6 +132,9 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const latestPoint = data?.latestPoint ?? chartData.at(-1) ?? null;
   const summary = data?.summary ?? null;
   const cumulativeSeries = data?.cumulativeSeries ?? [];
+  const projectBreakdown = data?.projectBreakdown ?? [];
+  const projectBreakdownTotals = data?.projectBreakdownTotals ?? { planned: 0, actual: 0 };
+  const canShowProjectBreakdown = variant === 'embedded' && projectBreakdown.length > 0;
 
   const summaryCards = (() => {
     if (!data) return [];
@@ -323,16 +330,27 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
         ) : isError ? (
           <ErrorState message={error?.message ?? 'Kunne ikke hente data.'} onRetry={() => refetch()} />
         ) : (
-          <AnalyticsContent
-            chartData={chartData}
-            cumulativeSeries={cumulativeSeries}
-            overAllocatedSet={overAllocatedSet}
-            isFetching={isFetching}
-            selectedDepartment={selectedDepartment}
-            range={range}
-            viewMode={viewMode}
-            summary={summary}
-          />
+          <>
+            {canShowProjectBreakdown && (
+              <ProjectBreakdownSection
+                breakdown={projectBreakdown}
+                totals={projectBreakdownTotals}
+                isFetching={isFetching}
+                showBreakdown={showProjectBreakdown}
+                onToggle={() => setShowProjectBreakdown((state) => !state)}
+              />
+            )}
+            <AnalyticsContent
+              chartData={chartData}
+              cumulativeSeries={cumulativeSeries}
+              overAllocatedSet={overAllocatedSet}
+              isFetching={isFetching}
+              selectedDepartment={selectedDepartment}
+              range={range}
+              viewMode={viewMode}
+              summary={summary}
+            />
+          </>
         )}
       </section>
     </div>
@@ -348,6 +366,174 @@ const getSummaryTone = (value: number, capacity: number, fallback: ResourceSumma
     return fallback;
   }
   return value > capacity ? 'alert' : fallback;
+};
+
+const PROJECT_COLORS = ['#2563eb', '#7c3aed', '#ef4444', '#10b981', '#f97316', '#0ea5e9', '#8b5cf6', '#f59e0b'];
+
+type BreakdownItem = {
+  projectId: string;
+  projectName: string;
+  planned: number;
+  actual: number;
+};
+
+type BreakdownTotals = {
+  planned: number;
+  actual: number;
+};
+
+const buildChartItems = (breakdown: BreakdownItem[], key: 'planned' | 'actual', total: number) =>
+  breakdown.map((item, index) => {
+    const value = item[key];
+    const percent = total > 0 ? Math.max((value / total) * 100, 0) : 0;
+    return {
+      id: item.projectId,
+      label: item.projectName,
+      value,
+      percent,
+      percentLabel: `${percent.toFixed(1)}%`,
+      color: PROJECT_COLORS[index % PROJECT_COLORS.length],
+    };
+  });
+
+const ProjectBreakdownSection = ({
+  breakdown,
+  totals,
+  isFetching,
+  showBreakdown,
+  onToggle,
+}: {
+  breakdown: BreakdownItem[];
+  totals: BreakdownTotals;
+  isFetching: boolean;
+  showBreakdown: boolean;
+  onToggle: () => void;
+}) => {
+  const plannedItems = buildChartItems(breakdown, 'planned', totals.planned);
+  const actualItems = buildChartItems(breakdown, 'actual', totals.actual);
+  const toggleLabel = showBreakdown ? 'Skjul projektfordeling' : 'Vis projektfordeling';
+
+  return (
+    <section className="rounded-2xl border border-slate-100 bg-white/95 p-5 shadow-sm">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-700">Projektfordeling</h3>
+          <p className="text-sm text-slate-500">
+            Fordeling af planlagt og faktisk tid på aktive projekter for den valgte afdeling.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-pressed={showBreakdown}
+          className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+            showBreakdown
+              ? 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+              : 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+          }`}
+        >
+          {toggleLabel}
+        </button>
+      </header>
+
+      {showBreakdown && (
+        <div className="grid gap-8 lg:grid-cols-2">
+          <ProjectDistributionPie
+            title="Planlagt tid"
+            items={plannedItems}
+            total={totals.planned}
+            isLoading={isFetching}
+          />
+          <ProjectDistributionPie
+            title="Faktisk tid"
+            items={actualItems}
+            total={totals.actual}
+            isLoading={isFetching}
+          />
+        </div>
+      )}
+    </section>
+  );
+};
+
+const ProjectDistributionPie = ({
+  title,
+  items,
+  total,
+  isLoading,
+}: {
+  title: string;
+  items: ReturnType<typeof buildChartItems>;
+  total: number;
+  isLoading: boolean;
+}) => {
+  const hasData = total > 0 && items.some((item) => item.value > 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
+        <p className="text-xs text-slate-500">Total: {formatHours(total)} timer</p>
+      </div>
+
+      {isLoading ? (
+        <div className="grid place-items-center rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+          Opdaterer fordeling...
+        </div>
+      ) : hasData ? (
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="mx-auto h-64 w-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={items}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius="60%"
+                  outerRadius="90%"
+                  paddingAngle={2}
+                  stroke="#ffffff"
+                  strokeWidth={3}
+                >
+                  {items.map((entry) => (
+                    <Cell key={`${title}-${entry.id}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, _name, payload) => {
+                    if (!payload?.payload) return value;
+                    const current = payload.payload as (typeof items)[number];
+                    return [`${formatHours(Number(value))} t (${current.percentLabel})`, current.label];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <ul className="flex-1 space-y-2 text-sm text-slate-600">
+            {items.map((item) => (
+              <li
+                key={`${title}-legend-${item.id}`}
+                className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
+                  {item.label}
+                </span>
+                <span className="font-semibold text-slate-700">
+                  {formatHours(item.value)} t • {item.percentLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="grid place-items-center rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+          Ingen projekter med registreret tid i perioden.
+        </div>
+      )}
+    </div>
+  );
 };
 
 const OverAllocatedList = ({ overAllocatedSet }: { overAllocatedSet: Set<string> }) => (
