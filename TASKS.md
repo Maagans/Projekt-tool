@@ -285,45 +285,45 @@ pm run test:api --prefix backend
   - Accept: Alle multi-step writes bruger transaktioner; tests bekrÃ¦fter korrekt rollback ved fejl.
   - AfhÃ¦ngigheder: ST-003.
   - Status: Transaction-helper indfÃ¸rt og brugt i auth/setup/projects; vitest dÃ¦kker commit/rollback.
-- [x] ST-005: Aktivér strict TypeScript
-  - Formål: Fange typefejl tidligt og gøre frontendkoden klar til nye moduler.
-  - Ændringer: Sæt `"strict": true` (m.fl.) i `tsconfig.json`; fjern `any`-smuthuller i `src/**`; opdater hooks/components og tests til at opfylde stricte typer.
+- [x] ST-005: Aktivï¿½r strict TypeScript
+  - Formï¿½l: Fange typefejl tidligt og gï¿½re frontendkoden klar til nye moduler.
+  - ï¿½ndringer: Sï¿½t `"strict": true` (m.fl.) i `tsconfig.json`; fjern `any`-smuthuller i `src/**`; opdater hooks/components og tests til at opfylde stricte typer.
   - Test (TDD):
     1) `npm run lint`
     2) `npm run test`
     3) `npm run build`
-  - Accept: Frontend bygger i strict-mode uden typefejl; lint/test passerer uden at slække reglerne.
-  - Afhængigheder: ST-001, ST-004.
+  - Accept: Frontend bygger i strict-mode uden typefejl; lint/test passerer uden at slï¿½kke reglerne.
+  - Afhï¿½ngigheder: ST-001, ST-004.
 
 - [x] ST-006: Kontrol af timelog-inputs i modal
-  - Formål: Sikre at felterne for planlagte/faktiske timer altid viser senest kendte data efter bulk-udfyldning eller synkronisering.
-  - Ændringer: Gør inputs i `TimeLogModal` kontrollerede (`value` + lokal state) og synkronisér dem med `member.timeEntries`; ryd op i eventhåndtere, så de ikke bruger `defaultValue`.
+  - Formï¿½l: Sikre at felterne for planlagte/faktiske timer altid viser senest kendte data efter bulk-udfyldning eller synkronisering.
+  - ï¿½ndringer: Gï¿½r inputs i `TimeLogModal` kontrollerede (`value` + lokal state) og synkronisï¿½r dem med `member.timeEntries`; ryd op i eventhï¿½ndtere, sï¿½ de ikke bruger `defaultValue`.
   - Test (TDD):
-    1) Tilføj Vitest/RTL-test i `src/components/__tests__/ProjectOrganizationChart.test.tsx`, der simulerer prop-opdatering og forventer opdateret inputværdi.
+    1) Tilfï¿½j Vitest/RTL-test i `src/components/__tests__/ProjectOrganizationChart.test.tsx`, der simulerer prop-opdatering og forventer opdateret inputvï¿½rdi.
     2) `npm run test`
     3) `npm run lint`
-  - Accept: Tests viser at inputværdier følger props efter bulk-opdatering; manuel QA bekræfter at felterne opdateres uden at lukke modal.
-  - Afhængigheder: ST-005.
+  - Accept: Tests viser at inputvï¿½rdier fï¿½lger props efter bulk-opdatering; manuel QA bekrï¿½fter at felterne opdateres uden at lukke modal.
+  - Afhï¿½ngigheder: ST-005.
 
 - [x] ST-007: Synkron state i TimeLogModal
-  - Formål: Forhindre stale data ved at modalens totals og liste afspejler det seneste medlemssnapshot mens den er åben.
-  - Ændringer: Gem kun `timeLogMemberId` i komponentstate og udled medlem/medarbejder via `members`-props, eller synkronisér objektet via `useEffect`; opdater afledte `useMemo` hooks.
+  - Formï¿½l: Forhindre stale data ved at modalens totals og liste afspejler det seneste medlemssnapshot mens den er ï¿½ben.
+  - ï¿½ndringer: Gem kun `timeLogMemberId` i komponentstate og udled medlem/medarbejder via `members`-props, eller synkronisï¿½r objektet via `useEffect`; opdater afledte `useMemo` hooks.
   - Test (TDD):
-    1) Udvid samme testfil med case hvor totals ændres efter en prop-opdatering, og forvent at summerne opdateres i UI'et.
+    1) Udvid samme testfil med case hvor totals ï¿½ndres efter en prop-opdatering, og forvent at summerne opdateres i UI'et.
     2) `npm run test`
     3) `npm run lint`
-  - Accept: Tests bekræfter at totals og rækker reflekterer seneste data uden at genåbne modal; manuel QA viser korrekt sum efter backend-respons.
-  - Afhængigheder: ST-006.
+  - Accept: Tests bekrï¿½fter at totals og rï¿½kker reflekterer seneste data uden at genï¿½bne modal; manuel QA viser korrekt sum efter backend-respons.
+  - Afhï¿½ngigheder: ST-006.
 
 - [x] ST-008: Ret dansk label i organisationskort
-  - Formål: Eliminere stavefejl i UI (manglende `ø`) og forhindre regressioner.
-  - Ændringer: Opdater teksten til `Tilføj medlem` i `ProjectOrganizationChart.tsx`; tilføj en simpel render-test, der sikrer at knappen indeholder korrekt streng.
+  - Formï¿½l: Eliminere stavefejl i UI (manglende `ï¿½`) og forhindre regressioner.
+  - ï¿½ndringer: Opdater teksten til `Tilfï¿½j medlem` i `ProjectOrganizationChart.tsx`; tilfï¿½j en simpel render-test, der sikrer at knappen indeholder korrekt streng.
   - Test (TDD):
-    1) Tilføj en RTL-test der renderer komponenten og forventer `Tilføj medlem` i output.
+    1) Tilfï¿½j en RTL-test der renderer komponenten og forventer `Tilfï¿½j medlem` i output.
     2) `npm run test`
     3) `npm run lint`
-  - Accept: Tests består, og UI viser korrekt dansk label.
-  - Afhængigheder: ST-006.
+  - Accept: Tests bestï¿½r, og UI viser korrekt dansk label.
+  - Afhï¿½ngigheder: ST-006.
 
 ---
 
@@ -339,13 +339,13 @@ pm run test:api --prefix backend
   - AfhÃ¦ngigheder: ST-001, ST-005.
 
 - [x] DX-002: Introducer TanStack Query
-  - Formål: Forenkle server-state management og få caching/retry out-of-the-box.
-  - Ændringer: Installer `@tanstack/react-query`; opret `QueryClientProvider` i `main.tsx`; migrer centrale fetches (login/workspace) til queries/mutations; opdater fejlhåndtering/toasts.
+  - Formï¿½l: Forenkle server-state management og fï¿½ caching/retry out-of-the-box.
+  - ï¿½ndringer: Installer `@tanstack/react-query`; opret `QueryClientProvider` i `main.tsx`; migrer centrale fetches (login/workspace) til queries/mutations; opdater fejlhï¿½ndtering/toasts.
   - Delplan:
     1) Introducer `QueryClientProvider` i appen med en basiskonfiguration (ingen migrering endnu).
     2) Migrer initial `getWorkspace`-load til `useQuery` og erstat manuel loading/error-state.
-    3) Flyt `login`/`logout` og `saveWorkspace` til `useMutation` + cache-opdateringer; justér autosave.
-    4) Udvid gradvist til øvrige endpoints (`getUsers`, time-log), ryd op i legacy effects og tests.
+    3) Flyt `login`/`logout` og `saveWorkspace` til `useMutation` + cache-opdateringer; justï¿½r autosave.
+    4) Udvid gradvist til ï¿½vrige endpoints (`getUsers`, time-log), ryd op i legacy effects og tests.
   - Test (TDD):
     1) `npm run test`
     2) `npm run lint`
@@ -409,28 +409,28 @@ pm run test:api --prefix backend
 - [x] RM-006: Projekt-dashboard panel
 
 - [x] PMO-010: Integrer Ressource Analytics som fane i PMO
-  - Formål: Samle alle ressourcerelaterede indsigter under PMO-sektionen og reducere navigation mellem sider.
-  - ændringer:
-    - Tilføj tab-navigation på PMO-siden og flyt nuværende Ressource Analytics-komponent ind som `resources`-fane.
-    - Opret redirect fra `/resources` til PMO-siden (fx `/pmo?view=resources`), så eksisterende dybe links bevares.
-    - Sørg for at fanen respekterer feature-flag og rolle-adgang som i den nuværende standalone-side.
+  - Formï¿½l: Samle alle ressourcerelaterede indsigter under PMO-sektionen og reducere navigation mellem sider.
+  - ï¿½ndringer:
+    - Tilfï¿½j tab-navigation pï¿½ PMO-siden og flyt nuvï¿½rende Ressource Analytics-komponent ind som `resources`-fane.
+    - Opret redirect fra `/resources` til PMO-siden (fx `/pmo?view=resources`), sï¿½ eksisterende dybe links bevares.
+    - Sï¿½rg for at fanen respekterer feature-flag og rolle-adgang som i den nuvï¿½rende standalone-side.
   - Test (TDD):
-    1) Vitest: udvid `PmoPage` tests til at dække fane-navigation, redirect og rollebeskyttelse.
+    1) Vitest: udvid `PmoPage` tests til at dï¿½kke fane-navigation, redirect og rollebeskyttelse.
     2) Evt. integrationstest/route-test der verificerer redirect og feature-flag (React Testing Library).
   - Accept:
-    - Bruger kan åbne PMO-siden, skifte til Ressource Analytics-fanen og få vist de samme serier som før.
-    - Direkte besøg på `/resources` lander i PMO med korrekt fane valgt.
+    - Bruger kan ï¿½bne PMO-siden, skifte til Ressource Analytics-fanen og fï¿½ vist de samme serier som fï¿½r.
+    - Direkte besï¿½g pï¿½ `/resources` lander i PMO med korrekt fane valgt.
     - Feature-flag/roller virker som tidligere (kun administratorer ser fanen).
-  - Afhængigheder: RM-005, RM-007.
+  - Afhï¿½ngigheder: RM-005, RM-007.
 
 - [x] RM-009: Synkroniser `location` og `department`
-  - Formål: Sikre at medarbejderens afdeling og lokation altid matcher, så ressourcemodulet kan bygge på ét felt.
-  - ændringer: Tilføj helper i backend der spejler felterne ved read/write, opdater persist/import/sync-flow, og lav valgfri migration/backfill.
+  - Formï¿½l: Sikre at medarbejderens afdeling og lokation altid matcher, sï¿½ ressourcemodulet kan bygge pï¿½ ï¿½t felt.
+  - ï¿½ndringer: Tilfï¿½j helper i backend der spejler felterne ved read/write, opdater persist/import/sync-flow, og lav valgfri migration/backfill.
   - Test (TDD):
     1) unit-test for helperen, der viser location ? department synkronisering i begge retninger.
-    2) integrationstest af workspace API (POST/GET) der bekræfter at begge felter matches efter gem.
-  - Accept: API-responser returnerer `department === location`, nye/ændrede medarbejdere gemmes i sync, eksisterende data backfilles.
-  - Afhængigheder: RM-005, RM-007.
+    2) integrationstest af workspace API (POST/GET) der bekrï¿½fter at begge felter matches efter gem.
+  - Accept: API-responser returnerer `department === location`, nye/ï¿½ndrede medarbejdere gemmes i sync, eksisterende data backfilles.
+  - Afhï¿½ngigheder: RM-005, RM-007.
   - FormÃ¥l: Vise projekt-specifikt ressourceoverblik for Projektleder.
   - Ã¦ndringer: TilfÃ¸j panel pÃ¥ projekt-dashboard, brug `scope=project`, vis badges nÃ¥r planned/actual > capacity, respekter adgangsroller.
   - Test (TDD):
@@ -457,46 +457,46 @@ pm run test:api --prefix backend
   - Accept: Dokumentation beskriver feature flag, API-endpoint og frontend-flows; release-notes stemmer med implementeret funktionalitet.
   - AfhÃ¦ngigheder: RM-007, DOC-001.
 
-- [ ] RM-010a: Backend projektfordeling
-    - Formål: Udvide ressourcemodulets data med projektsum pr. afdeling, så frontend kan vise fordelingen.
-    - Ændringer:
+- [x] RM-010a: Backend projektfordeling
+    - Formï¿½l: Udvide ressourcemodulets data med projektsum pr. afdeling, sï¿½ frontend kan vise fordelingen.
+    - ï¿½ndringer:
       - Udvid `/analytics/resources` (department scope) til at levere projectBreakdown med planlagt/faktisk timer pr. aktivt projekt.
       - Opdater caching/tests i resourceAnalyticsService og API-controllerens svar.
     - Test (TDD):
-      1) Vitest: `calcDepartmentSeries` returnerer breakdown og cache-tests dækker ekstra query.
+      1) Vitest: `calcDepartmentSeries` returnerer breakdown og cache-tests dï¿½kker ekstra query.
       2) Supertest: `/api/analytics/resources` svarer med feltet og respekterer feature-flag/roller.
     - Accept: Endpointet returnerer eksisterende data + breakdown uden regressions.
-    - Afhængigheder: RM-005, RM-007.
+    - Afhï¿½ngigheder: RM-005, RM-007.
 
-- [ ] RM-010b: Frontend hook & typer
-    - Formål: Eksponere projektfordelingen til PMO-fanen via hooks/API-klient.
-    - Ændringer:
+- [x] RM-010b: Frontend hook & typer
+    - Formï¿½l: Eksponere projektfordelingen til PMO-fanen via hooks/API-klient.
+    - ï¿½ndringer:
       - Udvid `ResourceAnalyticsPayload`/api.fetchResourceAnalytics og useResourceAnalytics med projectBreakdown.
       - Normaliser data (sortering, fallback til tomt array) og eksponer totals i hook-resultatet.
     - Test (TDD):
       1) Vitest: hooken normaliserer data korrekt, inkl. tom input og sortering.
       2) Enhedstest for API-normalisering (validerer typekontrakt).
     - Accept: Hooken returnerer eksisterende struktur + projektfordeling uden at bryde kaldere.
-    - Afhængigheder: RM-010a.
+    - Afhï¿½ngigheder: RM-010a.
 
 - [ ] RM-010c: PMO UI donutdiagrammer
-    - Formål: Visualisere projektfordelingen i Ressource Analytics-fanen.
-    - Ændringer:
-      - Tilføj toggle og to donut-diagrammer (planlagt/faktisk) i PMO-varianten, kun for admin scope.
+    - Formï¿½l: Visualisere projektfordelingen i Ressource Analytics-fanen.
+    - ï¿½ndringer:
+      - Tilfï¿½j toggle og to donut-diagrammer (planlagt/faktisk) i PMO-varianten, kun for admin scope.
       - Hover-tooltip skal vise projektnavn, procent og timer.
     - Test (TDD):
-      1) Vitest/RTL: komponenten viser diagrammer, toggle virker, og tom tilstand håndteres.
-    - Accept: Når hook returnerer data, ser brugeren to cirkeldiagrammer; toggle kan skjule sektionen.
-    - Afhængigheder: RM-010b.
+      1) Vitest/RTL: komponenten viser diagrammer, toggle virker, og tom tilstand hï¿½ndteres.
+    - Accept: Nï¿½r hook returnerer data, ser brugeren to cirkeldiagrammer; toggle kan skjule sektionen.
+    - Afhï¿½ngigheder: RM-010b.
 
 - [ ] RM-010d: Dokumentation & artefakter
-    - Formål: Opdatere dokumentation, release-notes og screenshots til den nye visualisering.
-    - Ændringer:
+    - Formï¿½l: Opdatere dokumentation, release-notes og screenshots til den nye visualisering.
+    - ï¿½ndringer:
       - Opdater README/CHANGELOG/ROADMAP med projektfordeling samt beskrive togglen.
-      - Tilføj eller opdater screenshot i docs/screenshots.
+      - Tilfï¿½j eller opdater screenshot i docs/screenshots.
     - Test (TDD): Ikke-kode; peer review.
     - Accept: Dokumentation og artefakter afspejler den nye funktion.
-    - Afhængigheder: RM-010c.
+    - Afhï¿½ngigheder: RM-010c.
 
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
