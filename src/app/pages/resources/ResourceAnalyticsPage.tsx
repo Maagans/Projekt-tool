@@ -98,6 +98,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const [selectedDepartment, setSelectedDepartment] = useState<string>(ALL_DEPARTMENTS_OPTION);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [showProjectBreakdown, setShowProjectBreakdown] = useState(true);
+  const [showOverAllocated, setShowOverAllocated] = useState(false);
 
   useEffect(() => {
     if (!departments.length) {
@@ -124,12 +125,9 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
     staleTime: 2 * 60 * 1000,
   });
 
-  if (!canAccessAnalytics) {
-    return variant === 'page' ? <Navigate to="/" replace /> : null;
-  }
-
   const { data, isPending, isFetching, isError, error, refetch } = analyticsQuery;
   const overAllocatedSet = data?.overAllocatedWeeksSet ?? new Set<string>();
+  const overAllocatedCount = overAllocatedSet.size;
   const chartData = data?.series ?? [];
   const latestPoint = data?.latestPoint ?? chartData.at(-1) ?? null;
   const summary = data?.summary ?? null;
@@ -137,6 +135,16 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const projectBreakdown = data?.projectBreakdown ?? [];
   const projectBreakdownTotals = data?.projectBreakdownTotals ?? { planned: 0, actual: 0 };
   const canShowProjectBreakdown = variant === 'embedded' && projectBreakdown.length > 0;
+
+  useEffect(() => {
+    if (overAllocatedCount === 0 && showOverAllocated) {
+      setShowOverAllocated(false);
+    }
+  }, [overAllocatedCount, showOverAllocated]);
+
+  if (!canAccessAnalytics) {
+    return variant === 'page' ? <Navigate to="/" replace /> : null;
+  }
 
   const summaryCards = (() => {
     if (!data) return [];
@@ -342,6 +350,8 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
               range={range}
               viewMode={viewMode}
               summary={summary}
+              showOverAllocated={showOverAllocated}
+              onToggleOverAllocated={() => setShowOverAllocated((state) => !state)}
             />
             {canShowProjectBreakdown && (
               <ProjectBreakdownSection
@@ -544,7 +554,7 @@ const ProjectDistributionPie = ({
 };
 
 const OverAllocatedList = ({ overAllocatedSet }: { overAllocatedSet: Set<string> }) => (
-  <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
+  <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5" data-testid="overallocated-list">
     <h3 className="text-sm font-semibold text-slate-700">Over-allokerede uger</h3>
     {overAllocatedSet.size === 0 ? (
       <p className="mt-2 text-sm text-slate-500">Ingen uger overstiger kapaciteten i den valgte periode.</p>
@@ -692,6 +702,8 @@ const AnalyticsContent = ({
   range,
   viewMode,
   summary,
+  showOverAllocated,
+  onToggleOverAllocated,
 }: {
   chartData: Array<{ week: string; capacity: number; planned: number; actual: number }>;
   cumulativeSeries: ResourceAnalyticsCumulativePoint[];
@@ -701,23 +713,43 @@ const AnalyticsContent = ({
   range: { fromWeek: string; toWeek: string };
   viewMode: ViewMode;
   summary: ResourceAnalyticsSummary | null;
+  showOverAllocated: boolean;
+  onToggleOverAllocated: () => void;
 }) => {
   const isSummary = viewMode === 'summary';
   const isCumulative = viewMode === 'cumulative';
   const hasChartData = chartData.length > 0;
   const hasCumulativeData = cumulativeSeries.length > 0;
+  const hasOverAllocated = overAllocatedSet.size > 0;
+  const overAllocatedButtonLabel = showOverAllocated ? 'Skjul over-allokerede uger' : 'Vis over-allokerede uger';
 
   return (
     <section className="space-y-6">
       <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
-        <h2 className="text-lg font-semibold text-slate-800">
-          {`${selectedDepartment} - ${formatWeekLabel(range.fromWeek)} -> ${formatWeekLabel(range.toWeek)}`}
-        </h2>
-        {isFetching && (
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></span>
-            Opdaterer
-          </span>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-slate-800">
+            {`${selectedDepartment} - ${formatWeekLabel(range.fromWeek)} -> ${formatWeekLabel(range.toWeek)}`}
+          </h2>
+          {isFetching && (
+            <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></span>
+              Opdaterer
+            </span>
+          )}
+        </div>
+        {hasOverAllocated && (
+          <button
+            type="button"
+            onClick={onToggleOverAllocated}
+            aria-pressed={showOverAllocated}
+            className={`ml-auto rounded-full border px-4 py-2 text-xs font-medium transition ${
+              showOverAllocated
+                ? 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                : 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+            }`}
+          >
+            {overAllocatedButtonLabel}
+          </button>
         )}
       </header>
 
@@ -729,7 +761,7 @@ const AnalyticsContent = ({
             </div>
             <div className="space-y-4">
               <SummaryDiffs summary={summary} />
-              <OverAllocatedList overAllocatedSet={overAllocatedSet} />
+              {showOverAllocated && hasOverAllocated ? <OverAllocatedList overAllocatedSet={overAllocatedSet} /> : null}
             </div>
           </div>
         ) : (
@@ -759,7 +791,7 @@ const AnalyticsContent = ({
               </ResponsiveContainer>
             </div>
             {summary ? <SummaryDiffs summary={summary} /> : null}
-            <OverAllocatedList overAllocatedSet={overAllocatedSet} />
+            {showOverAllocated && hasOverAllocated ? <OverAllocatedList overAllocatedSet={overAllocatedSet} /> : null}
           </>
         ) : (
           <div className="grid h-64 place-items-center rounded-2xl border border-slate-100 bg-white text-sm text-slate-500">
@@ -838,7 +870,7 @@ const AnalyticsContent = ({
             </ResponsiveContainer>
           </div>
 
-          <OverAllocatedList overAllocatedSet={overAllocatedSet} />
+          {showOverAllocated && hasOverAllocated ? <OverAllocatedList overAllocatedSet={overAllocatedSet} /> : null}
         </>
       )}
     </section>

@@ -112,7 +112,9 @@ describe('ResourceAnalyticsPage', () => {
     expect(screen.getAllByText('Over-allokerede uger').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Opsummeret' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kumulativ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vis over-allokerede uger' })).toBeInTheDocument();
     expect(screen.getByTestId('chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('overallocated-list')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Kumulativ' }));
     expect(screen.getByText('Kumulativ kapacitet')).toBeInTheDocument();
@@ -125,6 +127,7 @@ describe('ResourceAnalyticsPage', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole('button', { name: 'Vis over-allokerede uger' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Skjul projektfordeling' })).toBeInTheDocument();
     expect(screen.getAllByText('Alpha').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Beta').length).toBeGreaterThan(0);
@@ -132,5 +135,11 @@ describe('ResourceAnalyticsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Skjul projektfordeling' }));
     expect(screen.getByRole('button', { name: 'Vis projektfordeling' })).toBeInTheDocument();
     expect(screen.queryAllByText('Alpha')).toHaveLength(0);
+
+    expect(screen.queryByTestId('overallocated-list')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Vis over-allokerede uger' }));
+    expect(screen.getByTestId('overallocated-list')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Skjul over-allokerede uger' }));
+    expect(screen.queryByTestId('overallocated-list')).toBeNull();
   });
 });
