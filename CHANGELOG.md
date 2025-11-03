@@ -1,8 +1,14 @@
-# Changelog
+﻿# Changelog
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [1.2.8] - 2025-11-04
+### Added
+- Ressource Analytics er nu indlejret som en fane i PMO med delt komponent og Vitest-daekning for tab-navigation og adgangsregler (PMO-010).
+### Changed
+- Direkte rute til `/resources` redirecter til PMO med korrekt fane, og dashboardet viser ikke længere det gamle Ressource Analytics-link.
 
 ## [1.2.7] - 2025-10-28
 ### Added
@@ -133,6 +139,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og milj?baseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
+
+
 
 
 
