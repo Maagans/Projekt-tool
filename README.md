@@ -88,6 +88,11 @@ Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALY
   ```
   This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
 
+### Ressource Analytics som PMO-fane
+- Aktiver modulet ved at sætte `RESOURCES_ANALYTICS_ENABLED=true` i `backend/.env` og `VITE_RESOURCES_ANALYTICS_ENABLED=true` i frontendens `.env`. Lad værdierne forblive `false`, hvis modulet fortsat skal være skjult i produktion.
+- Med flagene slået til vises en ekstra fane på PMO-siden. Direkte besøg på `/resources` omdirigeres automatisk til `/pmo?view=resources`, så eksisterende bogmærker stadig fungerer.
+- Fanen er kun synlig for administratorer og bruger samme adgangskontrol som resten af PMO. Projektledere og teammedlemmer bliver på den klassiske kapacitetsoversigt.
+- Brug `docs/screenshots/pmo-resource-tab.png` (eller placér dit eget billede i `docs/screenshots/`) når du dokumenterer modulets UI i release-notes eller præsentationer.
 
 
 ### Session & CSRF flow

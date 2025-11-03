@@ -241,6 +241,17 @@ Capacity aggregation rules:
 
 ## Milestones
 
+### Status (2025-11-04)
+- ✅ **RM-0**: Feature flag sat på plads uden adfærdsændringer.
+- ✅ **RM-1**: Kapacitets- og afdelingsfelter lever i databasen og bruges i aggregationerne.
+- ✅ **RM-2**: Aggregationsservice med fixtures og tests leveres.
+- ✅ **RM-3**: `/analytics/resources` endpointet kører med validering og rollebeskyttelse.
+- ✅ **RM-4**: PMO-visningen henter data via hooken og understøtter filtre.
+- ✅ **RM-5**: Projektpanelet viser projekt-scope analytics for ledere.
+- ✅ **RM-6**: CSV-export og caching forbedrer svartid i drift.
+- ✅ **RM-7**: Dokumentation, changelog og release-notes opdateret (README, ROADMAP, CHANGELOG pr. v1.2.8).
+- 🔭 **Næste skridt**: Evaluere feedback fra PMO-fanen, planlægge eventuelle ekstra datavisualiseringer og forberede Azure SSO-integrationens afhængigheder.
+
 ### RM-0 ? Requirements Lock & Skeleton
 - Confirm weekly aggregation and department mapping (confirmed).
 - Decide role for PMO view (use Administrator initially).
