@@ -91,6 +91,8 @@ Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALY
 ### Ressource Analytics som PMO-fane
 - Aktiver modulet ved at sætte `RESOURCES_ANALYTICS_ENABLED=true` i `backend/.env` og `VITE_RESOURCES_ANALYTICS_ENABLED=true` i frontendens `.env`. Lad værdierne forblive `false`, hvis modulet fortsat skal være skjult i produktion.
 - Med flagene slået til vises en ekstra fane på PMO-siden. Direkte besøg på `/resources` omdirigeres automatisk til `/pmo?view=resources`, så eksisterende bogmærker stadig fungerer.
+- Dropdownen i fanen indeholder en ekstra valgmulighed **Alle afdelinger**, som samler kapacitet, planlagte og faktiske timer på tværs af organisationen.
+- Projektfordelingen vises som to donutdiagrammer nederst på siden (planlagt/faktisk). Brug toggle-knappen for at skjule/vis breakdown.
 - Fanen er kun synlig for administratorer og bruger samme adgangskontrol som resten af PMO. Projektledere og teammedlemmer bliver på den klassiske kapacitetsoversigt.
 - Brug `docs/screenshots/pmo-resource-tab.png` (eller placér dit eget billede i `docs/screenshots/`) når du dokumenterer modulets UI i release-notes eller præsentationer.
 
