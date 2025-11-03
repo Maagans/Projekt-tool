@@ -3,6 +3,8 @@ import pool from '../db.js';
 import logger from '../logger.js';
 import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity, classifyReportIdentifier } from '../utils/helpers.js';
 
+const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
+
 const logDebug = (category, ...args) => {
     if (config.debug.workspace === true) {
         logger.debug({ category, args });
@@ -34,6 +36,20 @@ export const resolveDepartmentLocation = (source = {}, fallback = {}) => {
 };
 export const loadFullWorkspace = async (clientOverride) => {
     const executor = clientOverride ?? pool;
+
+    const settingsResult = await executor.query(
+        `
+        SELECT COALESCE(pmo_baseline_hours_week, 0)::float AS baseline
+        FROM workspace_settings
+        WHERE id = $1::uuid
+        LIMIT 1
+    `,
+        [WORKSPACE_SETTINGS_SINGLETON_ID],
+    );
+    const baselineRow = settingsResult.rows?.[0] ?? null;
+    const settings = {
+        pmoBaselineHoursWeek: toNonNegativeCapacity(baselineRow?.baseline ?? 0),
+    };
 
     const employeesResult = await executor.query(`
         SELECT
@@ -318,12 +334,18 @@ export const loadFullWorkspace = async (clientOverride) => {
         project.reports.sort((a, b) => b.weekKey.localeCompare(a.weekKey));
     });
 
-    return { employees, projects };
+    return { projects, employees, settings };
 };
 export const applyWorkspacePermissions = (workspace, user) => {
     if (!user) {
         return workspace;
     }
+
+    const settings = {
+        pmoBaselineHoursWeek: toNonNegativeCapacity(
+            workspace?.settings?.pmoBaselineHoursWeek ?? 0,
+        ),
+    };
 
     const employeeId = user.employeeId ?? null;
     const isAdmin = user.role === 'Administrator';
@@ -366,7 +388,7 @@ export const applyWorkspacePermissions = (workspace, user) => {
         employees = employees.filter((employee) => visibleEmployeeIds.has(employee.id));
     }
 
-    return { projects, employees };
+    return { projects, employees, settings };
 };
 
 export const ensureEmployeeLinkForUser = async (executor, user) => {
@@ -1130,6 +1152,26 @@ export const persistWorkspace = async (workspaceData, user) => {
 
         await syncEmployees(client, workspaceData.employees, workspaceData.projects, effectiveUser, editableProjectIds);
         await syncProjects(client, workspaceData.projects, effectiveUser, editableProjectIds, existingProjectById);
+
+        if (
+            workspaceData?.settings &&
+            Object.prototype.hasOwnProperty.call(workspaceData.settings, 'pmoBaselineHoursWeek')
+        ) {
+            const baselineValue = toNonNegativeCapacity(workspaceData.settings.pmoBaselineHoursWeek);
+            logDebug('persistWorkspace', 'Persist baseline', { baselineValue });
+            await client.query(
+                `
+                INSERT INTO workspace_settings (id, pmo_baseline_hours_week, updated_at, updated_by)
+                VALUES ($1::uuid, $2::numeric, NOW(), $3::uuid)
+                ON CONFLICT (id)
+                DO UPDATE
+                SET pmo_baseline_hours_week = EXCLUDED.pmo_baseline_hours_week,
+                    updated_at = NOW(),
+                    updated_by = EXCLUDED.updated_by;
+            `,
+                [WORKSPACE_SETTINGS_SINGLETON_ID, baselineValue, effectiveUser?.id ?? null],
+            );
+        }
 
         logDebug('persistWorkspace', 'Sync completed', { editableProjectIds: Array.from(editableProjectIds) });
 

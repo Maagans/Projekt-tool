@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type ResourceSummaryTone = 'capacity' | 'planned' | 'actual' | 'alert';
+export type ResourceSummaryTone = 'capacity' | 'planned' | 'actual' | 'baseline' | 'alert';
 
 const toneStyles: Record<ResourceSummaryTone, { container: string; badge: string; value: string }> = {
   capacity: {
@@ -17,6 +17,11 @@ const toneStyles: Record<ResourceSummaryTone, { container: string; badge: string
     container: 'border-emerald-100 bg-emerald-50',
     badge: 'bg-emerald-100 text-emerald-600',
     value: 'text-emerald-700',
+  },
+  baseline: {
+    container: 'border-indigo-100 bg-indigo-50',
+    badge: 'bg-indigo-100 text-indigo-600',
+    value: 'text-indigo-700',
   },
   alert: {
     container: 'border-rose-100 bg-rose-50',

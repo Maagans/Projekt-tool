@@ -1,4 +1,5 @@
-﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { WorkspaceData } from '../types';
 import { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -27,10 +28,13 @@ const baseWorkspace = vi.hoisted(() => ({
       id: 'employee-1',
       name: 'Alice',
       email: 'alice@example.com',
-      location: 'København',
+      location: 'K�benhavn',
       maxCapacityHoursWeek: 37.5,
     },
   ],
+  settings: {
+    pmoBaselineHoursWeek: 150,
+  },
 }));
 
 const mockApi = vi.hoisted(() => {
@@ -103,9 +107,15 @@ describe('useProjectManager', () => {
     expect(result.current.isAdministrator).toBe(true);
     expect(result.current.projects).toHaveLength(1);
     expect(result.current.projects[0].config.projectName).toBe('Projekt Alpha');
+    expect(result.current.workspaceSettings.pmoBaselineHoursWeek).toBe(150);
 
     await waitForAutosave();
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(1));
+    const calls = mockApi.saveWorkspace.mock.calls as WorkspaceData[][];
+    expect(calls.length).toBeGreaterThan(0);
+    const payload = calls[calls.length - 1]?.[0];
+    expect(payload).toBeDefined();
+    expect(payload?.settings).toEqual({ pmoBaselineHoursWeek: 150 });
   });
 
   it('creates a new project with default configuration', async () => {
@@ -125,6 +135,11 @@ describe('useProjectManager', () => {
 
     await waitForAutosave();
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(1));
+    const calls = mockApi.saveWorkspace.mock.calls as WorkspaceData[][];
+    expect(calls.length).toBeGreaterThan(0);
+    const payload = calls[calls.length - 1]?.[0];
+    expect(payload).toBeDefined();
+    expect(payload?.settings).toEqual({ pmoBaselineHoursWeek: 150 });
   });
 
   it('deletes a project and removes it from the workspace', async () => {
@@ -153,5 +168,10 @@ describe('useProjectManager', () => {
 
     await waitForAutosave();
     await waitFor(() => expect(mockApi.saveWorkspace).toHaveBeenCalledTimes(2));
+    const calls = mockApi.saveWorkspace.mock.calls as WorkspaceData[][];
+    expect(calls.length).toBeGreaterThan(0);
+    const payload = calls[calls.length - 1]?.[0];
+    expect(payload).toBeDefined();
+    expect(payload?.settings).toEqual({ pmoBaselineHoursWeek: 150 });
   });
 });

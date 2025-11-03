@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { Employee, Project, User } from '../../types';
+import type { Employee, Project, User, WorkspaceSettings } from '../../types';
 
 export interface ProjectManagerStore {
   projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   employees: Employee[];
   setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
+  workspaceSettings: WorkspaceSettings;
+  setWorkspaceSettings: React.Dispatch<React.SetStateAction<WorkspaceSettings>>;
   allUsers: User[];
   setAllUsers: React.Dispatch<React.SetStateAction<User[]>>;
   isLoading: boolean;
@@ -25,6 +27,7 @@ export interface ProjectManagerStore {
 export const useProjectManagerStore = (): ProjectManagerStore => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>({ pmoBaselineHoursWeek: 0 });
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,6 +41,8 @@ export const useProjectManagerStore = (): ProjectManagerStore => {
     setProjects,
     employees,
     setEmployees,
+    workspaceSettings,
+    setWorkspaceSettings,
     allUsers,
     setAllUsers,
     isLoading,

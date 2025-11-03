@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
@@ -49,6 +49,8 @@ export const PmoPage = () => {
     apiError,
     canManage,
     isAdministrator,
+    workspaceSettings,
+    updatePmoBaselineHoursWeek,
   } = projectManager;
   const [searchParams, setSearchParams] = useSearchParams();
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
@@ -57,6 +59,10 @@ export const PmoPage = () => {
     const start = new Date(end.getFullYear(), 0, 1);
     return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
   });
+  const [baselineDraft, setBaselineDraft] = useState<string>(() =>
+    String(workspaceSettings.pmoBaselineHoursWeek ?? 0),
+  );
+  const [baselineError, setBaselineError] = useState<string | null>(null);
   const canShowResourceAnalytics = RESOURCES_ANALYTICS_ENABLED && isAdministrator;
   const viewParam = searchParams.get('view');
   const activeTab: PmoTabKey =
@@ -70,6 +76,11 @@ export const PmoPage = () => {
     }
   }, [canShowResourceAnalytics, viewParam, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    setBaselineDraft(String(workspaceSettings.pmoBaselineHoursWeek ?? 0));
+    setBaselineError(null);
+  }, [workspaceSettings.pmoBaselineHoursWeek]);
+
   const handleTabChange = (tab: PmoTabKey) => {
     if (tab === activeTab) return;
     const nextParams = new URLSearchParams(searchParams);
@@ -81,6 +92,86 @@ export const PmoPage = () => {
     setSearchParams(nextParams, { replace: true });
     setExpandedEmployeeId(null);
   };
+
+  const handleBaselineChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setBaselineDraft(value);
+
+      if (value.trim() === '') {
+        setBaselineError(null);
+        return;
+      }
+
+      const parsed = Number(value.replace(',', '.'));
+      if (!Number.isFinite(parsed)) {
+        setBaselineError('Angiv et gyldigt tal.');
+        return;
+      }
+
+      if (parsed < 0) {
+        setBaselineError('Baseline kan ikke være negativ.');
+      } else {
+        setBaselineError(null);
+      }
+    },
+    [setBaselineDraft, setBaselineError],
+  );
+
+  const commitBaseline = useCallback(() => {
+    const raw = baselineDraft.trim();
+    if (raw === '') {
+      setBaselineError(null);
+      if (workspaceSettings.pmoBaselineHoursWeek !== 0) {
+        updatePmoBaselineHoursWeek(0);
+      }
+      setBaselineDraft('0');
+      return;
+    }
+
+    const parsed = Number(raw.replace(',', '.'));
+    if (!Number.isFinite(parsed)) {
+      setBaselineError('Angiv et gyldigt tal.');
+      return;
+    }
+
+    const clamped = Math.max(0, parsed);
+    if (parsed < 0) {
+      setBaselineError('Baseline kan ikke være negativ. Justeret til 0.');
+    } else {
+      setBaselineError(null);
+    }
+
+    if (clamped !== workspaceSettings.pmoBaselineHoursWeek) {
+      updatePmoBaselineHoursWeek(clamped);
+    }
+    setBaselineDraft(String(clamped));
+  }, [
+    baselineDraft,
+    setBaselineDraft,
+    setBaselineError,
+    updatePmoBaselineHoursWeek,
+    workspaceSettings.pmoBaselineHoursWeek,
+  ]);
+
+  const handleBaselineKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitBaseline();
+      }
+    },
+    [commitBaseline],
+  );
+
+  const savedBaselineLabel = useMemo(
+    () =>
+      new Intl.NumberFormat('da-DK', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+      }).format(workspaceSettings.pmoBaselineHoursWeek ?? 0),
+    [workspaceSettings.pmoBaselineHoursWeek],
+  );
 
   const tabButtonClass = (tab: PmoTabKey) =>
     [
@@ -212,6 +303,50 @@ export const PmoPage = () => {
 
         {activeTab === 'overview' ? (
           <>
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-700">PMO baseline (timer/uge)</h2>
+                  <p className="text-sm text-slate-500">
+                    Baseline bruges til at vurdere den samlede kapacitet i ressourcerapporter.
+                  </p>
+                </div>
+                {isAdministrator ? (
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <label className="text-sm font-medium text-slate-600" htmlFor="pmo-baseline-input">
+                      Timer per uge
+                    </label>
+                    <input
+                      id="pmo-baseline-input"
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={baselineDraft}
+                      onChange={handleBaselineChange}
+                      onBlur={commitBaseline}
+                      onKeyDown={handleBaselineKeyDown}
+                      className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      inputMode="decimal"
+                    />
+                    {baselineError ? (
+                      <p className="text-sm text-red-600">{baselineError}</p>
+                    ) : (
+                      <p className="text-sm text-slate-500">Angiv et tal større end eller lig 0.</p>
+                    )}
+                    <p className="text-xs text-slate-500">
+                      Senest gemt:{' '}
+                      <span className="font-medium text-slate-700">{savedBaselineLabel} timer/uge</span>
+                    </p>
+                    <p className="text-xs text-slate-400">Gemmes automatisk for hele workspace.</p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">
+                    Baseline:{' '}
+                    <span className="font-medium text-slate-700">{savedBaselineLabel} timer/uge</span>
+                  </div>
+                )}
+              </div>
+            </section>
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
                 <h2 className="text-lg font-bold">Filter (kun aktive projekter)</h2>

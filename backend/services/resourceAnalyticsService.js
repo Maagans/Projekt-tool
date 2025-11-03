@@ -6,6 +6,7 @@ const MAX_SUPPORTED_RANGE_WEEKS = 520;
 const DEFAULT_CACHE_TTL_MS = 2 * 60 * 1000;
 
 const defaultCache = new Map();
+const WORKSPACE_SETTINGS_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
 
 const buildCacheKey = ({ scope, scopeId, fromWeek, toWeek }) =>
   `${scope}:${scopeId}:${fromWeek}:${toWeek}`;
@@ -27,6 +28,19 @@ const setCacheEntry = (cache, key, value, ttlMs = DEFAULT_CACHE_TTL_MS, now = Da
     expiresAt: now() + ttlMs,
     value,
   });
+};
+
+const fetchPmoBaseline = async (database) => {
+  const result = await database.query(
+    `
+      SELECT COALESCE(pmo_baseline_hours_week, 0)::float AS baseline
+      FROM workspace_settings
+      WHERE id = $1::uuid
+      LIMIT 1
+    `,
+    [WORKSPACE_SETTINGS_SINGLETON_ID],
+  );
+  return Number(result.rows?.[0]?.baseline ?? 0);
 };
 
 export const clearResourceAnalyticsCache = () => {
@@ -234,6 +248,26 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
   );
 
+  const projectStackResult = await database.query(
+    `
+      SELECT
+        pm.project_id::text AS project_id,
+        p.name AS project_name,
+        t.week_key,
+        SUM(t.planned_hours)::float AS planned_hours,
+        SUM(t.actual_hours)::float AS actual_hours
+      FROM project_member_time_entries t
+      JOIN project_members pm ON pm.id = t.project_member_id
+      JOIN projects p ON p.id = pm.project_id
+      JOIN employees e ON e.id = pm.employee_id
+      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}
+        AND p.status = 'active'${rangeClause}
+      GROUP BY pm.project_id, p.name, t.week_key
+      ORDER BY t.week_key ASC, p.name ASC
+    `,
+    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
+  );
+
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);
   const weekKeys = expandWeekRange(fromWeek, toWeek);
 
@@ -247,18 +281,85 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     };
   });
 
+  const projectBreakdown = (projectBreakdownResult.rows ?? [])
+    .map((row) => ({
+      projectId: row.project_id ?? "",
+      projectName: row.project_name ?? "Ukendt projekt",
+      planned: Number(row.planned_hours ?? 0),
+      actual: Number(row.actual_hours ?? 0),
+    }))
+    .filter((row) => row.projectId && (row.planned !== 0 || row.actual !== 0));
+
+  const projectsMeta = new Map(
+    projectBreakdown.map((item) => [item.projectId, { projectId: item.projectId, projectName: item.projectName }]),
+  );
+
+  const stackByWeek = new Map();
+  (projectStackResult.rows ?? []).forEach((row) => {
+    if (!row || !row.project_id || !row.week_key) {
+      return;
+    }
+    const safeProjectId = row.project_id;
+    const entry = stackByWeek.get(row.week_key) ?? new Map();
+    entry.set(safeProjectId, {
+      planned: Number(row.planned_hours ?? 0),
+      actual: Number(row.actual_hours ?? 0),
+      projectName: row.project_name ?? "Ukendt projekt",
+    });
+    stackByWeek.set(row.week_key, entry);
+    if (!projectsMeta.has(safeProjectId)) {
+      projectsMeta.set(safeProjectId, {
+        projectId: safeProjectId,
+        projectName: row.project_name ?? "Ukendt projekt",
+      });
+    }
+  });
+
+  const sortedProjects = Array.from(projectsMeta.values()).sort((a, b) =>
+    a.projectName.localeCompare(b.projectName, "da", { sensitivity: "base" }),
+  );
+
+  const projectStackPlan = weekKeys.map((week) => {
+    const weekProjects = stackByWeek.get(week) ?? new Map();
+    return {
+      week,
+      projects: sortedProjects.map((project) => ({
+        projectId: project.projectId,
+        projectName: project.projectName,
+        hours: weekProjects.get(project.projectId)?.planned ?? 0,
+      })),
+    };
+  });
+
+  const projectStackActual = weekKeys.map((week) => {
+    const weekProjects = stackByWeek.get(week) ?? new Map();
+    return {
+      week,
+      projects: sortedProjects.map((project) => ({
+        projectId: project.projectId,
+        projectName: project.projectName,
+        hours: weekProjects.get(project.projectId)?.actual ?? 0,
+      })),
+    };
+  });
+
+  const totals = series.reduce(
+    (accumulator, point) => ({
+      capacity: accumulator.capacity + point.capacity,
+      planned: accumulator.planned + point.planned,
+      actual: accumulator.actual + point.actual,
+    }),
+    { capacity: 0, planned: 0, actual: 0 },
+  );
+
   return {
     scope: { type: "department", id: validatedDepartment },
     series,
     overAllocatedWeeks: calculateOverAllocatedWeeks(series),
-    projectBreakdown: (projectBreakdownResult.rows ?? [])
-      .map((row) => ({
-        projectId: row.project_id ?? "",
-        projectName: row.project_name ?? "Ukendt projekt",
-        planned: Number(row.planned_hours ?? 0),
-        actual: Number(row.actual_hours ?? 0),
-      }))
-      .filter((row) => row.projectId && (row.planned !== 0 || row.actual !== 0)),
+    projectBreakdown,
+    projectStackPlan,
+    projectStackActual,
+    totals,
   };
 };
 
@@ -269,7 +370,7 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
 
   const projectResult = await database.query(
     `
-      SELECT id::text
+      SELECT id::text, name
       FROM projects
       WHERE id = $1::uuid
       LIMIT 1
@@ -280,6 +381,8 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
   if (projectResult.rowCount === 0) {
     throw createAppError("Project not found.", 404);
   }
+
+  const projectName = projectResult.rows[0].name ?? "Ukendt projekt";
 
   const memberResult = await database.query(
     `
@@ -321,11 +424,45 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
     };
   });
 
+  const projectStackPlan = weekKeys.map((week) => ({
+    week,
+    projects: [
+      {
+        projectId: validatedProjectId,
+        projectName,
+        hours: entriesByWeek.get(week)?.planned ?? 0,
+      },
+    ],
+  }));
+
+  const projectStackActual = weekKeys.map((week) => ({
+    week,
+    projects: [
+      {
+        projectId: validatedProjectId,
+        projectName,
+        hours: entriesByWeek.get(week)?.actual ?? 0,
+      },
+    ],
+  }));
+
+  const totals = series.reduce(
+    (accumulator, point) => ({
+      capacity: accumulator.capacity + point.capacity,
+      planned: accumulator.planned + point.planned,
+      actual: accumulator.actual + point.actual,
+    }),
+    { capacity: 0, planned: 0, actual: 0 },
+  );
+
   return {
     scope: { type: "project", id: validatedProjectId },
     series,
     overAllocatedWeeks: calculateOverAllocatedWeeks(series),
     projectBreakdown: [],
+    projectStackPlan,
+    projectStackActual,
+    totals,
   };
 };
 
@@ -334,6 +471,7 @@ export const aggregateResourceAnalytics = async (
   { cache = defaultCache, ttlMs = DEFAULT_CACHE_TTL_MS, now = Date.now } = {},
 ) => {
   const normalizedRange = normalizeRange(range);
+  const database = dbClient ?? pool;
 
   const cacheKey = buildCacheKey({
     scope,
@@ -347,15 +485,35 @@ export const aggregateResourceAnalytics = async (
     return cached;
   }
 
+  const enrichWithBaseline = async (result) => {
+    const baseline = await fetchPmoBaseline(database);
+    const weeksCount = result.series?.length ?? 0;
+    const baselineTotal = baseline * weeksCount;
+    const existingTotals = result.totals ?? { capacity: 0, planned: 0, actual: 0 };
+    return {
+      ...result,
+      totals: {
+        capacity: existingTotals.capacity ?? 0,
+        planned: existingTotals.planned ?? 0,
+        actual: existingTotals.actual ?? 0,
+        baseline: baselineTotal,
+      },
+      baselineHoursWeek: baseline,
+      baselineTotalHours: baselineTotal,
+    };
+  };
+
   if (scope === "department") {
-    const result = await calcDepartmentSeries(scopeId, { range: normalizedRange, dbClient });
-    setCacheEntry(cache, cacheKey, result, ttlMs, now);
-    return result;
+    const result = await calcDepartmentSeries(scopeId, { range: normalizedRange, dbClient: database });
+    const enriched = await enrichWithBaseline(result);
+    setCacheEntry(cache, cacheKey, enriched, ttlMs, now);
+    return enriched;
   }
   if (scope === "project") {
-    const result = await calcProjectSeries(scopeId, { range: normalizedRange, dbClient });
-    setCacheEntry(cache, cacheKey, result, ttlMs, now);
-    return result;
+    const result = await calcProjectSeries(scopeId, { range: normalizedRange, dbClient: database });
+    const enriched = await enrichWithBaseline(result);
+    setCacheEntry(cache, cacheKey, enriched, ttlMs, now);
+    return enriched;
   }
   throw createAppError("Unsupported scope type. Use 'department' or 'project'.", 400);
 };

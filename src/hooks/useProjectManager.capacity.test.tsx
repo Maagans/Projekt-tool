@@ -32,6 +32,9 @@ const baseWorkspace = vi.hoisted(() => ({
       maxCapacityHoursWeek: 37.5,
     },
   ],
+  settings: {
+    pmoBaselineHoursWeek: 160,
+  },
 }));
 
 const mockApi = vi.hoisted(() => {

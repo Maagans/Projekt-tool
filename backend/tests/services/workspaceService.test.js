@@ -1,11 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { loadFullWorkspace, resolveDepartmentLocation } from '../../services/workspaceService.js';
+import { loadFullWorkspace, resolveDepartmentLocation, applyWorkspacePermissions } from '../../services/workspaceService.js';
 
 describe('workspaceService.loadFullWorkspace', () => {
   it('maps database rows into workspace structure', async () => {
     const mockExecutor = {
       query: vi.fn(async (sql) => {
         const text = sql.toString();
+
+        if (text.includes('FROM workspace_settings')) {
+          return {
+            rows: [{ baseline: 135 }],
+          };
+        }
 
         if (text.includes('FROM employees')) {
           return {
@@ -97,6 +103,7 @@ describe('workspaceService.loadFullWorkspace', () => {
     expect(mockExecutor.query).toHaveBeenCalled();
     expect(workspace.employees).toHaveLength(1);
     expect(workspace.projects).toHaveLength(1);
+    expect(workspace.settings).toEqual({ pmoBaselineHoursWeek: 135 });
 
     const [employee] = workspace.employees;
     expect(employee).toMatchObject({
@@ -134,5 +141,18 @@ describe('resolveDepartmentLocation', () => {
       location: 'Sekretariatet',
       department: 'Sekretariatet',
     });
+  });
+});
+
+describe('applyWorkspacePermissions', () => {
+  it('retains workspace settings and sanitizes baseline', () => {
+    const workspace = {
+      projects: [],
+      employees: [],
+      settings: { pmoBaselineHoursWeek: -25 },
+    };
+    const user = { role: 'Administrator', employeeId: null };
+    const result = applyWorkspacePermissions(workspace, user);
+    expect(result.settings).toEqual({ pmoBaselineHoursWeek: 0 });
   });
 });

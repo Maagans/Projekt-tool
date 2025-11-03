@@ -76,6 +76,8 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     setApiError,
   } = store;
 
+  const setWorkspaceSettingsState = store.setWorkspaceSettings;
+
   const workspaceQuery = useQuery<WorkspaceData>({
     queryKey: ['workspace'],
     queryFn: api.getWorkspace,
@@ -116,8 +118,16 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           maxCapacityHoursWeek: sanitizeCapacity(employee.maxCapacityHoursWeek, 0),
         })),
       );
+      if (setWorkspaceSettingsState) {
+        setWorkspaceSettingsState({
+          pmoBaselineHoursWeek: sanitizeCapacity(
+            workspaceQuery.data.settings?.pmoBaselineHoursWeek,
+            0,
+          ),
+        });
+      }
     }
-  }, [setEmployees, setProjects, workspaceQuery.data]);
+  }, [setEmployees, setProjects, setWorkspaceSettingsState, workspaceQuery.data]);
 
   useEffect(() => {
     if (workspaceQuery.error) {
@@ -153,7 +163,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     }
 
     const timeoutId = setTimeout(() => {
-      void persistWorkspace({ projects: store.projects, employees: store.employees });
+      void persistWorkspace({
+        projects: store.projects,
+        employees: store.employees,
+        settings: store.workspaceSettings,
+      });
     }, 1000);
 
     return () => {
@@ -167,6 +181,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     setIsSaving,
     store.employees,
     store.projects,
+    store.workspaceSettings,
   ]);
 
   const addEmployee = useCallback(
@@ -953,9 +968,22 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     ],
   );
 
+  const updatePmoBaselineHoursWeek = (value: unknown) => {
+    if (!setWorkspaceSettingsState) {
+      return;
+    }
+    const sanitized = sanitizeCapacity(value, 0);
+    setWorkspaceSettingsState((prev) => ({
+      ...prev,
+      pmoBaselineHoursWeek: sanitized,
+    }));
+  };
+
   return {
     projects,
     employees: store.employees,
+    workspaceSettings: store.workspaceSettings,
+    updatePmoBaselineHoursWeek,
     addEmployee,
     updateEmployee,
     deleteEmployee,

@@ -22,9 +22,14 @@ const optionalNonNegativeNumber = (fieldName) =>
         )
         .optional();
 
+const workspaceSettingsSchema = z.object({
+    pmoBaselineHoursWeek: optionalNonNegativeNumber('pmoBaselineHoursWeek'),
+});
+
 export const workspacePayloadSchema = z.object({
     projects: z.any(),
     employees: z.any(),
+    settings: workspaceSettingsSchema.optional(),
 });
 
 export const timeEntryParamsSchema = z.object({

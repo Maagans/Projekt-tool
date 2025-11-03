@@ -8,6 +8,10 @@ process.env.JWT_SECRET = "test-secret";
 
 const employeesTable = new Map();
 const usersTable = new Map();
+const workspaceSettings = {
+  pmoBaselineHoursWeek: 0,
+  updatedBy: null,
+};
 
 const normaliseEmail = (value) => value?.toLowerCase?.() ?? value ?? null;
 
@@ -51,6 +55,24 @@ const createQueryHandler = () => {
       if (user) {
         usersTable.set(userId, { ...user, employeeId });
       }
+      return { rowCount: 1, rows: [] };
+    }
+
+    if (trimmed.startsWith("SELECT COALESCE(pmo_baseline_hours_week")) {
+      return {
+        rows: [
+          {
+            baseline: workspaceSettings.pmoBaselineHoursWeek,
+          },
+        ],
+      };
+    }
+
+    if (trimmed.startsWith("INSERT INTO workspace_settings")) {
+      const [, baselineParam, updatedByParam] = params;
+      workspaceSettings.pmoBaselineHoursWeek =
+        typeof baselineParam === "number" ? baselineParam : Number(baselineParam ?? 0) || 0;
+      workspaceSettings.updatedBy = updatedByParam ?? null;
       return { rowCount: 1, rows: [] };
     }
 
@@ -159,6 +181,8 @@ describe("Workspace routes", () => {
   beforeEach(() => {
     employeesTable.clear();
     usersTable.clear();
+    workspaceSettings.pmoBaselineHoursWeek = 0;
+    workspaceSettings.updatedBy = null;
 
     pool.query.mockReset();
     pool.connect.mockReset();
@@ -224,6 +248,7 @@ describe("Workspace routes", () => {
     const [savedEmployee] = saveResponse.body.workspace.employees;
     expect(savedEmployee.location).toBe("Sano Aarhus");
     expect(savedEmployee.department).toBe("Sano Aarhus");
+    expect(saveResponse.body.workspace.settings).toEqual({ pmoBaselineHoursWeek: 0 });
 
     const persistedRecord = employeesTable.get("b54d8b63-02c1-4bf5-9c17-111111111111");
     expect(persistedRecord.location).toBe("Sano Aarhus");
@@ -237,5 +262,39 @@ describe("Workspace routes", () => {
     const [fetchedEmployee] = getResponse.body.employees;
     expect(fetchedEmployee.location).toBe("Sano Aarhus");
     expect(fetchedEmployee.department).toBe("Sano Aarhus");
+    expect(getResponse.body.settings).toEqual({ pmoBaselineHoursWeek: 0 });
+  });
+
+  it("persists PMO baseline hours when provided", async () => {
+    const csrfToken = "csrf-token";
+    const authCookie = buildAuthCookie({
+      id: "user-1",
+      role: "Administrator",
+      employeeId: "b54d8b63-02c1-4bf5-9c17-111111111111",
+      email: "admin@example.com",
+      name: "Admin",
+    });
+
+    const saveResponse = await request(app)
+      .post("/api/workspace")
+      .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
+      .set("x-csrf-token", csrfToken)
+      .send({
+        projects: [],
+        employees: [],
+        settings: {
+          pmoBaselineHoursWeek: 185.5,
+        },
+      });
+
+    expect(saveResponse.status).toBe(200);
+    expect(saveResponse.body.workspace.settings).toEqual({ pmoBaselineHoursWeek: 185.5 });
+
+    const getResponse = await request(app)
+      .get("/api/workspace")
+      .set("Cookie", [authCookie]);
+
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.settings).toEqual({ pmoBaselineHoursWeek: 185.5 });
   });
 });

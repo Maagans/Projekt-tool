@@ -20,6 +20,8 @@ vi.mock('../../../hooks/useResourceAnalytics', () => ({
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div data-testid="chart">{children}</div>,
+  AreaChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Area: () => null,
   LineChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Line: () => null,
   XAxis: () => null,
@@ -28,6 +30,7 @@ vi.mock('recharts', () => ({
   Tooltip: () => null,
   Legend: () => null,
   ReferenceArea: () => null,
+  ReferenceLine: () => null,
   PieChart: ({ children }: { children: ReactNode }) => <div data-testid="pie">{children}</div>,
   Pie: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Cell: () => null,
@@ -83,6 +86,75 @@ const createAnalyticsResult = () => ({
       { projectId: 'p-2', projectName: 'Beta', planned: 80, actual: 95 },
     ],
     projectBreakdownTotals: { planned: 200, actual: 205 },
+    projectStackPlan: [
+      {
+        week: '2025-W01',
+        projects: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 50 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 40 },
+        ],
+      },
+      {
+        week: '2025-W02',
+        projects: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 60 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 50 },
+        ],
+      },
+    ],
+    projectStackActual: [
+      {
+        week: '2025-W01',
+        projects: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 45 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 40 },
+        ],
+      },
+      {
+        week: '2025-W02',
+        projects: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 70 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 50 },
+        ],
+      },
+    ],
+    projectStackSeries: [
+      {
+        week: '2025-W01',
+        baseline: 95,
+        plannedTotal: 90,
+        actualTotal: 85,
+        planned: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 50 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 40 },
+        ],
+        actual: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 45 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 40 },
+        ],
+      },
+      {
+        week: '2025-W02',
+        baseline: 95,
+        plannedTotal: 110,
+        actualTotal: 120,
+        planned: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 60 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 50 },
+        ],
+        actual: [
+          { projectId: 'p-1', projectName: 'Alpha', hours: 70 },
+          { projectId: 'p-2', projectName: 'Beta', hours: 50 },
+        ],
+      },
+    ],
+    projectStackTotals: [
+      { projectId: 'p-1', projectName: 'Alpha', planned: 110, actual: 115 },
+      { projectId: 'p-2', projectName: 'Beta', planned: 90, actual: 90 },
+    ],
+    totals: { capacity: 200, planned: 200, actual: 205, baseline: 190 },
+    baselineHoursWeek: 95,
+    baselineTotalHours: 190,
   },
   isPending: false,
   isFetching: false,
@@ -108,6 +180,7 @@ describe('ResourceAnalyticsPage', () => {
 
     expect(screen.getByText('Kapacitet (seneste uge)')).toBeInTheDocument();
     expect(screen.getByText('Planlagt (seneste uge)')).toBeInTheDocument();
+    expect(screen.getByText('PMO baseline (uge)')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Alle afdelinger' })).toBeInTheDocument();
     expect(screen.getAllByText('Over-allokerede uger').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Opsummeret' })).toBeInTheDocument();
@@ -115,6 +188,7 @@ describe('ResourceAnalyticsPage', () => {
     expect(screen.getByRole('button', { name: 'Vis over-allokerede uger' })).toBeInTheDocument();
     expect(screen.getByTestId('chart')).toBeInTheDocument();
     expect(screen.queryByTestId('overallocated-list')).toBeNull();
+    expect(screen.queryByTestId('stacked-projects-card')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Kumulativ' }));
     expect(screen.getByText('Kumulativ kapacitet')).toBeInTheDocument();
@@ -134,12 +208,15 @@ describe('ResourceAnalyticsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Skjul projektfordeling' }));
     expect(screen.getByRole('button', { name: 'Vis projektfordeling' })).toBeInTheDocument();
-    expect(screen.queryAllByText('Alpha')).toHaveLength(0);
+    expect(screen.queryByTestId('pie')).toBeNull();
 
     expect(screen.queryByTestId('overallocated-list')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Vis over-allokerede uger' }));
     expect(screen.getByTestId('overallocated-list')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Skjul over-allokerede uger' }));
     expect(screen.queryByTestId('overallocated-list')).toBeNull();
+
+    expect(screen.getByTestId('stacked-projects-card')).toBeInTheDocument();
+    expect(screen.getByText('Uger over baseline')).toBeInTheDocument();
   });
 });

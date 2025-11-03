@@ -18,6 +18,8 @@ export const useProjectManagerInternal = () => {
     canManage,
     projects: workspace.projects,
     employees: workspace.employees,
+    workspaceSettings: workspace.workspaceSettings,
+    updatePmoBaselineHoursWeek: workspace.updatePmoBaselineHoursWeek,
     allUsers: admin.allUsers,
     fetchAllUsers: admin.fetchAllUsers,
     updateUserRole: admin.updateUserRole,

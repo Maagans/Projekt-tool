@@ -59,6 +59,8 @@ const createProjectManagerValue = (overrides: Record<string, unknown> = {}) => (
   apiError: null,
   canManage: true,
   isAdministrator: true,
+  workspaceSettings: { pmoBaselineHoursWeek: 180 },
+  updatePmoBaselineHoursWeek: vi.fn(),
   ...overrides,
 });
 
@@ -81,11 +83,36 @@ describe('PmoPage', () => {
 
     renderWithRouter();
 
+    expect(screen.getByText('PMO baseline (timer/uge)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Timer per uge')).toHaveValue(180);
+    expect(screen.getByText(/Senest gemt/)).toHaveTextContent('180 timer/uge');
     expect(screen.getByRole('button', { name: 'Kapacitetsoversigt' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Ressource Analytics' })).toBeInTheDocument();
     expect(screen.getByText('Filter (kun aktive projekter)')).toBeInTheDocument();
     expect(screen.getByText('Alice Andersen')).toBeInTheDocument();
     expect(screen.queryByTestId('resource-analytics-view')).toBeNull();
+  });
+
+  it('lader administrator opdatere baseline og validerer negative værdier', () => {
+    const updateMock = vi.fn();
+    mockUseProjectManager.mockReturnValue(
+      createProjectManagerValue({ updatePmoBaselineHoursWeek: updateMock }),
+    );
+
+    renderWithRouter();
+
+    const input = screen.getByLabelText('Timer per uge') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '200' } });
+    fireEvent.blur(input);
+
+    expect(updateMock).toHaveBeenCalledWith(200);
+
+    fireEvent.change(input, { target: { value: '-5' } });
+    fireEvent.blur(input);
+
+    expect(updateMock).toHaveBeenLastCalledWith(0);
+    expect(screen.getByText(/Justeret til 0/)).toBeInTheDocument();
+    expect(input).toHaveValue(0);
   });
 
   it('activates resource fanen når query-parameteren er sat', () => {
@@ -117,6 +144,10 @@ describe('PmoPage', () => {
     expect(screen.queryByRole('button', { name: 'Ressource Analytics' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Kapacitetsoversigt' })).toBeInTheDocument();
     expect(screen.getByText('Filter (kun aktive projekter)')).toBeInTheDocument();
+    expect(screen.getByText(/Baseline:/)).toHaveTextContent('180 timer/uge');
+    expect(screen.queryByLabelText('Timer per uge')).toBeNull();
     expect(screen.queryByTestId('resource-analytics-view')).toBeNull();
   });
 });
+
+

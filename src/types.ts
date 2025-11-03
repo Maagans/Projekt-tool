@@ -122,9 +122,14 @@ export interface Project {
   permissions: ProjectPermissions;
 }
 
+export interface WorkspaceSettings {
+  pmoBaselineHoursWeek: number;
+}
+
 export interface WorkspaceData {
   projects: Project[];
   employees: Employee[];
+  settings: WorkspaceSettings;
 }
 
 export type ResourceAnalyticsScope = 'department' | 'project';
@@ -143,6 +148,24 @@ export interface ResourceAnalyticsProjectBreakdownItem {
   actual: number;
 }
 
+export interface ResourceAnalyticsStackProject {
+  projectId: string;
+  projectName: string;
+  hours: number;
+}
+
+export interface ResourceAnalyticsStackEntry {
+  week: string;
+  projects: ResourceAnalyticsStackProject[];
+}
+
+export interface ResourceAnalyticsTotals {
+  capacity: number;
+  planned: number;
+  actual: number;
+  baseline: number;
+}
+
 export interface ResourceAnalyticsPayload {
   scope: {
     type: ResourceAnalyticsScope;
@@ -151,6 +174,11 @@ export interface ResourceAnalyticsPayload {
   series: ResourceAnalyticsPoint[];
   overAllocatedWeeks: string[];
   projectBreakdown: ResourceAnalyticsProjectBreakdownItem[];
+  projectStackPlan: ResourceAnalyticsStackEntry[];
+  projectStackActual: ResourceAnalyticsStackEntry[];
+  totals: ResourceAnalyticsTotals;
+  baselineHoursWeek: number;
+  baselineTotalHours: number;
 }
 
 export interface ResourceAnalyticsQuery {

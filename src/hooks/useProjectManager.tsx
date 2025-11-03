@@ -21,6 +21,8 @@ type AuthContextValue = Pick<ProjectManagerValue,
 type WorkspaceContextValue = Pick<ProjectManagerValue,
   | 'projects'
   | 'employees'
+  | 'workspaceSettings'
+  | 'updatePmoBaselineHoursWeek'
   | 'createNewProject'
   | 'deleteProject'
   | 'updateProjectConfig'
@@ -65,6 +67,8 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
   const workspaceValue: WorkspaceContextValue = {
     projects: value.projects,
     employees: value.employees,
+    workspaceSettings: value.workspaceSettings,
+    updatePmoBaselineHoursWeek: value.updatePmoBaselineHoursWeek,
     createNewProject: value.createNewProject,
     deleteProject: value.deleteProject,
     updateProjectConfig: value.updateProjectConfig,

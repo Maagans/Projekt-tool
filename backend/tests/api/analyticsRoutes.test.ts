@@ -56,6 +56,11 @@ describe("GET /api/analytics/resources", () => {
       series: [],
       overAllocatedWeeks: [],
       projectBreakdown: [],
+      projectStackPlan: [],
+      projectStackActual: [],
+      totals: { capacity: 0, planned: 0, actual: 0, baseline: 0 },
+      baselineHoursWeek: 0,
+      baselineTotalHours: 0,
     });
 
     const response = await request(app)
@@ -85,6 +90,11 @@ describe("GET /api/analytics/resources", () => {
       series: [],
       overAllocatedWeeks: [],
       projectBreakdown: [],
+      projectStackPlan: [],
+      projectStackActual: [],
+      totals: { capacity: 0, planned: 0, actual: 0, baseline: 0 },
+      baselineHoursWeek: 0,
+      baselineTotalHours: 0,
     });
 
     const response = await request(app)
@@ -111,6 +121,11 @@ describe("GET /api/analytics/resources", () => {
       series: [],
       overAllocatedWeeks: [],
       projectBreakdown: [],
+      projectStackPlan: [],
+      projectStackActual: [],
+      totals: { capacity: 0, planned: 0, actual: 0, baseline: 0 },
+      baselineHoursWeek: 0,
+      baselineTotalHours: 0,
     });
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ is_project_lead: true }] });
 
@@ -187,6 +202,11 @@ describe("GET /api/analytics/resources", () => {
       ],
       overAllocatedWeeks: ["2025-W02"],
       projectBreakdown: [],
+      projectStackPlan: [],
+      projectStackActual: [],
+      totals: { capacity: 200, planned: 200, actual: 185, baseline: 0 },
+      baselineHoursWeek: 0,
+      baselineTotalHours: 0,
     });
 
     const response = await request(app)

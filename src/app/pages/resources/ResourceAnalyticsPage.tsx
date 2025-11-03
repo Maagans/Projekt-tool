@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
+  AreaChart,
+  Area,
   LineChart,
   Line,
   XAxis,
@@ -10,6 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
   ReferenceArea,
+  ReferenceLine,
   PieChart,
   Pie,
   Cell,
@@ -24,6 +27,14 @@ import {
   type ResourceAnalyticsSummary,
 } from '../../../hooks/useResourceAnalytics';
 import type { ResourceAnalyticsQuery } from '../../../types';
+import {
+  buildProjectStackChartConfig,
+  applyAlpha,
+  type ProjectStackChartConfig,
+  type StackAreaConfig,
+  type StackLegendEntry,
+  type ProjectStackChartPoint,
+} from './resourceAnalyticsStacking';
 
 const DEFAULT_WEEK_RANGE = 12;
 const RANGE_OPTIONS = [6, 12, 24, 52] as const;
@@ -34,6 +45,28 @@ const VIEW_OPTIONS: Array<{ value: ViewMode; label: string }> = [
   { value: 'cumulative', label: 'Kumulativ' },
 ];
 const ALL_DEPARTMENTS_OPTION = '__ALL__';
+
+const isAllDepartmentsValue = (value: string | null | undefined) => {
+  if (!value) {
+    return false;
+  }
+  return (
+    value === ALL_DEPARTMENTS_OPTION ||
+    value === 'Alle afdelinger' ||
+    value === '__ALL__' ||
+    value === '_ALL_'
+  );
+};
+
+const formatDepartmentLabel = (value: string | null | undefined) => {
+  if (!value) {
+    return 'Ingen afdeling';
+  }
+  if (isAllDepartmentsValue(value)) {
+    return 'Alle afdelinger';
+  }
+  return value;
+};
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -85,7 +118,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const departments = useMemo(() => {
     const unique = new Set<string>();
     employees.forEach((employee) => {
-      if (employee.department) {
+      if (employee.department && !isAllDepartmentsValue(employee.department)) {
         unique.add(employee.department);
       }
     });
@@ -132,9 +165,22 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const latestPoint = data?.latestPoint ?? chartData.at(-1) ?? null;
   const summary = data?.summary ?? null;
   const cumulativeSeries = data?.cumulativeSeries ?? [];
+  const baselineHoursWeek = data?.baselineHoursWeek ?? 0;
+  const baselineTotalHours =
+    data?.baselineTotalHours ??
+    (data?.totals && Number.isFinite(data.totals.baseline)
+      ? Number(data.totals.baseline)
+      : baselineHoursWeek * chartData.length);
   const projectBreakdown = data?.projectBreakdown ?? [];
   const projectBreakdownTotals = data?.projectBreakdownTotals ?? { planned: 0, actual: 0 };
   const canShowProjectBreakdown = variant === 'embedded' && projectBreakdown.length > 0;
+  const projectStackChart = useMemo(() => {
+    const series = data?.projectStackSeries ?? [];
+    const totals = data?.projectStackTotals ?? [];
+    return buildProjectStackChartConfig(series, totals, baselineHoursWeek);
+  }, [baselineHoursWeek, data]);
+  const showStackedProjects = variant === 'embedded' && projectStackChart.data.length > 0;
+  const selectedDepartmentLabel = formatDepartmentLabel(selectedDepartment);
 
   useEffect(() => {
     if (overAllocatedCount === 0 && showOverAllocated) {
@@ -149,7 +195,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const summaryCards = (() => {
     if (!data) return [];
     if (viewMode === 'weekly') {
-      return [
+      const cards = [
         {
           label: 'Kapacitet (seneste uge)',
           value: formatHours(latestPoint?.capacity ?? 0),
@@ -172,11 +218,22 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
           helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
         },
       ];
+      cards.push({
+        label: 'PMO baseline (uge)',
+        value: formatHours(baselineHoursWeek),
+        suffix: 'timer/uge',
+        tone: 'baseline' as ResourceSummaryTone,
+        helper:
+          baselineTotalHours > 0
+            ? `Totalt: ${formatHours(baselineTotalHours)} timer`
+            : 'Fastlagt af PMO',
+      });
+      return cards;
     }
     if (!summary) return [];
     const labelPrefix = viewMode === 'cumulative' ? 'Kumulativ ' : 'Total ';
     const helperSuffix = `Gns. ${formatHours(summary.averageCapacity)} timer/uge - ${summary.weeks} uger`;
-    return [
+    const cards = [
       {
         label: `${labelPrefix}kapacitet`,
         value: formatHours(summary.totalCapacity),
@@ -199,6 +256,14 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
         helper: `Gns. ${formatHours(summary.averageActual)} timer/uge`,
       },
     ];
+    cards.push({
+      label: `${labelPrefix}baseline`,
+      value: formatHours(baselineTotalHours),
+      suffix: 'timer',
+      tone: 'baseline' as ResourceSummaryTone,
+      helper: `Baseline pr. uge: ${formatHours(baselineHoursWeek)} timer`,
+    });
+    return cards;
   })();
 
   const overAllocatedCard = data
@@ -259,7 +324,7 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
               {departments.length > 0 ? (
                 departments.map((department) => (
                   <option key={department} value={department}>
-                    {department === ALL_DEPARTMENTS_OPTION ? 'Alle afdelinger' : department}
+                    {formatDepartmentLabel(department)}
                   </option>
                 ))
               ) : (
@@ -343,23 +408,32 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
           <>
             <AnalyticsContent
               chartData={chartData}
+              baselineHoursWeek={baselineHoursWeek}
+              baselineTotalHours={baselineTotalHours}
               cumulativeSeries={cumulativeSeries}
               overAllocatedSet={overAllocatedSet}
               isFetching={isFetching}
-              selectedDepartment={selectedDepartment}
+              selectedDepartmentLabel={selectedDepartmentLabel}
               range={range}
               viewMode={viewMode}
               summary={summary}
               showOverAllocated={showOverAllocated}
               onToggleOverAllocated={() => setShowOverAllocated((state) => !state)}
             />
+            {showStackedProjects && (
+              <StackedProjectsCard
+                chart={projectStackChart}
+                baselineHoursWeek={baselineHoursWeek}
+                baselineTotalHours={baselineTotalHours}
+              />
+            )}
             {canShowProjectBreakdown && (
               <ProjectBreakdownSection
                 breakdown={projectBreakdown}
                 totals={projectBreakdownTotals}
                 isFetching={isFetching}
                 showBreakdown={showProjectBreakdown}
-                isAllDepartments={selectedDepartment === ALL_DEPARTMENTS_OPTION}
+                isAllDepartments={isAllDepartmentsValue(selectedDepartment)}
                 onToggle={() => setShowProjectBreakdown((state) => !state)}
               />
             )}
@@ -408,6 +482,289 @@ const buildChartItems = (breakdown: BreakdownItem[], key: 'planned' | 'actual', 
       color: PROJECT_COLORS[index % PROJECT_COLORS.length],
     };
   });
+
+const StackedProjectsCard = ({
+  chart,
+  baselineHoursWeek,
+  baselineTotalHours,
+}: {
+  chart: ProjectStackChartConfig;
+  baselineHoursWeek: number;
+  baselineTotalHours: number;
+}) => {
+  const areaMeta = new Map<string, StackAreaConfig>();
+  [...chart.plannedAreas, ...chart.actualAreas].forEach((area) => {
+    areaMeta.set(area.dataKey, area);
+  });
+
+  return (
+    <section
+      className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
+      data-testid="stacked-projects-card"
+    >
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800">Stacked belastning pr. projekt</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Viser planlagt og faktisk tid pr. projekt for den valgte periode. Projekter sorteres efter samlet belastning.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
+          {baselineHoursWeek > 0 ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">
+              Baseline: {formatHours(baselineHoursWeek)} t/uge
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+              Baseline ikke sat
+            </span>
+          )}
+          <span>
+            Total baseline: <strong>{formatHours(baselineTotalHours)} timer</strong>
+          </span>
+        </div>
+      </header>
+
+      <div className="h-96 w-full rounded-2xl border border-slate-100 bg-slate-50/40 p-3">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chart.data}>
+            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
+            <XAxis dataKey="week" tickFormatter={formatWeekLabel} stroke="#475569" minTickGap={12} />
+            <YAxis stroke="#475569" tickFormatter={formatHours} />
+            {baselineHoursWeek > 0 &&
+              chart.overBaselineRanges.map((range) => (
+                <ReferenceArea
+                  key={`${range.start}-${range.end}`}
+                  x1={range.start}
+                  x2={range.end}
+                  fill="#fee2e2"
+                  fillOpacity={0.25}
+                  strokeOpacity={0}
+                />
+              ))}
+            {baselineHoursWeek > 0 && (
+              <ReferenceLine
+                y={baselineHoursWeek}
+                stroke="#4338ca"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                ifOverflow="extendDomain"
+                label={{
+                  position: 'right',
+                  value: `Baseline ${formatHours(baselineHoursWeek)} t/uge`,
+                  fill: '#4338ca',
+                  fontSize: 12,
+                }}
+              />
+            )}
+            <Tooltip content={<StackedTooltip meta={areaMeta} baseline={baselineHoursWeek} />} />
+            {chart.plannedAreas.map((area) => (
+              <Area
+                key={area.dataKey}
+                type="monotone"
+                dataKey={area.dataKey}
+                stackId="planned"
+                stroke={applyAlpha(area.color, 0.8)}
+                fill={applyAlpha(area.color, 0.35)}
+                fillOpacity={1}
+                strokeWidth={1.5}
+                isAnimationActive={false}
+              />
+            ))}
+            {chart.actualAreas.map((area) => (
+              <Area
+                key={area.dataKey}
+                type="monotone"
+                dataKey={area.dataKey}
+                stackId="actual"
+                stroke={area.color}
+                fill={applyAlpha(area.color, 0.65)}
+                fillOpacity={1}
+                strokeWidth={2}
+                isAnimationActive={false}
+              />
+            ))}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <StackedLegend entries={chart.legendEntries} />
+
+      <OverBaselineBadges weeks={chart.overBaselineWeeks} baselineHoursWeek={baselineHoursWeek} />
+    </section>
+  );
+};
+
+const StackedLegend = ({ entries }: { entries: StackLegendEntry[] }) => (
+  <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
+    <h3 className="text-sm font-semibold text-slate-700">Projektoversigt</h3>
+    {entries.length === 0 ? (
+      <p className="mt-2 text-sm text-slate-500">Ingen projekter har registreret tid i perioden.</p>
+    ) : (
+      <ul className="mt-4 grid gap-3 md:grid-cols-2">
+        {entries.map((entry) => (
+          <li
+            key={`legend-${entry.projectId}`}
+            className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                {entry.projectName}
+              </span>
+              <span className="text-xs font-medium text-slate-500">
+                Total: {formatHours(entry.planned + entry.actual)} t
+              </span>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+              <div className="flex flex-col gap-0.5">
+                <dt>Planlagt</dt>
+                <dd className="font-semibold text-slate-700">{formatHours(entry.planned)} t</dd>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <dt>Faktisk</dt>
+                <dd className="font-semibold text-slate-700">{formatHours(entry.actual)} t</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
+type ChartTooltipEntry = {
+  value?: number;
+  dataKey?: string | number;
+  payload?: ProjectStackChartPoint;
+};
+
+type StackedTooltipProps = {
+  active?: boolean;
+  payload?: ChartTooltipEntry[];
+  label?: string | number;
+  meta: Map<string, StackAreaConfig>;
+  baseline: number;
+};
+
+const StackedTooltip = ({
+  active,
+  payload,
+  label,
+  meta,
+  baseline,
+}: StackedTooltipProps) => {
+  const rows = payload ?? [];
+  if (!active || rows.length === 0) {
+    return null;
+  }
+
+  const plannedRows: Array<{ name: string; value: number; color: string }> = [];
+  const actualRows: Array<{ name: string; value: number; color: string }> = [];
+
+  rows.forEach((item) => {
+    if (!item || typeof item.value !== 'number' || !item.dataKey) {
+      return;
+    }
+    const area = meta.get(String(item.dataKey));
+    if (!area) {
+      return;
+    }
+    const row = {
+      name: area.projectName,
+      value: item.value,
+      color: area.color,
+    };
+    if (area.variant === 'planned') {
+      plannedRows.push(row);
+    } else {
+      actualRows.push(row);
+    }
+  });
+
+  plannedRows.sort((a, b) => b.value - a.value);
+  actualRows.sort((a, b) => b.value - a.value);
+
+  const dataPoint = rows[0]?.payload as ProjectStackChartPoint | undefined;
+  const plannedTotal = dataPoint?.plannedTotal ?? plannedRows.reduce((acc, row) => acc + row.value, 0);
+  const actualTotal = dataPoint?.actualTotal ?? actualRows.reduce((acc, row) => acc + row.value, 0);
+  const overBaseline = baseline > 0 && actualTotal > baseline;
+  const baselineDiff = overBaseline ? actualTotal - baseline : baseline - actualTotal;
+
+  const renderRows = (rows: Array<{ name: string; value: number; color: string }>) => (
+    <ul className="mt-1 space-y-1">
+      {rows.map((row) => (
+        <li key={`${row.name}-${row.color}`} className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: row.color }}></span>
+            {row.name}
+          </span>
+          <span className="font-semibold text-slate-700">{formatHours(row.value)} t</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <div className="min-w-[240px] rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 shadow-lg">
+      <div className="text-sm font-semibold text-slate-700">{formatWeekLabel(String(label))}</div>
+      <div className="mt-3 space-y-3">
+        <div>
+          <div className="flex items-center justify-between gap-2 text-[11px] font-medium uppercase tracking-wide text-amber-600">
+            Planlagt ({formatHours(plannedTotal)} t)
+          </div>
+          {plannedRows.length > 0 ? renderRows(plannedRows) : <div className="mt-1 text-slate-400">Ingen registreringer</div>}
+        </div>
+        <div>
+          <div className="flex items-center justify-between gap-2 text-[11px] font-medium uppercase tracking-wide text-emerald-600">
+            Faktisk ({formatHours(actualTotal)} t)
+          </div>
+          {actualRows.length > 0 ? renderRows(actualRows) : <div className="mt-1 text-slate-400">Ingen registreringer</div>}
+        </div>
+      </div>
+      {baseline > 0 && (
+        <div
+          className={`mt-3 rounded-lg border px-3 py-2 text-xs font-semibold ${
+            overBaseline ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-slate-200 bg-slate-50 text-slate-600'
+          }`}
+        >
+          Baseline {overBaseline ? 'overskredet' : 'under'} med {formatHours(baselineDiff)} t
+        </div>
+      )}
+    </div>
+  );
+};
+
+const OverBaselineBadges = ({
+  weeks,
+  baselineHoursWeek,
+}: {
+  weeks: string[];
+  baselineHoursWeek: number;
+}) => {
+  const sortedWeeks = [...weeks].sort((a, b) => a.localeCompare(b));
+  return (
+    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5" data-testid="overbaseline-list">
+      <h3 className="text-sm font-semibold text-indigo-700">Uger over baseline</h3>
+      {baselineHoursWeek <= 0 ? (
+        <p className="mt-2 text-sm text-indigo-600">Definer en baseline for at spore belastningen uge for uge.</p>
+      ) : sortedWeeks.length === 0 ? (
+        <p className="mt-2 text-sm text-slate-500">Ingen uger overskrider baseline i den valgte periode.</p>
+      ) : (
+        <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+          {sortedWeeks.map((week) => (
+            <li
+              key={`baseline-${week}`}
+              className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-medium text-rose-600"
+            >
+              {formatWeekLabel(week)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const ProjectBreakdownSection = ({
   breakdown,
@@ -575,14 +932,18 @@ const OverAllocatedList = ({ overAllocatedSet }: { overAllocatedSet: Set<string>
   </div>
 );
 
-const SummaryDiffs = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
+const SummaryDiffs = ({ summary, baselineTotal }: { summary: ResourceAnalyticsSummary; baselineTotal: number }) => {
   const plannedVsCapacity = summary.totalPlanned - summary.totalCapacity;
   const actualVsCapacity = summary.totalActual - summary.totalCapacity;
   const actualVsPlanned = summary.totalActual - summary.totalPlanned;
+  const plannedVsBaseline = summary.totalPlanned - baselineTotal;
+  const actualVsBaseline = summary.totalActual - baselineTotal;
 
   const items: Array<{ label: string; value: number }> = [
     { label: 'Planlagt vs. kapacitet', value: plannedVsCapacity },
     { label: 'Faktisk vs. kapacitet', value: actualVsCapacity },
+    { label: 'Planlagt vs. baseline', value: plannedVsBaseline },
+    { label: 'Faktisk vs. baseline', value: actualVsBaseline },
     { label: 'Faktisk vs. planlagt', value: actualVsPlanned },
   ];
 
@@ -601,12 +962,19 @@ const SummaryDiffs = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
   );
 };
 
-const SummaryComparison = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
-  const maxValue = Math.max(summary.totalCapacity, summary.totalPlanned, summary.totalActual, 1);
+const SummaryComparison = ({
+  summary,
+  baselineTotal,
+}: {
+  summary: ResourceAnalyticsSummary;
+  baselineTotal: number;
+}) => {
+  const maxValue = Math.max(summary.totalCapacity, summary.totalPlanned, summary.totalActual, baselineTotal, 1);
   const rows: Array<{ label: string; value: number; barClass: string }> = [
     { label: 'Kapacitet', value: summary.totalCapacity, barClass: 'bg-sky-400' },
     { label: 'Planlagt', value: summary.totalPlanned, barClass: 'bg-amber-400' },
     { label: 'Faktisk', value: summary.totalActual, barClass: 'bg-emerald-500' },
+    { label: 'Baseline', value: baselineTotal, barClass: 'bg-indigo-400' },
   ];
 
   return (
@@ -695,10 +1063,12 @@ const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void
 
 const AnalyticsContent = ({
   chartData,
+  baselineHoursWeek,
+  baselineTotalHours,
   cumulativeSeries,
   overAllocatedSet,
   isFetching,
-  selectedDepartment,
+  selectedDepartmentLabel,
   range,
   viewMode,
   summary,
@@ -706,10 +1076,12 @@ const AnalyticsContent = ({
   onToggleOverAllocated,
 }: {
   chartData: Array<{ week: string; capacity: number; planned: number; actual: number }>;
+  baselineHoursWeek: number;
+  baselineTotalHours: number;
   cumulativeSeries: ResourceAnalyticsCumulativePoint[];
   overAllocatedSet: Set<string>;
   isFetching: boolean;
-  selectedDepartment: string;
+  selectedDepartmentLabel: string;
   range: { fromWeek: string; toWeek: string };
   viewMode: ViewMode;
   summary: ResourceAnalyticsSummary | null;
@@ -728,7 +1100,7 @@ const AnalyticsContent = ({
       <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-slate-800">
-            {`${selectedDepartment} - ${formatWeekLabel(range.fromWeek)} -> ${formatWeekLabel(range.toWeek)}`}
+            {`${selectedDepartmentLabel} - ${formatWeekLabel(range.fromWeek)} -> ${formatWeekLabel(range.toWeek)}`}
           </h2>
           {isFetching && (
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
@@ -757,10 +1129,10 @@ const AnalyticsContent = ({
         summary ? (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="h-full rounded-2xl border border-slate-100 bg-white p-5">
-              <SummaryComparison summary={summary} />
+              <SummaryComparison summary={summary} baselineTotal={baselineTotalHours} />
             </div>
             <div className="space-y-4">
-              <SummaryDiffs summary={summary} />
+              <SummaryDiffs summary={summary} baselineTotal={baselineTotalHours} />
               {showOverAllocated && hasOverAllocated ? <OverAllocatedList overAllocatedSet={overAllocatedSet} /> : null}
             </div>
           </div>
@@ -790,7 +1162,7 @@ const AnalyticsContent = ({
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            {summary ? <SummaryDiffs summary={summary} /> : null}
+            {summary ? <SummaryDiffs summary={summary} baselineTotal={baselineTotalHours} /> : null}
             {showOverAllocated && hasOverAllocated ? <OverAllocatedList overAllocatedSet={overAllocatedSet} /> : null}
           </>
         ) : (
@@ -819,6 +1191,20 @@ const AnalyticsContent = ({
                     fill="#eff6ff"
                     fillOpacity={0.3}
                     strokeOpacity={0}
+                  />
+                )}
+                {baselineHoursWeek > 0 && (
+                  <ReferenceLine
+                    y={baselineHoursWeek}
+                    stroke="#6366f1"
+                    strokeDasharray="6 6"
+                    ifOverflow="extendDomain"
+                    label={{
+                      position: 'right',
+                      value: `Baseline ${formatHours(baselineHoursWeek)} t/uge`,
+                      fill: '#4338ca',
+                      fontSize: 12,
+                    }}
                   />
                 )}
                 <Line
