@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
@@ -6,25 +7,130 @@ import { EditableField } from '../../../components/EditableField';
 import { UploadIcon, TrashIcon } from '../../../components/Icons';
 import { locations } from '../../../types';
 import type { Location } from '../../../types';
+import { DEFAULT_EMPLOYEE_CAPACITY } from '../../../constants';
 
 export const EmployeePage = () => {
   const navigate = useNavigate();
   const projectManager = useProjectManager();
-  const { employees, addEmployee, updateEmployee, deleteEmployee, importEmployeesFromCsv, logout, currentUser, isSaving, apiError } =
-    projectManager;
-  const [newEmployee, setNewEmployee] = useState({ name: '', location: locations[0], email: '' });
+  const {
+    employees,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    importEmployeesFromCsv,
+    logout,
+    currentUser,
+    isSaving,
+    apiError,
+  } = projectManager;
+  const [capacityDrafts, setCapacityDrafts] = useState<Record<string, string>>({});
+  const [capacityErrors, setCapacityErrors] = useState<Record<string, string>>({});
+  const [newEmployee, setNewEmployee] = useState({
+    name: '',
+    location: locations[0],
+    email: '',
+    maxCapacityHoursWeek: DEFAULT_EMPLOYEE_CAPACITY.toString(),
+  });
+  const [newEmployeeError, setNewEmployeeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const capacityValidationMessage = 'Kapacitet skal være et tal større end eller lig 0.';
+
+  const formatCapacity = (value: number | undefined) =>
+    Number.isFinite(value) ? String(value ?? 0) : DEFAULT_EMPLOYEE_CAPACITY.toString();
+
+  const parseCapacityInput = (value: string): number | null => {
+    if (value.trim() === '') {
+      return 0;
+    }
+    const normalized = value.replace(',', '.').trim();
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return null;
+    }
+    return parsed;
+  };
+
+  useEffect(() => {
+    const nextDrafts: Record<string, string> = {};
+    employees.forEach((employee) => {
+      nextDrafts[employee.id] = formatCapacity(employee.maxCapacityHoursWeek);
+    });
+    setCapacityDrafts(nextDrafts);
+    setCapacityErrors({});
+  }, [employees]);
+
+  const handleCapacityDraftChange = (id: string, value: string) => {
+    setCapacityDrafts((state) => ({ ...state, [id]: value }));
+    setCapacityErrors((state) => {
+      if (!state[id]) {
+        return state;
+      }
+      const next = { ...state };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleCapacityReset = (id: string) => {
+    const employee = employees.find((item) => item.id === id);
+    setCapacityDrafts((state) => ({
+      ...state,
+      [id]: formatCapacity(employee?.maxCapacityHoursWeek),
+    }));
+    setCapacityErrors((state) => {
+      if (!state[id]) {
+        return state;
+      }
+      const next = { ...state };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleCapacityCommit = (id: string) => {
+    const draft = capacityDrafts[id] ?? '';
+    const parsed = parseCapacityInput(draft);
+    if (parsed === null) {
+      const employee = employees.find((item) => item.id === id);
+      setCapacityDrafts((state) => ({
+        ...state,
+        [id]: formatCapacity(employee?.maxCapacityHoursWeek),
+      }));
+      setCapacityErrors((state) => ({ ...state, [id]: capacityValidationMessage }));
+      return;
+    }
+    setCapacityErrors((state) => {
+      if (!state[id]) {
+        return state;
+      }
+      const next = { ...state };
+      delete next[id];
+      return next;
+    });
+    updateEmployee(id, { maxCapacityHoursWeek: parsed });
+  };
 
   const handleSaveNewEmployee = () => {
     if (!newEmployee.name || !newEmployee.email) {
       alert('Navn og email er påkrævet.');
       return;
     }
-    addEmployee(newEmployee.name, newEmployee.location, newEmployee.email);
-    setNewEmployee({ name: '', location: locations[0], email: '' });
+    const parsedCapacity = parseCapacityInput(newEmployee.maxCapacityHoursWeek);
+    if (parsedCapacity === null) {
+      setNewEmployeeError(capacityValidationMessage);
+      return;
+    }
+    setNewEmployeeError(null);
+    addEmployee(newEmployee.name, newEmployee.location, newEmployee.email, parsedCapacity);
+    setNewEmployee({
+      name: '',
+      location: locations[0],
+      email: '',
+      maxCapacityHoursWeek: DEFAULT_EMPLOYEE_CAPACITY.toString(),
+    });
   };
 
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileImport = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -58,6 +164,7 @@ export const EmployeePage = () => {
                 <th className="p-2 text-left text-sm font-semibold text-slate-600">Navn</th>
                 <th className="p-2 text-left text-sm font-semibold text-slate-600">Lokation</th>
                 <th className="p-2 text-left text-sm font-semibold text-slate-600">Email</th>
+                <th className="p-2 text-left text-sm font-semibold text-slate-600">Kapacitet (timer/uge)</th>
                 <th className="p-2 text-left text-sm font-semibold text-slate-600 w-24">Handlinger</th>
               </tr>
             </thead>
@@ -82,6 +189,38 @@ export const EmployeePage = () => {
                   </td>
                   <td className="p-2">
                     <EditableField initialValue={employee.email} onSave={(email) => updateEmployee(employee.id, { email })} />
+                  </td>
+                  <td className="p-2">
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={capacityDrafts[employee.id] ?? ''}
+                        aria-label={`Kapacitet for ${employee.name}`}
+                        onChange={(event) => handleCapacityDraftChange(employee.id, event.target.value)}
+                        onBlur={() => handleCapacityCommit(employee.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleCapacityCommit(employee.id);
+                          }
+                          if (event.key === 'Escape') {
+                            event.preventDefault();
+                            handleCapacityReset(employee.id);
+                          }
+                        }}
+                        className={`bg-white border ${
+                          capacityErrors[employee.id] ? 'border-red-400' : 'border-slate-300'
+                        } rounded-md p-1.5 text-sm w-full`}
+                        aria-invalid={capacityErrors[employee.id] ? 'true' : 'false'}
+                        aria-describedby={capacityErrors[employee.id] ? `capacity-error-${employee.id}` : undefined}
+                      />
+                      {capacityErrors[employee.id] && (
+                        <p id={`capacity-error-${employee.id}`} className="text-xs text-red-600">
+                          {capacityErrors[employee.id]}
+                        </p>
+                      )}
+                    </div>
                   </td>
                   <td className="p-2">
                     <button
@@ -128,6 +267,31 @@ export const EmployeePage = () => {
                   />
                 </td>
                 <td className="p-2">
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={DEFAULT_EMPLOYEE_CAPACITY.toString()}
+                      value={newEmployee.maxCapacityHoursWeek}
+                      aria-label="Kapacitet for ny medarbejder"
+                      onChange={(event) => {
+                        setNewEmployee((state) => ({ ...state, maxCapacityHoursWeek: event.target.value }));
+                        setNewEmployeeError(null);
+                      }}
+                      className={`bg-white border ${
+                        newEmployeeError ? 'border-red-400' : 'border-slate-300'
+                      } rounded-md p-2 text-sm w-full`}
+                      aria-invalid={newEmployeeError ? 'true' : 'false'}
+                      aria-describedby={newEmployeeError ? 'new-employee-capacity-error' : undefined}
+                    />
+                    {newEmployeeError && (
+                      <p id="new-employee-capacity-error" className="text-xs text-red-600">
+                        {newEmployeeError}
+                      </p>
+                    )}
+                  </div>
+                </td>
+                <td className="p-2">
                   <button
                     onClick={handleSaveNewEmployee}
                     className="bg-blue-500 text-white text-sm px-3 py-2 rounded-md hover:bg-blue-600 w-full font-semibold"
@@ -145,4 +309,3 @@ export const EmployeePage = () => {
 };
 
 export default EmployeePage;
-

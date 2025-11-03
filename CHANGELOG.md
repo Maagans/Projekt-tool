@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- Medarbejderdatabasen viser nu kapacitet (timer/uge), som administratorer kan redigere med validering og defaults.
+- Nye Vitest-suiter dækker kapacitetsflowet i EmployeePage og useProjectManager (kapacitetsmodulet).
+### Changed
+- CSV-importen accepterer en valgfri kolonne for kapacitet og normaliserer værdier ved autosave.
 
 ## [1.2.8] - 2025-11-04
 ### Added
@@ -139,6 +144,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og milj?baseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
 
 
 

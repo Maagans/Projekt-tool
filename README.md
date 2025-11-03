@@ -1,4 +1,4 @@
-# Project Status & Reporting Tool
+﻿# Project Status & Reporting Tool
 
 A full-stack project and report management tool powered by a PostgreSQL relational database, an Express backend, and a Vite/React frontend. This guide walks through setting the system up from scratch on a local machine.
 
@@ -49,8 +49,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 For production, set `CORS_ORIGIN` to a comma-separated list of allowed origins (e.g., your deployed frontend URLs).
 Set `LOG_LEVEL` (default `info`) to control backend logging verbosity.
-Flip `RESOURCES_ANALYTICS_ENABLED` to `true` when du vil fremvise ressourcemodulets preview (frontend-nav + 501-endpoint); lad den være `false`, hvis modulet ikke skal eksponeres endnu.
-Konfigurationen valideres centralt i `backend/config/index.js`, så manglende eller ugyldige miljøvariabler giver en tydelig fejl tidligt i opstarten.
+Flip `RESOURCES_ANALYTICS_ENABLED` to `true` when du vil fremvise ressourcemodulets preview (frontend-nav + 501-endpoint); lad den vÃ¦re `false`, hvis modulet ikke skal eksponeres endnu.
+Konfigurationen valideres centralt i `backend/config/index.js`, sÃ¥ manglende eller ugyldige miljÃ¸variabler giver en tydelig fejl tidligt i opstarten.
 
 ## 4. Run database migrations
 ```bash
@@ -80,7 +80,7 @@ npm run dev
 ```
 Vite serves the React client on `http://localhost:5173` by default and proxies API calls to the backend.  
 To target a different API endpoint, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
-Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALYTICS_ENABLED=true` samtidigt med backend-flaget.
+Vil du teste ressourcemodulet i preview-tilstand, sÃ¥ sÃ¦t `VITE_RESOURCES_ANALYTICS_ENABLED=true` samtidigt med backend-flaget.
 
 ### One command for both servers
   ```bash
@@ -89,12 +89,25 @@ Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALY
   This uses `concurrently` to launch the frontend (Vite) and backend (nodemon) side-by-side. Stop with `Ctrl+C` and both processes terminate.
 
 ### Ressource Analytics som PMO-fane
-- Aktiver modulet ved at sætte `RESOURCES_ANALYTICS_ENABLED=true` i `backend/.env` og `VITE_RESOURCES_ANALYTICS_ENABLED=true` i frontendens `.env`. Lad værdierne forblive `false`, hvis modulet fortsat skal være skjult i produktion.
-- Med flagene slået til vises en ekstra fane på PMO-siden. Direkte besøg på `/resources` omdirigeres automatisk til `/pmo?view=resources`, så eksisterende bogmærker stadig fungerer.
+- Aktiver modulet ved at sætte RESOURCES_ANALYTICS_ENABLED=true i ackend/.env og VITE_RESOURCES_ANALYTICS_ENABLED=true i frontendens .env. Lad værdierne forblive alse, hvis modulet fortsat skal være skjult i produktion.
+- Med flagene slået til vises en ekstra fane på PMO-siden. Direkte besøg på /resources omdirigeres automatisk til /pmo?view=resources, så eksisterende bogmærker stadig fungerer.
 - Dropdownen i fanen indeholder en ekstra valgmulighed **Alle afdelinger**, som samler kapacitet, planlagte og faktiske timer på tværs af organisationen.
 - Projektfordelingen vises som to donutdiagrammer nederst på siden (planlagt/faktisk). Brug toggle-knappen for at skjule/vis breakdown.
 - Fanen er kun synlig for administratorer og bruger samme adgangskontrol som resten af PMO. Projektledere og teammedlemmer bliver på den klassiske kapacitetsoversigt.
-- Brug `docs/screenshots/pmo-resource-tab.png` (eller placér dit eget billede i `docs/screenshots/`) når du dokumenterer modulets UI i release-notes eller præsentationer.
+- Brug docs/screenshots/pmo-resource-tab.png (eller placér dit eget billede i docs/screenshots/) når du dokumenterer modulets UI i release-notes eller præsentationer.
+
+### Medarbejderdatabase kapacitetsstyring
+- Medarbejderdatabasen viser en kapacitetskolonne (timer/uge) for alle medarbejdere. Værdier initialiseres til 37,5 timer og kan redigeres direkte i tabellen.
+- Ugyldige input (tomt, tekst eller negative tal) nulstilles til den senest gemte værdi og viser en valideringsfejl.
+- Når du opretter nye medarbejdere, kan du angive kapacitet i feltet ved siden af emailen; tomme felter falder tilbage til 37,5.
+- CSV-importen accepterer nu en valgfri fjerde kolonne `Kapacitet (timer/uge)`. Rækker uden kolonnen (eller tomme værdier) får standardkapaciteten.
+
+- Aktiver modulet ved at sÃ¦tte `RESOURCES_ANALYTICS_ENABLED=true` i `backend/.env` og `VITE_RESOURCES_ANALYTICS_ENABLED=true` i frontendens `.env`. Lad vÃ¦rdierne forblive `false`, hvis modulet fortsat skal vÃ¦re skjult i produktion.
+- Med flagene slÃ¥et til vises en ekstra fane pÃ¥ PMO-siden. Direkte besÃ¸g pÃ¥ `/resources` omdirigeres automatisk til `/pmo?view=resources`, sÃ¥ eksisterende bogmÃ¦rker stadig fungerer.
+- Dropdownen i fanen indeholder en ekstra valgmulighed **Alle afdelinger**, som samler kapacitet, planlagte og faktiske timer pÃ¥ tvÃ¦rs af organisationen.
+- Projektfordelingen vises som to donutdiagrammer nederst pÃ¥ siden (planlagt/faktisk). Brug toggle-knappen for at skjule/vis breakdown.
+- Fanen er kun synlig for administratorer og bruger samme adgangskontrol som resten af PMO. Projektledere og teammedlemmer bliver pÃ¥ den klassiske kapacitetsoversigt.
+- Brug `docs/screenshots/pmo-resource-tab.png` (eller placÃ©r dit eget billede i `docs/screenshots/`) nÃ¥r du dokumenterer modulets UI i release-notes eller prÃ¦sentationer.
 
 
 ### Session & CSRF flow
@@ -112,10 +125,10 @@ This repository uses Husky + lint-staged to block commits when linting fails.
 If you ever clone the project without running `npm install`, execute `npm run prepare` manually to set up the hooks.
 
 ## Testing
-- `npm run test`: kører Vitest + React Testing Library for frontend hooks og komponenter.
-- `npm run test --prefix backend`: kører Vitest for backend-testene.
-- `npm run test:services --prefix backend`: begrænser testkørsel til service-laget (`backend/tests/services`).
-- `npm run test:api --prefix backend`: kører API/integrationstests (`backend/tests/api`).
+- `npm run test`: kÃ¸rer Vitest + React Testing Library for frontend hooks og komponenter.
+- `npm run test --prefix backend`: kÃ¸rer Vitest for backend-testene.
+- `npm run test:services --prefix backend`: begrÃ¦nser testkÃ¸rsel til service-laget (`backend/tests/services`).
+- `npm run test:api --prefix backend`: kÃ¸rer API/integrationstests (`backend/tests/api`).
 
 ## Roles and permissions
 - **Administrator**: Full access. Can view and edit every project, manage users, and change settings.
@@ -149,9 +162,9 @@ tar.exe -acf projekt-tool-share.zip --exclude='node_modules' --exclude='*/node_m
 6. Start everything with `npm run dev:all` (or run the backend via `npm run dev:backend` and the frontend via `npm run dev` in separate terminals).
 
 ## CI & QA
-- GitHub Actions workflow (`.github/workflows/ci.yml`) kører lint/build på frontend og backend for alle pushes/pull requests.
+- GitHub Actions workflow (`.github/workflows/ci.yml`) kÃ¸rer lint/build pÃ¥ frontend og backend for alle pushes/pull requests.
 - Spejl pipeline lokalt: `npm run lint`, `npm run build` og `npm run lint --prefix backend`.
-- `npm run migrate` køres automatisk i CI mod en midlertidig PostgreSQL.
+- `npm run migrate` kÃ¸res automatisk i CI mod en midlertidig PostgreSQL.
 
 
 
@@ -277,4 +290,7 @@ This runbook describes how to promote the application from local development to 
 - Need to rebuild everything? Re-run `npm run migrate` followed by `npm run seed:admin`. A legacy `setup-db.sql` script still exists for special cases, but the migration workflow is the supported path.
 
 Happy reporting!
+
+
+
 

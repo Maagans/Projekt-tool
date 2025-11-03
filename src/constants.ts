@@ -1,0 +1,3 @@
+export const DEFAULT_EMPLOYEE_CAPACITY = 37.5;
+export const MIN_EMPLOYEE_CAPACITY = 0;
+

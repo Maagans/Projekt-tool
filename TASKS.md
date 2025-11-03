@@ -461,7 +461,8 @@ pm run test:api --prefix backend
     - Formï¿½l: Udvide ressourcemodulets data med projektsum pr. afdeling, sï¿½ frontend kan vise fordelingen.
     - ï¿½ndringer:
       - Udvid `/analytics/resources` (department scope) til at levere projectBreakdown med planlagt/faktisk timer pr. aktivt projekt.
-      - Opdater caching/tests i resourceAnalyticsService og API-controllerens svar.
+      - Opdater caching/tests i 
+resourceAnalyticsService og API-controllerens svar.
     - Test (TDD):
       1) Vitest: `calcDepartmentSeries` returnerer breakdown og cache-tests dï¿½kker ekstra query.
       2) Supertest: `/api/analytics/resources` svarer med feltet og respekterer feature-flag/roller.
@@ -497,6 +498,94 @@ pm run test:api --prefix backend
     - Test (TDD): Ikke-kode; peer review.
     - Accept: Dokumentation og artefakter afspejler den nye funktion.
     - Afhï¿½ngigheder: RM-010c.
+
+
+- [x] RM-011a: Arbejdskapacitet i workspace & CSV
+  - Formål: Normalisere og gemme medarbejderkapacitet ved indlæsning, autosave og CSV-import.
+  - Ændringer:
+    - Rensning og default-værdi (37,5) i `useWorkspaceModule` ved load/update.
+    - CSV-import accepterer (valgfri) kapacitetskolonne og opdaterer eksisterende medarbejdere.
+  - Test (TDD):
+    1) `npm run test`.
+  - Accept: Autosave gemmer kapacitetsændringer, og CSV-importen kan opdatere/tilføje kapacitet.
+  - Afhængigheder: RM-009.
+
+- [x] RM-011b: Medarbejderdatabase UI
+  - Formål: Give administratorer mulighed for at redigere og oprette medarbejderkapacitet i UI.
+  - Ændringer:
+    - Ny kolonne i `EmployeePage` med validerede kapacitetsfelter og inline-fejl.
+    - Ny medarbejderrække inkluderer kapacitetsfelt; knapper resetter/gemmer uændrede værdier.
+  - Test (TDD):
+    1) `npm run test`.
+  - Accept: UI viser kapacitet i tabellen, invalide input nulstilles og valideringsfejl vises.
+  - Afhængigheder: RM-011a.
+
+- [x] RM-011c: Testdækning
+  - Formål: Sikre regressionstests for den nye kapacitetslogik.
+  - Ændringer:
+    - Nye Vitest-suiter for `EmployeePage` (UI-interaktioner) og `useProjectManager.capacity` (hook-scenarier).
+  - Test (TDD):
+    1) `npm run test`.
+  - Accept: Testene dækker kapacitetsredigering, CSV-import og defaults uden fejl.
+  - Afhængigheder: RM-011a, RM-011b.
+
+- [x] RM-011d: Dokumentation & release-notes
+  - Formål: Synliggøre kapacitetsredigeringen i dokumentationen.
+  - Ændringer:
+    - README indeholder instruktioner om kapacitetsfelter/CSV.
+    - CHANGELOG [Unreleased] opdateret med UI + CSV ændringer.
+    - TASKS opdateret med RM-011.
+  - Test (TDD): Ikke-kode.
+  - Accept: Dokumentation beskriver kapacitetsflowet for både UI og import.
+  - Afhængigheder: RM-011b, RM-011c.
+
+- [ ] RM-012a: PMO-baseline for projektkapacitet
+  - Formål: Give PMO mulighed for at sætte en samlet baseline (timer/uge) der gemmes i workspace-opsætningen.
+  - Ændringer:
+    - Nyt felt i workspace (fx `pmoBaselineHoursWeek`) med sanitiseret default og autosave-support.
+    - Simpelt inputfelt (tal) under Ressource-opsætning; validering = 0 og feedback på gemt værdi.
+  - Test (TDD):
+    1) Enhedstest for sanitiseringshelper og autosave (backend/store).
+    2) RTL-test for baseline-input (visning/validering).
+  - Afhængigheder: RM-011b.
+
+- [ ] RM-012b: Aggregation af samlet projektbelastning
+  - Formål: Udvide `/analytics/resources` så hver uge indeholder stacked planlagt/faktisk belastning pr. projekt + totaler.
+  - Ændringer:
+    - Service beregner `projectStackPlan` og `projectStackActual` (sorted pr. projekt, 0-fill manglende uger).
+    - API-response inkluderer baseline og summeret total (til quick badges).
+  - Test (TDD):
+    1) Service-tests med fixtures (bl.a. projekter uden timer/sparse).
+    2) Endpoint-test for struktur og baselinefelt.
+  - Afhængigheder: RM-012a.
+
+- [ ] RM-012c: Hook & modeller til stacked data
+  - Formål: Eksponere baseline + stacked serier til frontend-komponenter.
+  - Ændringer:
+    - `ResourceAnalyticsPayload`/hook udvides med `stackedProjects` og `totals`.
+    - Memoiser helper til at mappe backend-serier til recharts-friendly format.
+  - Test (TDD):
+    1) Vitest for hook (happy path + tomme datasæt).
+    2) Snapshot af helper-sortering og baseline fallback.
+  - Afhængigheder: RM-012b.
+
+- [ ] RM-012d: PMO-stacked chart
+  - Formål: Visualisere baseline vs. planlagt/faktisk belastning pr. projekt.
+  - Ændringer:
+    - Nyt kort i PMO-fanen: stacked area chart (planlagt + faktisk) med baseline-linje og badges for overstigende uger.
+    - Tooltips viser projektnavn, uge, planlagt/faktisk + total; highlight når total > baseline.
+  - Test (TDD):
+    1) RTL-test der verificerer render/feature flag/alert når baseline overskrides.
+    2) Visuel helper-test (fx farvepalet ordering).
+  - Afhængigheder: RM-012c.
+
+- [ ] RM-012e: Dokumentation & release-notes
+  - Formål: Beskrive baselinekonceptet og stacked kapacitetschart.
+  - Ændringer:
+    - README/CHANGELOG/Screenshots opdateres; TASKS markeres færdige.
+    - Kort afsnit om hvordan PMO kan justere baseline og læse grafen.
+  - Test (TDD): Ikke-kode.
+  - Afhængigheder: RM-012d.
 
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
+import { DEFAULT_EMPLOYEE_CAPACITY } from '../../constants';
 import {
   Deliverable,
   Employee,
@@ -31,6 +32,36 @@ type EmployeeUpdater = (prev: Employee[]) => Employee[];
 
 const sanitizeHours = (value: number | undefined) =>
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
+
+const sanitizeCapacity = (value: unknown, fallback: number = 0) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+  return parsed;
+};
+
+const CSV_CAPACITY_HEADERS = new Set([
+  'kapacitet',
+  'kapacitet (timer/uge)',
+  'kapacitet (timer per uge)',
+  'kapacitet timer/uge',
+]);
+
+const parseCapacityFromCsv = (value: string | undefined, fallback: number) => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const normalized = value.replace(',', '.').trim();
+  if (normalized === '') {
+    return fallback;
+  }
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+  return parsed;
+};
 
 export const useWorkspaceModule = (store: ProjectManagerStore) => {
   const {
@@ -79,7 +110,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   useEffect(() => {
     if (workspaceQuery.data) {
       setProjects(workspaceQuery.data.projects);
-      setEmployees(workspaceQuery.data.employees);
+      setEmployees(
+        workspaceQuery.data.employees.map((employee) => ({
+          ...employee,
+          maxCapacityHoursWeek: sanitizeCapacity(employee.maxCapacityHoursWeek, 0),
+        })),
+      );
     }
   }, [setEmployees, setProjects, workspaceQuery.data]);
 
@@ -134,13 +170,19 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   ]);
 
   const addEmployee = useCallback(
-    (name: string, location: Location, email: string) => {
+    (name: string, location: Location, email: string, maxCapacityHoursWeek: number = DEFAULT_EMPLOYEE_CAPACITY) => {
       updateEmployees((prev) => {
         if (prev.some((employee) => employee.email.toLowerCase() === email.toLowerCase())) {
           alert('En medarbejder med denne email findes allerede.');
           return prev;
         }
-        const newEmployee: Employee = { id: generateId(), name, location, email };
+        const newEmployee: Employee = {
+          id: generateId(),
+          name,
+          location,
+          email,
+          maxCapacityHoursWeek: sanitizeCapacity(maxCapacityHoursWeek, DEFAULT_EMPLOYEE_CAPACITY),
+        };
         return [...prev, newEmployee];
       });
     },
@@ -158,7 +200,18 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           return prev;
         }
 
-        return prev.map((employee) => (employee.id === id ? { ...employee, ...updates } : employee));
+        return prev.map((employee) => {
+          if (employee.id !== id) {
+            return employee;
+          }
+
+          const next: Partial<Employee> = { ...updates };
+          if (next.maxCapacityHoursWeek !== undefined) {
+            next.maxCapacityHoursWeek = sanitizeCapacity(next.maxCapacityHoursWeek, employee.maxCapacityHoursWeek ?? 0);
+          }
+
+          return { ...employee, ...next };
+        });
       });
     },
     [updateEmployees],
@@ -203,11 +256,13 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         return;
       }
 
-      const header = lines[0].toLowerCase().split(',').map((h) => h.trim().replace(/"/g, ''));
-      if (header[0] !== 'navn' || header[1] !== 'lokation' || header[2] !== 'email') {
-        alert('CSV-filen skal have kolonnerne: Navn,Lokation,Email');
+      const rawHeader = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
+      const normalizedHeader = rawHeader.map((h) => h.toLowerCase());
+      if (normalizedHeader[0] !== 'navn' || normalizedHeader[1] !== 'lokation' || normalizedHeader[2] !== 'email') {
+        alert('CSV-filen skal have kolonnerne: Navn,Lokation,Email og valgfrit Kapacitet.');
         return;
       }
+      const capacityIndex = normalizedHeader.findIndex((column) => CSV_CAPACITY_HEADERS.has(column));
 
       updateEmployees((currentEmployees) => {
         const newEmployeesList = [...currentEmployees];
@@ -219,7 +274,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         let skippedCount = 0;
 
         for (const row of rows) {
-          const [name, location, email] = row.split(',').map((value) => value.trim().replace(/"/g, ''));
+          const cells = row.split(',').map((value) => value.trim().replace(/"/g, ''));
+          const name = cells[0] ?? '';
+          const location = cells[1] ?? '';
+          const email = cells[2] ?? '';
           if (!name || !location || !email || !locations.includes(location as Location)) {
             skippedCount += 1;
             continue;
@@ -228,7 +286,14 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           const existingEmployee = existingEmailMap.get(email.toLowerCase());
           if (existingEmployee) {
             const index = newEmployeesList.findIndex((employee) => employee.id === existingEmployee.id);
-            newEmployeesList[index] = { ...existingEmployee, name, location: location as Location };
+            const updatedEmployee: Employee = { ...existingEmployee, name, location: location as Location };
+            if (capacityIndex >= 0) {
+              updatedEmployee.maxCapacityHoursWeek = parseCapacityFromCsv(
+                cells[capacityIndex],
+                existingEmployee.maxCapacityHoursWeek ?? DEFAULT_EMPLOYEE_CAPACITY,
+              );
+            }
+            newEmployeesList[index] = updatedEmployee;
             updatedCount += 1;
           } else {
             const newEmployee: Employee = {
@@ -236,6 +301,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               name,
               location: location as Location,
               email,
+              maxCapacityHoursWeek:
+                capacityIndex >= 0
+                  ? parseCapacityFromCsv(cells[capacityIndex], DEFAULT_EMPLOYEE_CAPACITY)
+                  : DEFAULT_EMPLOYEE_CAPACITY,
             };
             newEmployeesList.push(newEmployee);
             addedCount += 1;
