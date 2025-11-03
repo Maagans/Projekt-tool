@@ -8,6 +8,7 @@ import {
 import {
   engineeringDepartmentEmployees,
   engineeringDepartmentEntries,
+  engineeringDepartmentBreakdown,
   alphaProjectMembers,
   alphaProjectEntriesExtended,
 } from '../fixtures/resourceAnalyticsFixtures.js';
@@ -22,7 +23,8 @@ describe('resourceAnalyticsService', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
-        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries }),
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
     };
 
     const result = await calcDepartmentSeries('Engineering', {
@@ -30,9 +32,10 @@ describe('resourceAnalyticsService', () => {
       dbClient: mockDb,
     });
 
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
     expect(mockDb.query.mock.calls[0][1]).toEqual(['Engineering']);
     expect(mockDb.query.mock.calls[1][1]).toEqual(['Engineering', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['Engineering', '2025-W01', '2025-W03']);
 
     expect(result.scope).toEqual({ type: 'department', id: 'Engineering' });
     expect(result.series).toEqual([
@@ -41,6 +44,20 @@ describe('resourceAnalyticsService', () => {
       { week: '2025-W03', capacity: 112.5, planned: 0, actual: 0 },
     ]);
     expect(result.overAllocatedWeeks).toEqual(['2025-W02']);
+    expect(result.projectBreakdown).toEqual([
+      {
+        projectId: '5ac7b3f2-318e-40ff-9c3a-aaaaaaaaaaaa',
+        projectName: 'Alpha',
+        planned: 140,
+        actual: 132,
+      },
+      {
+        projectId: '5ac7b3f2-318e-40ff-9c3a-bbbbbbbbbbbb',
+        projectName: 'Beta',
+        planned: 80,
+        actual: 72,
+      },
+    ]);
   });
 
   it('aggregates project data across ISO week-year boundaries', async () => {
@@ -70,6 +87,7 @@ describe('resourceAnalyticsService', () => {
       { week: '2026-W02', capacity: 70, planned: 40, actual: 36 },
     ]);
     expect(result.overAllocatedWeeks).toEqual(['2026-W01']);
+    expect(result.projectBreakdown).toEqual([]);
   });
 
   it('throws a 404 when project does not exist', async () => {
@@ -100,7 +118,8 @@ describe('resourceAnalyticsService', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
-        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries }),
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
     };
 
     const result = await aggregateResourceAnalytics({
@@ -115,6 +134,7 @@ describe('resourceAnalyticsService', () => {
       { week: '2025-W01', capacity: 112.5, planned: 90, actual: 84 },
       { week: '2025-W02', capacity: 112.5, planned: 130, actual: 120 },
     ]);
+    expect(result.projectBreakdown).toHaveLength(2);
   });
 
   it('returns cached results on repeated requests within ttl', async () => {
@@ -123,7 +143,8 @@ describe('resourceAnalyticsService', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
-        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries }),
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
     };
 
     const params = {
@@ -138,7 +159,8 @@ describe('resourceAnalyticsService', () => {
 
     const first = await aggregateResourceAnalytics(params, { cache, ttlMs: 10_000, now });
     expect(first.series).toHaveLength(2);
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(first.projectBreakdown).toHaveLength(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
 
     mockDb.query.mockClear();
     const second = await aggregateResourceAnalytics(params, { cache, ttlMs: 10_000, now });
@@ -154,8 +176,10 @@ describe('resourceAnalyticsService', () => {
         .fn()
         .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
         .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown })
         .mockResolvedValueOnce({ rows: engineeringDepartmentEmployees })
-        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries }),
+        .mockResolvedValueOnce({ rows: engineeringDepartmentEntries })
+        .mockResolvedValueOnce({ rows: engineeringDepartmentBreakdown }),
     };
 
     const params = {
@@ -169,13 +193,13 @@ describe('resourceAnalyticsService', () => {
     const now = vi.fn(() => currentTime);
 
     await aggregateResourceAnalytics(params, { cache, ttlMs: 5_000, now });
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
 
     mockDb.query.mockClear();
     currentTime = 10_001;
 
     await aggregateResourceAnalytics(params, { cache, ttlMs: 5_000, now });
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
   });
 
   it('rejects unsupported scope types', async () => {

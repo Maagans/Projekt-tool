@@ -55,6 +55,7 @@ describe("GET /api/analytics/resources", () => {
       scope: { type: "department", id: "Engineering" },
       series: [],
       overAllocatedWeeks: [],
+      projectBreakdown: [],
     });
 
     const response = await request(app)
@@ -83,6 +84,7 @@ describe("GET /api/analytics/resources", () => {
       scope: { type: "project", id: "5ac7b3f2-318e-40ff-9c3a-222222222222" },
       series: [],
       overAllocatedWeeks: [],
+      projectBreakdown: [],
     });
     pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ is_project_lead: true }] });
 
@@ -158,6 +160,7 @@ describe("GET /api/analytics/resources", () => {
         { week: "2025-W02", capacity: 100, planned: 120, actual: 110 },
       ],
       overAllocatedWeeks: ["2025-W02"],
+      projectBreakdown: [],
     });
 
     const response = await request(app)

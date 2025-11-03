@@ -212,6 +212,25 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     [validatedDepartment, ...rangeParams],
   );
 
+  const projectBreakdownResult = await database.query(
+    `
+      SELECT
+        p.id::text AS project_id,
+        p.name AS project_name,
+        SUM(t.planned_hours)::float AS planned_hours,
+        SUM(t.actual_hours)::float AS actual_hours
+      FROM project_member_time_entries t
+      JOIN project_members pm ON pm.id = t.project_member_id
+      JOIN projects p ON p.id = pm.project_id
+      JOIN employees e ON e.id = pm.employee_id
+      WHERE e.department = $1
+        AND p.status = 'active'${rangeClause}
+      GROUP BY p.id, p.name
+      ORDER BY p.name ASC
+    `,
+    [validatedDepartment, ...rangeParams],
+  );
+
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);
   const weekKeys = expandWeekRange(fromWeek, toWeek);
 
@@ -229,6 +248,14 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     scope: { type: "department", id: validatedDepartment },
     series,
     overAllocatedWeeks: calculateOverAllocatedWeeks(series),
+    projectBreakdown: (projectBreakdownResult.rows ?? [])
+      .map((row) => ({
+        projectId: row.project_id ?? "",
+        projectName: row.project_name ?? "Ukendt projekt",
+        planned: Number(row.planned_hours ?? 0),
+        actual: Number(row.actual_hours ?? 0),
+      }))
+      .filter((row) => row.projectId && (row.planned !== 0 || row.actual !== 0)),
   };
 };
 
@@ -295,6 +322,7 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
     scope: { type: "project", id: validatedProjectId },
     series,
     overAllocatedWeeks: calculateOverAllocatedWeeks(series),
+    projectBreakdown: [],
   };
 };
 

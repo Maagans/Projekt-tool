@@ -1,6 +1,11 @@
 import { useQuery, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query';
 import { api } from '../api';
-import type { ResourceAnalyticsPayload, ResourceAnalyticsPoint, ResourceAnalyticsQuery } from '../types';
+import type {
+  ResourceAnalyticsPayload,
+  ResourceAnalyticsPoint,
+  ResourceAnalyticsProjectBreakdownItem,
+  ResourceAnalyticsQuery,
+} from '../types';
 
 export interface ResourceAnalyticsCumulativePoint {
   week: string;
@@ -30,6 +35,11 @@ export interface NormalizedResourceAnalytics extends ResourceAnalyticsPayload {
   latestPoint: ResourceAnalyticsPoint | null;
   summary: ResourceAnalyticsSummary;
   cumulativeSeries: ResourceAnalyticsCumulativePoint[];
+  projectBreakdown: ResourceAnalyticsProjectBreakdownItem[];
+  projectBreakdownTotals: {
+    planned: number;
+    actual: number;
+  };
 }
 
 export type UseResourceAnalyticsResult = UseQueryResult<NormalizedResourceAnalytics, Error>;
@@ -103,6 +113,29 @@ const normalizeAnalytics = (
     weeks,
   };
 
+  const projectBreakdown = Array.isArray(payload.projectBreakdown)
+    ? payload.projectBreakdown
+        .map((item) => ({
+          projectId: typeof item.projectId === 'string' ? item.projectId : '',
+          projectName:
+            typeof item.projectName === 'string' && item.projectName.trim().length > 0
+              ? item.projectName
+              : 'Ukendt projekt',
+          planned: Number.isFinite(item.planned) ? Number(item.planned) : 0,
+          actual: Number.isFinite(item.actual) ? Number(item.actual) : 0,
+        }))
+        .filter((item) => item.projectId && (item.planned !== 0 || item.actual !== 0))
+        .sort((a, b) => b.planned + b.actual - (a.planned + a.actual))
+    : [];
+
+  const projectBreakdownTotals = projectBreakdown.reduce(
+    (acc, item) => ({
+      planned: acc.planned + item.planned,
+      actual: acc.actual + item.actual,
+    }),
+    { planned: 0, actual: 0 },
+  );
+
   return {
     scope: payload.scope,
     series: sanitizedSeries,
@@ -117,6 +150,8 @@ const normalizeAnalytics = (
     latestPoint,
     summary,
     cumulativeSeries,
+    projectBreakdown,
+    projectBreakdownTotals,
   };
 };
 

@@ -49,6 +49,11 @@ describe('useResourceAnalytics', () => {
         { week: '2025-W02', capacity: Number.NaN, planned: 270, actual: 265 },
       ],
       overAllocatedWeeks: ['2025-W03', '2025-W03', '2025-W02'],
+      projectBreakdown: [
+        { projectId: 'p-2', projectName: 'Beta', planned: 180, actual: 160 },
+        { projectId: 'p-1', projectName: 'Alpha', planned: 220, actual: 210 },
+        { projectId: '', projectName: 'Ignored', planned: 0, actual: 0 },
+      ],
     };
 
     fetchResourceAnalyticsSpy.mockResolvedValue(payload);
@@ -78,6 +83,11 @@ describe('useResourceAnalytics', () => {
     expect(data?.summary.averageCapacity).toBeCloseTo(200, 5);
     expect(data?.summary.averagePlanned).toBeCloseTo(283.33, 2);
     expect(data?.summary.averageActual).toBeCloseTo(276.6667, 4);
+    expect(data?.projectBreakdown).toEqual([
+      { projectId: 'p-1', projectName: 'Alpha', planned: 220, actual: 210 },
+      { projectId: 'p-2', projectName: 'Beta', planned: 180, actual: 160 },
+    ]);
+    expect(data?.projectBreakdownTotals).toEqual({ planned: 400, actual: 370 });
     expect(data?.cumulativeSeries).toEqual([
       { week: '2025-W01', capacity: 300, planned: 260, actual: 250 },
       { week: '2025-W02', capacity: 300, planned: 530, actual: 515 },

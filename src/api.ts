@@ -125,6 +125,17 @@ const normalizeResourceAnalyticsPayload = (payload: ResourceAnalyticsPayload): R
     ? payload.overAllocatedWeeks.filter((week): week is string => typeof week === 'string')
     : [];
 
+  const projectBreakdown = Array.isArray(payload.projectBreakdown)
+    ? payload.projectBreakdown
+        .map((item) => ({
+          projectId: typeof item.projectId === 'string' ? item.projectId : '',
+          projectName: typeof item.projectName === 'string' && item.projectName.trim().length > 0 ? item.projectName : 'Ukendt projekt',
+          planned: Number(item.planned ?? 0),
+          actual: Number(item.actual ?? 0),
+        }))
+        .filter((item) => item.projectId)
+    : [];
+
   return {
     scope: {
       type: payload.scope?.type ?? 'department',
@@ -132,6 +143,7 @@ const normalizeResourceAnalyticsPayload = (payload: ResourceAnalyticsPayload): R
     },
     series: normalizedSeries,
     overAllocatedWeeks,
+    projectBreakdown,
   };
 };
 

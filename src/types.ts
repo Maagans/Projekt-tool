@@ -136,6 +136,13 @@ export interface ResourceAnalyticsPoint {
   actual: number;
 }
 
+export interface ResourceAnalyticsProjectBreakdownItem {
+  projectId: string;
+  projectName: string;
+  planned: number;
+  actual: number;
+}
+
 export interface ResourceAnalyticsPayload {
   scope: {
     type: ResourceAnalyticsScope;
@@ -143,6 +150,7 @@ export interface ResourceAnalyticsPayload {
   };
   series: ResourceAnalyticsPoint[];
   overAllocatedWeeks: string[];
+  projectBreakdown: ResourceAnalyticsProjectBreakdownItem[];
 }
 
 export interface ResourceAnalyticsQuery {
