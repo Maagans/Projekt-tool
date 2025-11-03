@@ -1,7 +1,9 @@
-import { Fragment, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
+import { RESOURCES_ANALYTICS_ENABLED } from '../../constants';
+import { ResourceAnalyticsEmbeddedView } from '../resources/ResourceAnalyticsPage';
 import { locations } from '../../../types';
 import type { Employee, Location } from '../../../types';
 import { ChevronDownIcon } from '../../../components/Icons';
@@ -33,16 +35,60 @@ const WorkloadBar = ({ planned, actual }: { planned: number; actual: number }) =
   );
 };
 
+type PmoTabKey = 'overview' | 'resources';
+
 export const PmoPage = () => {
   const navigate = useNavigate();
   const projectManager = useProjectManager();
-  const { employees, projects, logout, currentUser, isSaving, apiError, canManage } = projectManager;
+  const {
+    employees,
+    projects,
+    logout,
+    currentUser,
+    isSaving,
+    apiError,
+    canManage,
+    isAdministrator,
+  } = projectManager;
+  const [searchParams, setSearchParams] = useSearchParams();
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
     const start = new Date(end.getFullYear(), 0, 1);
     return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
   });
+  const canShowResourceAnalytics = RESOURCES_ANALYTICS_ENABLED && isAdministrator;
+  const viewParam = searchParams.get('view');
+  const activeTab: PmoTabKey =
+    canShowResourceAnalytics && viewParam === 'resources' ? 'resources' : 'overview';
+
+  useEffect(() => {
+    if (!canShowResourceAnalytics && viewParam === 'resources') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('view');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [canShowResourceAnalytics, viewParam, searchParams, setSearchParams]);
+
+  const handleTabChange = (tab: PmoTabKey) => {
+    if (tab === activeTab) return;
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === 'overview') {
+      nextParams.delete('view');
+    } else {
+      nextParams.set('view', tab);
+    }
+    setSearchParams(nextParams, { replace: true });
+    setExpandedEmployeeId(null);
+  };
+
+  const tabButtonClass = (tab: PmoTabKey) =>
+    [
+      'rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
+      activeTab === tab
+        ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+        : 'border-transparent text-slate-600 hover:border-blue-300 hover:text-blue-600',
+    ].join(' ');
 
   const pmoDataByLocation = useMemo(() => {
     const activeProjects = projects.filter((project) => project.status === 'active');
@@ -141,131 +187,160 @@ export const PmoPage = () => {
         </button>
       </AppHeader>
       <main className="space-y-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <h2 className="text-lg font-bold">Filter (kun aktive projekter)</h2>
-            <div>
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(event) => setDateRange((state) => ({ ...state, start: event.target.value }))}
-                className="bg-white border border-slate-300 rounded-md p-2 text-sm"
-              />
-            </div>
-            <div>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(event) => setDateRange((state) => ({ ...state, end: event.target.value }))}
-                className="bg-white border border-slate-300 rounded-md p-2 text-sm"
-              />
-            </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={tabButtonClass('overview')}
+              onClick={() => handleTabChange('overview')}
+              aria-pressed={activeTab === 'overview'}
+            >
+              Kapacitetsoversigt
+            </button>
+            {canShowResourceAnalytics && (
+              <button
+                type="button"
+                className={tabButtonClass('resources')}
+                onClick={() => handleTabChange('resources')}
+                aria-pressed={activeTab === 'resources'}
+              >
+                Ressource Analytics
+              </button>
+            )}
           </div>
         </div>
 
-        {locations.map((location) => {
-          const employeesInLocation = pmoDataByLocation.grouped[location];
-          const locationTotals = pmoDataByLocation.totals[location];
-          if (!employeesInLocation || employeesInLocation.length === 0) return null;
-
-          return (
-            <section key={location} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-slate-700">{location}</h3>
-                <div className="flex flex-col text-sm text-slate-500 sm:flex-row sm:items-center sm:gap-4">
-                  <span>
-                    Planlagt: <strong>{locationTotals.planned.toFixed(1)} timer</strong>
-                  </span>
-                  <span>
-                    Faktisk: <strong>{locationTotals.actual.toFixed(1)} timer</strong>
-                  </span>
+        {activeTab === 'overview' ? (
+          <>
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <h2 className="text-lg font-bold">Filter (kun aktive projekter)</h2>
+                <div>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(event) => setDateRange((state) => ({ ...state, start: event.target.value }))}
+                    className="bg-white border border-slate-300 rounded-md p-2 text-sm"
+                  />
                 </div>
-              </header>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-slate-200 text-left text-sm text-slate-600">
-                      <th className="p-2 w-12"></th>
-                      <th className="p-2">Medarbejder</th>
-                      <th className="p-2 w-32 text-right">Planlagt</th>
-                      <th className="p-2 w-32 text-right">Faktisk</th>
-                      <th className="p-2 w-32">Belastning</th>
-                      <th className="p-2 w-20 text-right">Projekter</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employeesInLocation.map((summary) => {
-                      const isExpanded = expandedEmployeeId === summary.id;
-                      return (
-                        <Fragment key={summary.id}>
-                          <tr className="border-b border-slate-100">
-                            <td className="p-2 align-middle">
-                              {summary.projectCount > 0 && (
-                                <button
-                                  onClick={() => setExpandedEmployeeId(isExpanded ? null : summary.id)}
-                                  className={`p-1 text-slate-500 hover:bg-slate-200 rounded-full transition ${
-                                    isExpanded ? 'rotate-180' : ''
-                                  }`}
-                                  title="Vis projektdetaljer"
-                                >
-                                  <ChevronDownIcon />
-                                </button>
-                              )}
-                            </td>
-                            <td className="p-2 text-sm font-medium text-slate-700">
-                              {summary.name}{' '}
-                              {summary.projectCount > 0 && (
-                                <span className="text-xs text-slate-500">({summary.projectCount})</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-right text-sm font-semibold">{summary.totalPlanned.toFixed(1)}</td>
-                            <td className="p-2 text-right text-sm font-semibold">{summary.totalActual.toFixed(1)}</td>
-                            <td className="p-2 text-sm">
-                              <WorkloadBar planned={summary.totalPlanned} actual={summary.totalActual} />
-                            </td>
-                            <td className="p-2 text-right text-sm text-slate-500">{summary.projectCount}</td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan={6} className="p-2">
-                                <div className="bg-slate-100 p-3 rounded-md">
-                                  <table className="w-full rounded bg-white">
-                                    <thead>
-                                      <tr className="border-b-2 border-slate-200 text-left text-sm text-slate-600">
-                                        <th className="p-2">Projekt</th>
-                                        <th className="p-2 text-right">Planlagte timer</th>
-                                        <th className="p-2 text-right">Faktiske timer</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {summary.projectDetails.map((detail) => (
-                                        <tr key={detail.id} className="border-b border-slate-100">
-                                          <td
-                                            className="p-2 text-sm cursor-pointer text-blue-600 hover:underline"
-                                            onClick={() => navigate(`/projects/${detail.id}/reports`)}
-                                          >
-                                            {detail.name}
-                                          </td>
-                                          <td className="p-2 text-sm text-right">{detail.planned.toFixed(1)}</td>
-                                          <td className="p-2 text-sm text-right">{detail.actual.toFixed(1)}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(event) => setDateRange((state) => ({ ...state, end: event.target.value }))}
+                    className="bg-white border border-slate-300 rounded-md p-2 text-sm"
+                  />
+                </div>
               </div>
-            </section>
-          );
-        })}
+            </div>
+
+            {locations.map((location) => {
+              const employeesInLocation = pmoDataByLocation.grouped[location];
+              const locationTotals = pmoDataByLocation.totals[location];
+              if (!employeesInLocation || employeesInLocation.length === 0) return null;
+
+              return (
+                <section key={location} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-slate-700">{location}</h3>
+                    <div className="flex flex-col text-sm text-slate-500 sm:flex-row sm:items-center sm:gap-4">
+                      <span>
+                        Planlagt: <strong>{locationTotals.planned.toFixed(1)} timer</strong>
+                      </span>
+                      <span>
+                        Faktisk: <strong>{locationTotals.actual.toFixed(1)} timer</strong>
+                      </span>
+                    </div>
+                  </header>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b-2 border-slate-200 text-left text-sm text-slate-600">
+                          <th className="p-2 w-12"></th>
+                          <th className="p-2">Medarbejder</th>
+                          <th className="p-2 w-32 text-right">Planlagt</th>
+                          <th className="p-2 w-32 text-right">Faktisk</th>
+                          <th className="p-2 w-32">Belastning</th>
+                          <th className="p-2 w-20 text-right">Projekter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employeesInLocation.map((summary) => {
+                          const isExpanded = expandedEmployeeId === summary.id;
+                          return (
+                            <Fragment key={summary.id}>
+                              <tr className="border-b border-slate-100">
+                                <td className="p-2 align-middle">
+                                  {summary.projectCount > 0 && (
+                                    <button
+                                      onClick={() => setExpandedEmployeeId(isExpanded ? null : summary.id)}
+                                      className={`p-1 text-slate-500 hover:bg-slate-200 rounded-full transition ${
+                                        isExpanded ? 'rotate-180' : ''
+                                      }`}
+                                      title="Vis projektdetaljer"
+                                    >
+                                      <ChevronDownIcon />
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="p-2 text-sm font-medium text-slate-700">
+                                  {summary.name}{' '}
+                                  {summary.projectCount > 0 && (
+                                    <span className="text-xs text-slate-500">({summary.projectCount})</span>
+                                  )}
+                                </td>
+                                <td className="p-2 text-right text-sm font-semibold">{summary.totalPlanned.toFixed(1)}</td>
+                                <td className="p-2 text-right text-sm font-semibold">{summary.totalActual.toFixed(1)}</td>
+                                <td className="p-2 text-sm">
+                                  <WorkloadBar planned={summary.totalPlanned} actual={summary.totalActual} />
+                                </td>
+                                <td className="p-2 text-right text-sm text-slate-500">{summary.projectCount}</td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={6} className="p-2">
+                                    <div className="bg-slate-100 p-3 rounded-md">
+                                      <table className="w-full rounded bg-white">
+                                        <thead>
+                                          <tr className="border-b-2 border-slate-200 text-left text-sm text-slate-600">
+                                            <th className="p-2">Projekt</th>
+                                            <th className="p-2 text-right">Planlagte timer</th>
+                                            <th className="p-2 text-right">Faktiske timer</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {summary.projectDetails.map((detail) => (
+                                            <tr key={detail.id} className="border-b border-slate-100">
+                                              <td
+                                                className="p-2 text-sm cursor-pointer text-blue-600 hover:underline"
+                                                onClick={() => navigate(`/projects/${detail.id}/reports`)}
+                                              >
+                                                {detail.name}
+                                              </td>
+                                              <td className="p-2 text-sm text-right">{detail.planned.toFixed(1)}</td>
+                                              <td className="p-2 text-sm text-right">{detail.actual.toFixed(1)}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        ) : (
+          <ResourceAnalyticsEmbeddedView />
+        )}
       </main>
     </div>
   );

@@ -72,10 +72,11 @@ const formatWeekLabel = (weekKey: string) => {
 const formatHours = (value: number) =>
   new Intl.NumberFormat('da-DK', { maximumFractionDigits: 1, minimumFractionDigits: 0 }).format(value);
 
-export const ResourceAnalyticsPage = () => {
+const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) => {
   const projectManager = useProjectManager();
   const navigate = useNavigate();
   const { logout, currentUser, isSaving, apiError, isAdministrator, employees } = projectManager;
+  const canAccessAnalytics = RESOURCES_ANALYTICS_ENABLED && isAdministrator;
 
   const departments = useMemo(() => {
     const unique = new Set<string>();
@@ -117,8 +118,8 @@ export const ResourceAnalyticsPage = () => {
     staleTime: 2 * 60 * 1000,
   });
 
-  if (!RESOURCES_ANALYTICS_ENABLED || !isAdministrator) {
-    return <Navigate to="/" replace />;
+  if (!canAccessAnalytics) {
+    return variant === 'page' ? <Navigate to="/" replace /> : null;
   }
 
   const { data, isPending, isFetching, isError, error, refetch } = analyticsQuery;
@@ -194,15 +195,27 @@ export const ResourceAnalyticsPage = () => {
     : null;
 
   return (
-    <div className="space-y-8">
-      <AppHeader title="Ressource Analytics" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => navigate('/')}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
-          >
-            Tilbage til Dashboard
-          </button>
+    <div className={variant === 'page' ? 'space-y-8' : 'space-y-6'}>
+      {variant === 'page' ? (
+        <AppHeader title="Ressource Analytics" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => navigate('/')}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
+            >
+              Tilbage til Dashboard
+            </button>
+            <button
+              onClick={() => refetch()}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
+              disabled={isFetching || isPending}
+            >
+              Opdater
+            </button>
+          </div>
+        </AppHeader>
+      ) : (
+        <div className="flex justify-end">
           <button
             onClick={() => refetch()}
             className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
@@ -211,9 +224,9 @@ export const ResourceAnalyticsPage = () => {
             Opdater
           </button>
         </div>
-      </AppHeader>
+      )}
 
-      <main className="space-y-6 rounded-3xl border border-white/60 bg-white/90 p-6 shadow-lg shadow-blue-500/5 backdrop-blur">
+      <section className="space-y-6 rounded-3xl border border-white/60 bg-white/90 p-6 shadow-lg shadow-blue-500/5 backdrop-blur">
         <section className="flex flex-wrap items-center gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor="department-select" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -321,10 +334,14 @@ export const ResourceAnalyticsPage = () => {
             summary={summary}
           />
         )}
-      </main>
+      </section>
     </div>
   );
 };
+
+export const ResourceAnalyticsPage = () => <ResourceAnalyticsBase variant="page" />;
+
+export const ResourceAnalyticsEmbeddedView = () => <ResourceAnalyticsBase variant="embedded" />;
 
 const getSummaryTone = (value: number, capacity: number, fallback: ResourceSummaryTone): ResourceSummaryTone => {
   if (!Number.isFinite(value) || !Number.isFinite(capacity)) {
@@ -438,7 +455,7 @@ const EmptyState = () => (
     <div className="max-w-md space-y-2">
       <h2 className="text-lg font-semibold text-slate-700">Ingen afdelinger med registreret data</h2>
       <p className="text-sm">
-        Tilføj afdelingsoplysninger til medarbejdere, og registrer tid for at aktivere ressourcerapporten.
+        TilfÃ¸j afdelingsoplysninger til medarbejdere, og registrer tid for at aktivere ressourcerapporten.
       </p>
     </div>
   </div>
@@ -468,7 +485,7 @@ const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void
       onClick={onRetry}
       className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition hover:border-rose-400"
     >
-      Prøv igen
+      PrÃ¸v igen
     </button>
   </div>
 );
@@ -636,6 +653,8 @@ const AnalyticsContent = ({
 };
 
 export default ResourceAnalyticsPage;
+
+
 
 
 

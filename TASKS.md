@@ -408,6 +408,21 @@ pm run test:api --prefix backend
 
 - [x] RM-006: Projekt-dashboard panel
 
+- [ ] PMO-010: Integrer Ressource Analytics som fane i PMO
+  - Formål: Samle alle ressourcerelaterede indsigter under PMO-sektionen og reducere navigation mellem sider.
+  - ændringer:
+    - Tilføj tab-navigation på PMO-siden og flyt nuværende Ressource Analytics-komponent ind som `resources`-fane.
+    - Opret redirect fra `/resources` til PMO-siden (fx `/pmo?view=resources`), så eksisterende dybe links bevares.
+    - Sørg for at fanen respekterer feature-flag og rolle-adgang som i den nuværende standalone-side.
+  - Test (TDD):
+    1) Vitest: udvid `PmoPage` tests til at dække fane-navigation, redirect og rollebeskyttelse.
+    2) Evt. integrationstest/route-test der verificerer redirect og feature-flag (React Testing Library).
+  - Accept:
+    - Bruger kan åbne PMO-siden, skifte til Ressource Analytics-fanen og få vist de samme serier som før.
+    - Direkte besøg på `/resources` lander i PMO med korrekt fane valgt.
+    - Feature-flag/roller virker som tidligere (kun administratorer ser fanen).
+  - Afhængigheder: RM-005, RM-007.
+
 - [x] RM-009: Synkroniser `location` og `department`
   - Formål: Sikre at medarbejderens afdeling og lokation altid matcher, så ressourcemodulet kan bygge på ét felt.
   - ændringer: Tilføj helper i backend der spejler felterne ved read/write, opdater persist/import/sync-flow, og lav valgfri migration/backfill.
@@ -445,6 +460,7 @@ pm run test:api --prefix backend
 Noter
 - Opgaverne er designet, sÃ¥ hver kan merges isoleret og verificeres med minimale, reproducerbare trin.
 - Ved stÃ¸rre refaktoreringer (BE-007) anbefales flag/feature toggles og smÃ¥ commits med hyppige smoke-tests.
+
 
 
 

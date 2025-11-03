@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { StatusToast } from '../components/ui/StatusToast';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { useProjectManager } from '../hooks/useProjectManager';
-import { RESOURCES_ANALYTICS_ENABLED } from './constants';
 import { GlobalErrorScreen } from './components/GlobalErrorScreen';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegistrationPage } from './pages/auth/RegistrationPage';
@@ -13,7 +12,6 @@ const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const EmployeePage = lazy(() => import('./pages/employees/EmployeePage'));
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
 const PmoPage = lazy(() => import('./pages/pmo/PmoPage'));
-const ResourceAnalyticsPage = lazy(() => import('./pages/resources/ResourceAnalyticsPage'));
 const ProjectLayout = lazy(() => import('./pages/projects/ProjectLayout'));
 const ProjectReportsPage = lazy(
   () => import('./pages/projects/ProjectReportsPage').then((module) => ({ default: module.ProjectReportsPage })),
@@ -141,12 +139,7 @@ export const AppShell = () => {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/employees" element={canManage ? <EmployeePage /> : <Navigate to="/" replace />} />
               <Route path="/pmo" element={canManage ? <PmoPage /> : <Navigate to="/" replace />} />
-              <Route
-                path="/resources"
-                element={
-                  RESOURCES_ANALYTICS_ENABLED && isAdministrator ? <ResourceAnalyticsPage /> : <Navigate to="/" replace />
-                }
-              />
+              <Route path="/resources" element={<Navigate to="/pmo?view=resources" replace />} />
               <Route path="/admin" element={isAdministrator ? <AdminPage /> : <Navigate to="/" replace />} />
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
                 <Route index element={<ProjectIndexRedirect />} />

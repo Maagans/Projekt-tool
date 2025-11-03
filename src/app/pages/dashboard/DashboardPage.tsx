@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
-import { RESOURCES_ANALYTICS_ENABLED } from '../../constants';
 import { useProjectManager } from '../../../hooks/useProjectManager';
-import { AnalyticsIcon, PlusIcon, TrashIcon, UsersIcon, UserIcon, OrganizationIcon } from '../../../components/Icons';
+import { PlusIcon, TrashIcon, UsersIcon, UserIcon, OrganizationIcon } from '../../../components/Icons';
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
@@ -44,16 +43,6 @@ export const DashboardPage = () => {
         description: 'Overblik over lokationer og kapacitet',
         onClick: () => navigate('/pmo'),
         icon: OrganizationIcon,
-      });
-    }
-
-    if (RESOURCES_ANALYTICS_ENABLED && isAdministrator) {
-      items.push({
-        label: 'Ressource Analytics',
-        description: 'Plan vs. faktisk forbrug',
-        onClick: () => navigate('/resources'),
-        icon: AnalyticsIcon,
-        variant: 'primary',
       });
     }
 
