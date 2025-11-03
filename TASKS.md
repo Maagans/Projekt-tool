@@ -489,7 +489,7 @@ pm run test:api --prefix backend
     - Accept: N�r hook returnerer data, ser brugeren to cirkeldiagrammer; toggle kan skjule sektionen.
     - Afh�ngigheder: RM-010b.
 
-- [ ] RM-010d: Dokumentation & artefakter
+- [x] RM-010d: Dokumentation & artefakter
     - Form�l: Opdatere dokumentation, release-notes og screenshots til den nye visualisering.
     - �ndringer:
       - Opdater README/CHANGELOG/ROADMAP med projektfordeling samt beskrive togglen.
