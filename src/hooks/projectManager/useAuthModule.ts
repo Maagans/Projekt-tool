@@ -1,8 +1,9 @@
 import { useCallback, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../api';
+import { api, AUTH_USER_STORAGE_KEY } from '../../api';
 import type { ProjectManagerStore } from './store';
 import { getErrorMessage } from './utils';
+import { registerUnauthorizedLogoutHandler, unregisterUnauthorizedLogoutHandler } from './authEvents';
 
 export const useAuthModule = (store: ProjectManagerStore) => {
   const {
@@ -15,9 +16,62 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     setApiError,
     setNeedsSetup,
     setIsSaving,
+    setWorkspaceSettings,
+    setLogoutRedirect,
   } = store;
 
   const queryClient = useQueryClient();
+
+  const clearSessionState = useCallback(
+    (message?: string | null) => {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      setProjects([]);
+      setEmployees([]);
+      setAllUsers([]);
+      setIsSaving(false);
+      setIsLoading(false);
+      setNeedsSetup(false);
+      setWorkspaceSettings({ pmoBaselineHoursWeek: 0 });
+      if (typeof message !== 'undefined') {
+        setApiError(message);
+      }
+      queryClient.removeQueries({ queryKey: ['workspace'] });
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    },
+    [
+      queryClient,
+      setAllUsers,
+      setApiError,
+      setCurrentUser,
+      setEmployees,
+      setIsAuthenticated,
+      setIsLoading,
+      setIsSaving,
+      setNeedsSetup,
+      setProjects,
+      setWorkspaceSettings,
+    ],
+  );
+
+  const triggerLogoutRedirect = useCallback(
+    (message?: string | null) => {
+      clearSessionState(message);
+      setLogoutRedirect(true);
+    },
+    [clearSessionState, setLogoutRedirect],
+  );
+
+  const acknowledgeLogoutRedirect = useCallback(() => setLogoutRedirect(false), [setLogoutRedirect]);
+
+  const handleUnauthorized = useCallback(() => {
+    triggerLogoutRedirect('Din session er udløbet. Log ind igen.');
+  }, [triggerLogoutRedirect]);
+
+  useEffect(() => {
+    registerUnauthorizedLogoutHandler(handleUnauthorized);
+    return () => unregisterUnauthorizedLogoutHandler(handleUnauthorized);
+  }, [handleUnauthorized]);
 
   useEffect(() => {
     let isMounted = true;
@@ -35,13 +89,13 @@ export const useAuthModule = (store: ProjectManagerStore) => {
 
         const user = await api.getAuthenticatedUser();
         if (!isMounted || !user) {
-          setIsAuthenticated(false);
-          setCurrentUser(null);
+          clearSessionState();
           return;
         }
 
         setCurrentUser(user);
         setIsAuthenticated(true);
+        acknowledgeLogoutRedirect();
         await queryClient.invalidateQueries({ queryKey: ['workspace'] });
       } catch (error: unknown) {
         if (isMounted) {
@@ -60,7 +114,16 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     return () => {
       isMounted = false;
     };
-  }, [queryClient, setApiError, setCurrentUser, setIsAuthenticated, setIsLoading, setNeedsSetup]);
+  }, [
+    acknowledgeLogoutRedirect,
+    clearSessionState,
+    queryClient,
+    setApiError,
+    setCurrentUser,
+    setIsAuthenticated,
+    setIsLoading,
+    setNeedsSetup,
+  ]);
 
   const loginMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) => api.login(email, password),
@@ -72,6 +135,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
       if (result.success && result.user) {
         setCurrentUser(result.user);
         setIsAuthenticated(true);
+        acknowledgeLogoutRedirect();
         await queryClient.invalidateQueries({ queryKey: ['workspace'] });
       } else {
         setApiError(result.message ?? 'Der opstod en fejl under login.');
@@ -95,14 +159,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
       console.error('Logout failed:', error);
     },
     onSettled: () => {
-      setIsLoading(false);
-      setIsAuthenticated(false);
-      setCurrentUser(null);
-      setProjects([]);
-      setEmployees([]);
-      setAllUsers([]);
-      setIsSaving(false);
-      queryClient.removeQueries({ queryKey: ['workspace'] });
+      triggerLogoutRedirect(null);
     },
   });
 
@@ -120,6 +177,8 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     isSaving: store.isSaving,
     apiError: store.apiError,
     needsSetup: store.needsSetup,
+    shouldRedirectToLogin: store.logoutRedirect,
+    acknowledgeLogoutRedirect,
     login: async (email: string, password: string) => {
       try {
         return await loginMutation.mutateAsync({ email, password });

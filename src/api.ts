@@ -9,8 +9,9 @@ import type {
   UserRole,
   WorkspaceData,
 } from './types';
+import { notifyUnauthorizedLogout } from './hooks/projectManager/authEvents';
 
-const AUTH_USER_KEY = 'authUser';
+export const AUTH_USER_STORAGE_KEY = 'authUser';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 const resolveUrl = (path: string) => {
@@ -49,14 +50,24 @@ const shouldIncludeCsrf = (method?: string) => {
 // It uses `fetch` to send and receive data from the server.
 // Error handling and authentication headers are managed centrally here.
 
-/**
- * A helper function to manage authenticated fetch requests.
- * It automatically adds the JWT token to the headers and handles standard response validation.
- * @param url The API endpoint URL.
- * @param options The standard fetch options object.
- * @returns The JSON response from the server.
- */
-let hasHandledUnauthorized = false;
+type HttpError = Error & {
+  status?: number;
+  data?: unknown;
+};
+
+const buildHttpError = (response: Response, body: unknown): HttpError => {
+  const message =
+    body && typeof body === 'object' && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
+      ? ((body as { message: string }).message)
+      : `Request failed with status ${response.status}`;
+
+  const error = new Error(message) as HttpError;
+  error.status = response.status;
+  if (body !== undefined) {
+    error.data = body;
+  }
+  return error;
+};
 
 const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers);
@@ -81,18 +92,20 @@ const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
     credentials: 'include',
   });
 
-  if (response.status === 401 && !path.includes('/api/logout')) {
-    localStorage.removeItem(AUTH_USER_KEY);
-    if (!hasHandledUnauthorized) {
-      hasHandledUnauthorized = true;
-      window.location.href = '/login';
-    }
-    throw new Error('Session was invalid. Redirecting to login.');
-  }
-
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'An unknown server error occurred.' }));
-    throw new Error(errorData.message || `Request failed with status ${response.status}`);
+    let errorBody: unknown;
+    try {
+      errorBody = await response.json();
+    } catch {
+      errorBody = undefined;
+    }
+
+    if (response.status === 401 && !path.includes('/api/logout')) {
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      notifyUnauthorizedLogout();
+    }
+
+    throw buildHttpError(response, errorBody);
   }
 
   const contentType = response.headers.get('content-type');
@@ -281,7 +294,7 @@ export const api = {
       }
 
       if (data.user) {
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
+        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(data.user));
         return { success: true, user: data.user as User };
       }
       return { success: false, message: 'Login failed: Invalid response from server.' };
@@ -317,20 +330,20 @@ export const api = {
         console.warn("Logout API call failed, but logging out on client-side anyway.", error);
     } finally {
         // Always clear local storage regardless of API call success.
-        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     }
   },
 
   async getAuthenticatedUser(): Promise<User | null> {
     // This remains a client-side check for an existing session.
     // The token's validity is verified by each subsequent API call.
-    const userJson = localStorage.getItem(AUTH_USER_KEY);
+    const userJson = localStorage.getItem(AUTH_USER_STORAGE_KEY);
     if (userJson) {
       try {
         return JSON.parse(userJson);
       } catch {
         // If parsing fails, clear corrupted data.
-        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
         return null;
       }
     }
@@ -403,6 +416,7 @@ export const api = {
     return normalizeResourceAnalyticsPayload(response);
   },
 };
+
 
 
 

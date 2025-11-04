@@ -16,6 +16,8 @@ type AuthContextValue = Pick<ProjectManagerValue,
   | 'completeSetup'
   | 'isAdministrator'
   | 'canManage'
+  | 'shouldRedirectToLogin'
+  | 'acknowledgeLogoutRedirect'
 >;
 
 type WorkspaceContextValue = Pick<ProjectManagerValue,
@@ -62,6 +64,8 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
     completeSetup: value.completeSetup,
     isAdministrator: value.isAdministrator,
     canManage: value.canManage,
+    shouldRedirectToLogin: value.shouldRedirectToLogin,
+    acknowledgeLogoutRedirect: value.acknowledgeLogoutRedirect,
   };
 
   const workspaceValue: WorkspaceContextValue = {

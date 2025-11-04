@@ -44,7 +44,18 @@ export const AppShell = () => {
   const [showApiToast, setShowApiToast] = useState(false);
   const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
   const projectManager = useProjectManager();
-  const { isAuthenticated, isLoading, apiError, projects, isAdministrator, canManage, needsSetup, completeSetup } = projectManager;
+  const {
+    isAuthenticated,
+    isLoading,
+    apiError,
+    projects,
+    isAdministrator,
+    canManage,
+    needsSetup,
+    completeSetup,
+    shouldRedirectToLogin,
+    acknowledgeLogoutRedirect,
+  } = projectManager;
 
   useEffect(() => {
     setShowApiToast(Boolean(apiError));
@@ -56,6 +67,13 @@ export const AppShell = () => {
   }, []);
 
   const clearGlobalError = useCallback(() => setGlobalError(null), []);
+
+  useEffect(() => {
+    if (shouldRedirectToLogin) {
+      setAuthPage('login');
+      acknowledgeLogoutRedirect();
+    }
+  }, [acknowledgeLogoutRedirect, shouldRedirectToLogin]);
 
   if (isLoading) {
     return (
@@ -77,6 +95,9 @@ export const AppShell = () => {
   }
 
   if (!isAuthenticated) {
+    if (shouldRedirectToLogin) {
+      return <Navigate to="/login" replace />;
+    }
     return authPage === 'login' ? (
       <LoginPage onLogin={projectManager.login} onNavigateToRegister={() => setAuthPage('register')} />
     ) : (

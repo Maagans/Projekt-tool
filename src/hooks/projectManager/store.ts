@@ -22,6 +22,8 @@ export interface ProjectManagerStore {
   setApiError: React.Dispatch<React.SetStateAction<string | null>>;
   needsSetup: boolean;
   setNeedsSetup: React.Dispatch<React.SetStateAction<boolean>>;
+  logoutRedirect: boolean;
+  setLogoutRedirect: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const useProjectManagerStore = (): ProjectManagerStore => {
@@ -35,6 +37,7 @@ export const useProjectManagerStore = (): ProjectManagerStore => {
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [logoutRedirect, setLogoutRedirect] = useState(false);
 
   return {
     projects,
@@ -57,5 +60,7 @@ export const useProjectManagerStore = (): ProjectManagerStore => {
     setApiError,
     needsSetup,
     setNeedsSetup,
+    logoutRedirect,
+    setLogoutRedirect,
   };
 };
