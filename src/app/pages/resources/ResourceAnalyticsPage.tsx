@@ -38,6 +38,11 @@ import {
 
 const DEFAULT_WEEK_RANGE = 12;
 const RANGE_OPTIONS = [6, 12, 24, 52] as const;
+type RangeMode = 'past' | 'future';
+const RANGE_MODE_OPTIONS: Array<{ value: RangeMode; label: string }> = [
+  { value: 'past', label: 'Historik' },
+  { value: 'future', label: 'Fremtid' },
+];
 type ViewMode = 'weekly' | 'summary' | 'cumulative';
 const VIEW_OPTIONS: Array<{ value: ViewMode; label: string }> = [
   { value: 'weekly', label: 'Ugentlig' },
@@ -90,8 +95,20 @@ const subtractWeeks = (date: Date, weeks: number) => {
   return result;
 };
 
-const deriveDefaultRange = (weeks: number) => {
+const addWeeks = (date: Date, weeks: number) => {
+  const result = startOfUtcDay(date);
+  result.setUTCDate(result.getUTCDate() + weeks * 7);
+  return result;
+};
+
+const deriveRange = (weeks: number, mode: RangeMode) => {
   const today = new Date();
+  if (mode === 'future') {
+    const fromWeekKey = formatIsoWeekKey(toIsoWeek(today));
+    const endDate = addWeeks(today, Math.max(weeks - 1, 0));
+    const toWeekKey = formatIsoWeekKey(toIsoWeek(endDate));
+    return { fromWeek: fromWeekKey, toWeek: toWeekKey };
+  }
   const toWeekKey = formatIsoWeekKey(toIsoWeek(today));
   const startDate = subtractWeeks(today, Math.max(weeks - 1, 0));
   const fromWeekKey = formatIsoWeekKey(toIsoWeek(startDate));
@@ -127,11 +144,13 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   }, [employees]);
 
   const [rangeWeeks, setRangeWeeks] = useState<number>(DEFAULT_WEEK_RANGE);
-  const [range, setRange] = useState(() => deriveDefaultRange(DEFAULT_WEEK_RANGE));
+  const [rangeMode, setRangeMode] = useState<RangeMode>('past');
+  const [range, setRange] = useState(() => deriveRange(DEFAULT_WEEK_RANGE, 'past'));
   const [selectedDepartment, setSelectedDepartment] = useState<string>(ALL_DEPARTMENTS_OPTION);
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [showProjectBreakdown, setShowProjectBreakdown] = useState(true);
   const [showOverAllocated, setShowOverAllocated] = useState(false);
+  const isFutureRange = rangeMode === 'future';
 
   useEffect(() => {
     if (!departments.length) {
@@ -142,8 +161,8 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   }, [departments]);
 
   useEffect(() => {
-    setRange(deriveDefaultRange(rangeWeeks));
-  }, [rangeWeeks]);
+    setRange(deriveRange(rangeWeeks, rangeMode));
+  }, [rangeWeeks, rangeMode]);
 
   const analyticsParams: ResourceAnalyticsQuery | null = selectedDepartment
     ? {
@@ -195,23 +214,24 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   const summaryCards = (() => {
     if (!data) return [];
     if (viewMode === 'weekly') {
+      const boundaryLabel = isFutureRange ? 'slutuge' : 'seneste uge';
       const cards = [
         {
-          label: 'Kapacitet (seneste uge)',
+          label: `Kapacitet (${boundaryLabel})`,
           value: formatHours(latestPoint?.capacity ?? 0),
           suffix: 'timer',
           tone: 'capacity' as ResourceSummaryTone,
           helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
         },
         {
-          label: 'Planlagt (seneste uge)',
+          label: `Planlagt (${boundaryLabel})`,
           value: formatHours(latestPoint?.planned ?? 0),
           suffix: 'timer',
           tone: getSummaryTone(latestPoint?.planned ?? 0, latestPoint?.capacity ?? 0, 'planned'),
           helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
         },
         {
-          label: 'Faktisk (seneste uge)',
+          label: `Faktisk (${boundaryLabel})`,
           value: formatHours(latestPoint?.actual ?? 0),
           suffix: 'timer',
           tone: getSummaryTone(latestPoint?.actual ?? 0, latestPoint?.capacity ?? 0, 'actual'),
@@ -231,29 +251,32 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
       return cards;
     }
     if (!summary) return [];
-    const labelPrefix = viewMode === 'cumulative' ? 'Kumulativ ' : 'Total ';
-    const helperSuffix = `Gns. ${formatHours(summary.averageCapacity)} timer/uge - ${summary.weeks} uger`;
+    const labelPrefix =
+      viewMode === 'cumulative' ? 'Kumulativ ' : isFutureRange ? 'Forventet ' : 'Total ';
+    const averagePrefix = isFutureRange ? 'Forventet gns.' : 'Gns.';
+    const weeksDescriptor = `${summary.weeks} uger${isFutureRange ? ' frem' : ''}`;
+    const capacityHelper = `${averagePrefix} ${formatHours(summary.averageCapacity)} timer/uge - ${weeksDescriptor}`;
     const cards = [
       {
         label: `${labelPrefix}kapacitet`,
         value: formatHours(summary.totalCapacity),
         suffix: 'timer',
         tone: 'capacity' as ResourceSummaryTone,
-        helper: helperSuffix,
+        helper: capacityHelper,
       },
       {
         label: `${labelPrefix}planlagt`,
         value: formatHours(summary.totalPlanned),
         suffix: 'timer',
         tone: getSummaryTone(summary.totalPlanned, summary.totalCapacity, 'planned'),
-        helper: `Gns. ${formatHours(summary.averagePlanned)} timer/uge`,
+        helper: `${averagePrefix} ${formatHours(summary.averagePlanned)} timer/uge`,
       },
       {
         label: `${labelPrefix}faktisk`,
         value: formatHours(summary.totalActual),
         suffix: 'timer',
         tone: getSummaryTone(summary.totalActual, summary.totalCapacity, 'actual'),
-        helper: `Gns. ${formatHours(summary.averageActual)} timer/uge`,
+        helper: `${averagePrefix} ${formatHours(summary.averageActual)} timer/uge`,
       },
     ];
     cards.push({
@@ -272,7 +295,12 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
         value: overAllocatedSet.size.toString(),
         suffix: 'uger',
         tone: overAllocatedSet.size > 0 ? ('alert' as ResourceSummaryTone) : ('capacity' as ResourceSummaryTone),
-        helper: viewMode === 'weekly' ? 'Seneste periode' : 'Valgt periode',
+        helper:
+          rangeMode === 'future'
+            ? 'Kommende periode'
+            : viewMode === 'weekly'
+              ? 'Seneste periode'
+              : 'Valgt periode',
       }
     : null;
 
@@ -308,137 +336,89 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
         </div>
       )}
 
-      <section className="space-y-6 rounded-3xl border border-white/60 bg-white/90 p-6 shadow-lg shadow-blue-500/5 backdrop-blur">
-        <section className="flex flex-wrap items-center gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="department-select" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Afdeling
-            </label>
-            <select
-              id="department-select"
-              className="min-w-[220px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              value={selectedDepartment}
-              onChange={(event) => setSelectedDepartment(event.target.value)}
-              disabled={!departments.length}
-            >
-              {departments.length > 0 ? (
-                departments.map((department) => (
-                  <option key={department} value={department}>
-                    {formatDepartmentLabel(department)}
-                  </option>
-                ))
-              ) : (
-                <option>Ingen afdelinger fundet</option>
-              )}
-            </select>
-          </div>
+      <section className="rounded-3xl border border-white/60 bg-white/90 p-6 shadow-lg shadow-blue-500/5 backdrop-blur">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <FiltersPanel
+            variant={variant}
+            departments={departments}
+            selectedDepartment={selectedDepartment}
+            onDepartmentChange={setSelectedDepartment}
+            rangeWeeks={rangeWeeks}
+            onRangeWeeksChange={setRangeWeeks}
+            rangeMode={rangeMode}
+            onRangeModeChange={setRangeMode}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
 
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Periode</span>
-            <div className="flex items-center gap-2">
-              {RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                    rangeWeeks === option
-                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
-                  }`}
-                  onClick={() => setRangeWeeks(option)}
-                >
-                  {option} uger
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visning</span>
-            <div className="flex items-center gap-2">
-              {VIEW_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                    viewMode === option.value
-                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
-                  }`}
-                  onClick={() => setViewMode(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {data && summaryCards.length > 0 && (
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {summaryCards.map((card) => (
-              <ResourceSummaryCard
-                key={card.label}
-                label={card.label}
-                value={card.value}
-                suffix={card.suffix}
-                tone={card.tone}
-                helper={card.helper}
-              />
-            ))}
-            {overAllocatedCard && (
-              <ResourceSummaryCard
-                label={overAllocatedCard.label}
-                value={overAllocatedCard.value}
-                suffix={overAllocatedCard.suffix}
-                tone={overAllocatedCard.tone}
-                helper={overAllocatedCard.helper}
-              />
+          <div className="flex-1 space-y-6">
+            {data && summaryCards.length > 0 && (
+              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {summaryCards.map((card) => (
+                  <ResourceSummaryCard
+                    key={card.label}
+                    label={card.label}
+                    value={card.value}
+                    suffix={card.suffix}
+                    tone={card.tone}
+                    helper={card.helper}
+                  />
+                ))}
+                {overAllocatedCard && (
+                  <ResourceSummaryCard
+                    label={overAllocatedCard.label}
+                    value={overAllocatedCard.value}
+                    suffix={overAllocatedCard.suffix}
+                    tone={overAllocatedCard.tone}
+                    helper={overAllocatedCard.helper}
+                  />
+                )}
+              </section>
             )}
-          </section>
-        )}
 
-        {!departments.length ? (
-          <EmptyState />
-        ) : isPending ? (
-          <LoadingState />
-        ) : isError ? (
-          <ErrorState message={error?.message ?? 'Kunne ikke hente data.'} onRetry={() => refetch()} />
-        ) : (
-          <>
-            <AnalyticsContent
-              chartData={chartData}
-              baselineHoursWeek={baselineHoursWeek}
-              baselineTotalHours={baselineTotalHours}
-              cumulativeSeries={cumulativeSeries}
-              overAllocatedSet={overAllocatedSet}
-              isFetching={isFetching}
-              selectedDepartmentLabel={selectedDepartmentLabel}
-              range={range}
-              viewMode={viewMode}
-              summary={summary}
-              showOverAllocated={showOverAllocated}
-              onToggleOverAllocated={() => setShowOverAllocated((state) => !state)}
-            />
-            {showStackedProjects && (
-              <StackedProjectsCard
-                chart={projectStackChart}
-                baselineHoursWeek={baselineHoursWeek}
-                baselineTotalHours={baselineTotalHours}
-              />
+            {!departments.length ? (
+              <EmptyState />
+            ) : isPending ? (
+              <LoadingState />
+            ) : isError ? (
+              <ErrorState message={error?.message ?? 'Kunne ikke hente data.'} onRetry={() => refetch()} />
+            ) : (
+              <>
+                <AnalyticsContent
+                  chartData={chartData}
+                  baselineHoursWeek={baselineHoursWeek}
+                  baselineTotalHours={baselineTotalHours}
+                  cumulativeSeries={cumulativeSeries}
+                  overAllocatedSet={overAllocatedSet}
+                  isFetching={isFetching}
+                  selectedDepartmentLabel={selectedDepartmentLabel}
+                  range={range}
+                  viewMode={viewMode}
+                  summary={summary}
+                  showOverAllocated={showOverAllocated}
+                  onToggleOverAllocated={() => setShowOverAllocated((state) => !state)}
+                />
+                {showStackedProjects && (
+                  <StackedProjectsCard
+                    chart={projectStackChart}
+                    baselineHoursWeek={baselineHoursWeek}
+                    baselineTotalHours={baselineTotalHours}
+                  />
+                )}
+                {canShowProjectBreakdown && (
+                  <ProjectBreakdownSection
+                    breakdown={projectBreakdown}
+                    totals={projectBreakdownTotals}
+                    isFetching={isFetching}
+                    showBreakdown={showProjectBreakdown}
+                    isAllDepartments={isAllDepartmentsValue(selectedDepartment)}
+                    onToggle={() => setShowProjectBreakdown((state) => !state)}
+                  />
+                )}
+              </>
             )}
-            {canShowProjectBreakdown && (
-              <ProjectBreakdownSection
-                breakdown={projectBreakdown}
-                totals={projectBreakdownTotals}
-                isFetching={isFetching}
-                showBreakdown={showProjectBreakdown}
-                isAllDepartments={isAllDepartmentsValue(selectedDepartment)}
-                onToggle={() => setShowProjectBreakdown((state) => !state)}
-              />
-            )}
-          </>
-        )}
+          </div>
+        </div>
       </section>
     </div>
   );
@@ -453,6 +433,128 @@ const getSummaryTone = (value: number, capacity: number, fallback: ResourceSumma
     return fallback;
   }
   return value > capacity ? 'alert' : fallback;
+};
+
+type FiltersPanelProps = {
+  variant: 'page' | 'embedded';
+  departments: string[];
+  selectedDepartment: string;
+  onDepartmentChange: (value: string) => void;
+  rangeWeeks: number;
+  onRangeWeeksChange: (value: number) => void;
+  rangeMode: RangeMode;
+  onRangeModeChange: (value: RangeMode) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (value: ViewMode) => void;
+};
+
+const FiltersPanel = ({
+  variant,
+  departments,
+  selectedDepartment,
+  onDepartmentChange,
+  rangeWeeks,
+  onRangeWeeksChange,
+  rangeMode,
+  onRangeModeChange,
+  viewMode,
+  onViewModeChange,
+}: FiltersPanelProps) => {
+  const stickyOffset = variant === 'page' ? 'lg:top-28' : 'lg:top-24';
+  const hasDepartments = departments.length > 0;
+
+  return (
+    <aside
+      className={`rounded-2xl border border-slate-100 bg-white/85 p-4 shadow-sm backdrop-blur-sm lg:w-80 lg:flex-shrink-0 lg:self-start lg:shadow ${
+        hasDepartments ? 'lg:sticky' : ''
+      } ${stickyOffset}`}
+    >
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="department-select" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Afdeling
+          </label>
+          <select
+            id="department-select"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            value={selectedDepartment}
+            onChange={(event) => onDepartmentChange(event.target.value)}
+            disabled={!hasDepartments}
+          >
+            {hasDepartments ? (
+              departments.map((department) => (
+                <option key={department} value={department}>
+                  {formatDepartmentLabel(department)}
+                </option>
+              ))
+            ) : (
+              <option>Ingen afdelinger fundet</option>
+            )}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Periode</span>
+          <div className="flex flex-wrap gap-2">
+            {RANGE_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                  rangeWeeks === option
+                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                }`}
+                onClick={() => onRangeWeeksChange(option)}
+              >
+                {option} uger
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tidshorisont</span>
+          <div className="flex flex-wrap gap-2">
+            {RANGE_MODE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                  rangeMode === option.value
+                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                }`}
+                onClick={() => onRangeModeChange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visning</span>
+          <div className="flex flex-wrap gap-2">
+            {VIEW_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition sm:flex-none ${
+                  viewMode === option.value
+                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+                }`}
+                onClick={() => onViewModeChange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
 };
 
 const PROJECT_COLORS = ['#2563eb', '#7c3aed', '#ef4444', '#10b981', '#f97316', '#0ea5e9', '#8b5cf6', '#f59e0b'];

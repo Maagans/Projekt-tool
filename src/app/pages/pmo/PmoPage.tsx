@@ -6,7 +6,7 @@ import { RESOURCES_ANALYTICS_ENABLED } from '../../constants';
 import { ResourceAnalyticsEmbeddedView } from '../resources/ResourceAnalyticsPage';
 import { locations } from '../../../types';
 import type { Employee, Location } from '../../../types';
-import { ChevronDownIcon } from '../../../components/Icons';
+import { ChevronDownIcon, ClockIcon } from '../../../components/Icons';
 
 type EmployeeProjectSummary = {
   id: string;
@@ -303,46 +303,59 @@ export const PmoPage = () => {
 
         {activeTab === 'overview' ? (
           <>
-            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-700">PMO baseline (timer/uge)</h2>
-                  <p className="text-sm text-slate-500">
-                    Baseline bruges til at vurdere den samlede kapacitet i ressourcerapporter.
-                  </p>
+                        <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/70 to-indigo-50/50 p-6 shadow-sm">
+              <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-blue-100/40 blur-3xl"></div>
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-2xl bg-white/90 p-3 text-blue-600 shadow-sm ring-1 ring-blue-100">
+                    <ClockIcon />
+                  </div>
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-blue-100/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-200">
+                      Kapacitetsbaseline
+                    </span>
+                    <h2 className="text-xl font-semibold text-slate-800">PMO baseline (timer/uge)</h2>
+                    <p className="max-w-xl text-sm leading-relaxed text-slate-600">
+                      Baseline bruges til at vurdere den samlede kapacitet i ressourcerapporter. Brug feltet til at synkronisere PMO&apos;ets forventede kapacitet på tværs af dashboards og Ressource Analytics.
+                    </p>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                      <span className="text-slate-500">Senest gemt:</span>
+                      <span className="text-slate-800">{savedBaselineLabel} timer/uge</span>
+                    </div>
+                  </div>
                 </div>
                 {isAdministrator ? (
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
-                    <label className="text-sm font-medium text-slate-600" htmlFor="pmo-baseline-input">
+                  <div className="w-full max-w-xs rounded-2xl bg-white/90 p-5 shadow-inner ring-1 ring-slate-200">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="pmo-baseline-input">
                       Timer per uge
                     </label>
-                    <input
-                      id="pmo-baseline-input"
-                      type="number"
-                      min={0}
-                      step="0.5"
-                      value={baselineDraft}
-                      onChange={handleBaselineChange}
-                      onBlur={commitBaseline}
-                      onKeyDown={handleBaselineKeyDown}
-                      className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      inputMode="decimal"
-                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        id="pmo-baseline-input"
+                        type="number"
+                        min={0}
+                        step="0.5"
+                        value={baselineDraft}
+                        onChange={handleBaselineChange}
+                        onBlur={commitBaseline}
+                        onKeyDown={handleBaselineKeyDown}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-lg font-semibold text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        inputMode="decimal"
+                      />
+                      <span className="text-sm font-medium text-slate-500">t/uge</span>
+                    </div>
                     {baselineError ? (
-                      <p className="text-sm text-red-600">{baselineError}</p>
+                      <p className="mt-2 text-sm text-rose-600">{baselineError}</p>
                     ) : (
-                      <p className="text-sm text-slate-500">Angiv et tal større end eller lig 0.</p>
+                      <p className="mt-2 text-sm text-slate-500">Angiv et tal større end eller lig 0.</p>
                     )}
-                    <p className="text-xs text-slate-500">
-                      Senest gemt:{' '}
-                      <span className="font-medium text-slate-700">{savedBaselineLabel} timer/uge</span>
-                    </p>
-                    <p className="text-xs text-slate-400">Gemmes automatisk for hele workspace.</p>
+                    <p className="mt-3 text-xs text-slate-500">Ændringer gemmes automatisk for hele workspace. Brug enter eller klik uden for feltet for at bekræfte.</p>
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-600">
-                    Baseline:{' '}
-                    <span className="font-medium text-slate-700">{savedBaselineLabel} timer/uge</span>
+                  <div className="rounded-2xl bg-white/90 p-5 text-sm text-slate-700 shadow-inner ring-1 ring-slate-200">
+                    <p className="font-semibold text-slate-800">Aktuel baseline</p>
+                    <p className="mt-1 text-lg font-semibold text-blue-700">{savedBaselineLabel} timer/uge</p>
+                    <p className="mt-2 text-xs text-slate-500">Kontakt en administrator for at opdatere baseline.</p>
                   </div>
                 )}
               </div>

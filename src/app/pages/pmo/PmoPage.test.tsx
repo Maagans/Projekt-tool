@@ -12,6 +12,7 @@ vi.mock('../../components/AppHeader', () => ({
 
 vi.mock('../../../components/Icons', () => ({
   ChevronDownIcon: () => <span data-testid="chevron-icon" />,
+  ClockIcon: () => <span data-testid="clock-icon" />,
 }));
 
 vi.mock('../../../hooks/useProjectManager', () => ({
@@ -85,7 +86,9 @@ describe('PmoPage', () => {
 
     expect(screen.getByText('PMO baseline (timer/uge)')).toBeInTheDocument();
     expect(screen.getByLabelText('Timer per uge')).toHaveValue(180);
-    expect(screen.getByText(/Senest gemt/)).toHaveTextContent('180 timer/uge');
+    const savedChip = screen.getByText(/Senest gemt/).parentElement;
+    expect(savedChip).not.toBeNull();
+    expect(savedChip).toHaveTextContent('180 timer/uge');
     expect(screen.getByRole('button', { name: 'Kapacitetsoversigt' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Ressource Analytics' })).toBeInTheDocument();
     expect(screen.getByText('Filter (kun aktive projekter)')).toBeInTheDocument();
@@ -144,7 +147,9 @@ describe('PmoPage', () => {
     expect(screen.queryByRole('button', { name: 'Ressource Analytics' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Kapacitetsoversigt' })).toBeInTheDocument();
     expect(screen.getByText('Filter (kun aktive projekter)')).toBeInTheDocument();
-    expect(screen.getByText(/Baseline:/)).toHaveTextContent('180 timer/uge');
+    expect(screen.getByText('Aktuel baseline')).toBeInTheDocument();
+    const baselineValues = screen.getAllByText('180 timer/uge');
+    expect(baselineValues.length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('Timer per uge')).toBeNull();
     expect(screen.queryByTestId('resource-analytics-view')).toBeNull();
   });

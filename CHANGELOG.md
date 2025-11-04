@@ -4,10 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 ### Added
-- Medarbejderdatabasen viser nu kapacitet (timer/uge), som administratorer kan redigere med validering og defaults.
-- Nye Vitest-suiter dækker kapacitetsflowet i EmployeePage og useProjectManager (kapacitetsmodulet).
+- Employee database shows capacity (hours/week) with validation and sensible defaults.
+- New Vitest suites cover the capacity flow in EmployeePage and useProjectManager.
+- PMO workspace settings now persist a baseline (hours/week) and power the stacked capacity chart with a baseline reference and overload markers.
+ - Resource Analytics now has a sticky filter sidebar with a time-horizon toggle so PMO can inspect up to 52 upcoming weeks of planned load without scrolling back to the top.
 ### Changed
-- CSV-importen accepterer en valgfri kolonne for kapacitet og normaliserer værdier ved autosave.
+- CSV import accepts an optional capacity column and normalises values during autosave.
+- README and screenshot guidance explain the baseline concept and how it supports the PMO stacked chart.
+- PMO baseline card in the dashboard now has a polished gradient layout with inline guidance for admins and viewers.
+
 
 ## [1.2.8] - 2025-11-04
 ### Added
