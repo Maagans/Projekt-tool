@@ -35,6 +35,7 @@ const configSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   LOG_LEVEL: z.string().default("info"),
   RESOURCES_ANALYTICS_ENABLED: booleanSchema.default(false),
+  PROJECT_RISK_ANALYSIS_ENABLED: booleanSchema.default(false),
   DEBUG_WORKSPACE: booleanSchema.default(false),
   PG_BACKUP_DIR: z.string().default("backups"),
 });
@@ -58,6 +59,7 @@ export const config = {
   },
   features: {
     resourcesAnalyticsEnabled: parsed.RESOURCES_ANALYTICS_ENABLED ?? false,
+    projectRiskAnalysisEnabled: parsed.PROJECT_RISK_ANALYSIS_ENABLED ?? false,
   },
   debug: {
     workspace: parsed.DEBUG_WORKSPACE ?? false,

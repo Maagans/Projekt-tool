@@ -8,14 +8,16 @@ import employeesRoutes from "./employeesRoutes.js";
 import analyticsRoutes from "./analyticsRoutes.js";
 import projectRiskRoutes from "./projectRiskRoutes.js";
 
-export const createApiRouter = ({ resourcesEnabled } = {}) => {
+export const createApiRouter = ({ resourcesEnabled, riskAnalysisEnabled } = {}) => {
   const router = Router();
 
   router.use("/", authRoutes);
   router.use("/setup", setupRoutes);
   router.use("/workspace", workspaceRoutes);
   router.use("/projects", projectsRoutes);
-  router.use("/", projectRiskRoutes);
+  if (riskAnalysisEnabled) {
+    router.use("/", projectRiskRoutes);
+  }
   router.use("/employees", employeesRoutes);
   router.use("/users", usersRoutes);
 

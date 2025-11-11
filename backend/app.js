@@ -8,17 +8,24 @@ import createApiRouter from './routes/index.js';
 import { createAppError } from './utils/errors.js';
 import { config } from './config/index.js';
 
-const resolveResourcesFlag = (override) => {
+const resolveFeatureFlag = (override, fallback) => {
   if (typeof override === 'boolean') {
     return override;
   }
-  return config.features.resourcesAnalyticsEnabled;
+  return fallback;
 };
 
-export const createApp = ({ dbClient, resourcesAnalyticsEnabled } = {}) => {
+export const createApp = ({ dbClient, resourcesAnalyticsEnabled, riskAnalysisEnabled } = {}) => {
   const app = express();
   const database = dbClient ?? pool;
-  const resourcesEnabled = resolveResourcesFlag(resourcesAnalyticsEnabled);
+  const resourcesEnabled = resolveFeatureFlag(
+    resourcesAnalyticsEnabled,
+    config.features.resourcesAnalyticsEnabled,
+  );
+  const riskEnabled = resolveFeatureFlag(
+    riskAnalysisEnabled,
+    config.features.projectRiskAnalysisEnabled,
+  );
 
   const defaultCorsOrigins =
     config.corsOrigins.length > 0
@@ -47,7 +54,7 @@ export const createApp = ({ dbClient, resourcesAnalyticsEnabled } = {}) => {
   app.use(cors(corsOptions));
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
-  const apiRouter = createApiRouter({ resourcesEnabled });
+  const apiRouter = createApiRouter({ resourcesEnabled, riskAnalysisEnabled: riskEnabled });
   app.use('/api', apiRouter);
 
   app.get('/health', async (req, res, next) => {

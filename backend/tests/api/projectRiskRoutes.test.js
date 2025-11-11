@@ -28,7 +28,8 @@ const buildAuthCookie = (payload) => {
 
 const buildCsrfCookie = (token) => `${CSRF_COOKIE_NAME}=${token}`;
 
-const app = createApp();
+const appWithRisk = createApp({ riskAnalysisEnabled: true });
+const appWithoutRisk = createApp({ riskAnalysisEnabled: false });
 
 describe("project risk routes", () => {
   beforeEach(() => {
@@ -41,7 +42,7 @@ describe("project risk routes", () => {
       { id: "risk-1", title: "Delay", category: { key: "timeline" } },
     ]);
 
-    const response = await request(app)
+    const response = await request(appWithRisk)
       .get("/api/projects/11111111-1111-4111-8111-111111111111/risks?status=open&includeArchived=true&overdue=true")
       .set("Cookie", [authCookie]);
 
@@ -60,7 +61,7 @@ describe("project risk routes", () => {
     const authCookie = buildAuthCookie({ id: "user-2", role: "Projektleder" });
     createProjectRisk.mockResolvedValue({ id: "risk-2", title: "Outage" });
 
-    const response = await request(app)
+    const response = await request(appWithRisk)
       .post("/api/projects/aaaa1111-bbbb-4222-9333-ccccdddd0000/risks")
       .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
       .set("x-csrf-token", csrfToken)
@@ -84,7 +85,7 @@ describe("project risk routes", () => {
     const authCookie = buildAuthCookie({ id: "user-3", role: "Administrator" });
     updateProjectRisk.mockResolvedValue({ id: "risk-3", probability: 5 });
 
-    const response = await request(app)
+    const response = await request(appWithRisk)
       .patch("/api/risks/22222222-3333-4abc-8def-666666666666")
       .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
       .set("x-csrf-token", csrfToken)
@@ -103,7 +104,7 @@ describe("project risk routes", () => {
     const authCookie = buildAuthCookie({ id: "user-4", role: "Administrator" });
     archiveProjectRisk.mockResolvedValue({ success: true });
 
-    const response = await request(app)
+    const response = await request(appWithRisk)
       .delete("/api/risks/99999999-8888-4aaa-8bbb-cccccccccccc")
       .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
       .set("x-csrf-token", csrfToken);
@@ -117,8 +118,17 @@ describe("project risk routes", () => {
 
   it("rejects invalid identifiers", async () => {
     const authCookie = buildAuthCookie({ id: "user-5", role: "Administrator" });
-    const response = await request(app).get("/api/projects/not-a-uuid/risks").set("Cookie", [authCookie]);
+    const response = await request(appWithRisk).get("/api/projects/not-a-uuid/risks").set("Cookie", [authCookie]);
     expect(response.status).toBe(400);
+    expect(listProjectRisks).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when feature flag is disabled", async () => {
+    const authCookie = buildAuthCookie({ id: "user-6", role: "Administrator" });
+    const response = await request(appWithoutRisk)
+      .get("/api/projects/11111111-1111-4111-8111-111111111111/risks")
+      .set("Cookie", [authCookie]);
+    expect(response.status).toBe(404);
     expect(listProjectRisks).not.toHaveBeenCalled();
   });
 });

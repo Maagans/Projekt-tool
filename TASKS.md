@@ -689,7 +689,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: API returnerer forventede felter og respekterer feature flag + roller.
   - Afhængigheder: RISK-001.
 
-- [ ] RISK-003: Feature Flag & Config
+- [x] RISK-003: Feature Flag & Config
   - Formål: Styre nye endpoints via `PROJECT_RISK_ANALYSIS_ENABLED` + dokumentér opsætning.
   - Ændringer: Config parsing, README/.env.example note, middleware der lukker ruter når flag er false.
   - Test (TDD): Config-unit test for defaults, Supertest der viser 404/409 ved flag off.
