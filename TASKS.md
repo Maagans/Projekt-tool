@@ -675,14 +675,14 @@ resourceAnalyticsService og API-controllerens svar.
 
 ## Fase P12 – Risikoanalyse & Matrix (se docs/risk-matrix-sdd.md)
 
-- [ ] RISK-001: Data Model & Migration
+- [x] RISK-001: Data Model & Migration
   - Formål: Opret `project_risks` (+ optional history) og ryd legacy rapport-risici.
   - Ændringer: Migrationer, kategori-enum, defaults (score, last_follow_up_at, category=other).
   - Test (TDD): Vitest migrations (up/down), helper-unit test for kategorimapping, seed-script sanity.
   - Accept: `npm run migrate` opretter tabellerne og `down` ruller clean tilbage.
   - Afhængigheder: SDD godkendt.
 
-- [ ] RISK-002: Backend Services & APIs
+- [x] RISK-002: Backend Services & APIs
   - Formål: CRUD-service + REST-endpoints (liste, create, patch, archive) med adgangskontrol.
   - Ændringer: `projectRiskService`, routes (`GET/POST /projects/:id/risks`, `PATCH/DELETE /risks/:id`), filterparams, category metadata.
   - Test (TDD): Vitest service-tests (filters, validations, drag updates), Supertest suite (flag on), role-guard tests, snapshot assertions.

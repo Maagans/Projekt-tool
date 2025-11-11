@@ -6,6 +6,7 @@ import projectsRoutes from "./projectsRoutes.js";
 import usersRoutes from "./usersRoutes.js";
 import employeesRoutes from "./employeesRoutes.js";
 import analyticsRoutes from "./analyticsRoutes.js";
+import projectRiskRoutes from "./projectRiskRoutes.js";
 
 export const createApiRouter = ({ resourcesEnabled } = {}) => {
   const router = Router();
@@ -14,6 +15,7 @@ export const createApiRouter = ({ resourcesEnabled } = {}) => {
   router.use("/setup", setupRoutes);
   router.use("/workspace", workspaceRoutes);
   router.use("/projects", projectsRoutes);
+  router.use("/", projectRiskRoutes);
   router.use("/employees", employeesRoutes);
   router.use("/users", usersRoutes);
 

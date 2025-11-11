@@ -42,6 +42,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "citext";
 
 -- Ryd op i gamle objekter
+DROP TABLE IF EXISTS project_risk_history CASCADE;
+DROP TABLE IF EXISTS project_risks CASCADE;
 DROP TABLE IF EXISTS report_kanban_tasks CASCADE;
 DROP TABLE IF EXISTS report_deliverables CASCADE;
 DROP TABLE IF EXISTS report_milestones CASCADE;
@@ -57,10 +59,14 @@ DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS employees CASCADE;
 DROP TABLE IF EXISTS workspaces CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TYPE IF EXISTS project_risk_status;
+DROP TYPE IF EXISTS project_risk_category;
 DROP TYPE IF EXISTS user_role;
 
 -- ENUM til roller
 CREATE TYPE user_role AS ENUM ('Administrator', 'Projektleder', 'Teammedlem');
+CREATE TYPE project_risk_category AS ENUM ('technical','resource','scope','timeline','budget','compliance','other');
+CREATE TYPE project_risk_status AS ENUM ('open','monitoring','closed');
 
 -- Master data
 CREATE TABLE employees (
@@ -122,6 +128,44 @@ CREATE TABLE reports (
 );
 
 CREATE INDEX idx_reports_project_id ON reports(project_id);
+
+CREATE TABLE project_risks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    probability SMALLINT NOT NULL DEFAULT 1 CHECK (probability BETWEEN 1 AND 5),
+    impact SMALLINT NOT NULL DEFAULT 1 CHECK (impact BETWEEN 1 AND 5),
+    score SMALLINT NOT NULL DEFAULT 1 CHECK (score BETWEEN 1 AND 25),
+    mitigation_plan_a TEXT,
+    mitigation_plan_b TEXT,
+    owner_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+    follow_up_notes TEXT,
+    follow_up_frequency TEXT,
+    category project_risk_category NOT NULL DEFAULT 'other',
+    last_follow_up_at TIMESTAMPTZ,
+    due_date DATE,
+    status project_risk_status NOT NULL DEFAULT 'open',
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_project_risks_project_id ON project_risks(project_id);
+CREATE INDEX idx_project_risks_project_status ON project_risks(project_id, status);
+CREATE INDEX idx_project_risks_project_category ON project_risks(project_id, category);
+CREATE INDEX idx_project_risks_owner ON project_risks(owner_id);
+
+CREATE TABLE project_risk_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_risk_id UUID NOT NULL REFERENCES project_risks(id) ON DELETE CASCADE,
+    snapshot JSONB NOT NULL,
+    change_summary TEXT,
+    changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE report_status_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
