@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Backend CRUD-service, validators og REST-endpoints for projekt-risici inkl. tests og Supertest-suiter (RISK-002).
 - Feature-flag `PROJECT_RISK_ANALYSIS_ENABLED` der styrer eksponering af risk routes + dokumentation i .env (RISK-003).
 - Frontend Risikovurderingstab med liste, filtre, oprettelses-drawer og React Query-integration til de granulære mutationer (RISK-004).
+- Moderniseret risikomatrix med varmefarver, drag/drop og tastaturnavigation, koblet til de nye backend-mutationer (RISK-005).
 ### Removed
 - Fjernet den gamle /api/workspace POST-route, tilhørende validator og Supertest-suite, så backend nu kun understøtter de granulære mutationer fra FE-008.
 

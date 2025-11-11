@@ -703,7 +703,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Projektleder kan oprette/redigere risici fra fanen; Teammedlem ser read-only.
   - Afhængigheder: RISK-002, RISK-003.
 
-- [ ] RISK-005: Moderniseret Risiko Matrix
+- [x] RISK-005: Moderniseret Risiko Matrix
   - Formål: Full-width matrix med drag/drop + kategori-badges og keyboard fallback.
   - Ændringer: Ny matrixkomponent (@dnd-kit), helper til koordinater/farver, responsive layout.
   - Test (TDD): RTL/user-event for drag/kb-interaktioner, unit-test for heatmap helper, visuel kontrol (Storybook/Chromatic hvis muligt).

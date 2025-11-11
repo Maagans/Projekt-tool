@@ -89,7 +89,7 @@ describe('ProjectRisksPage', () => {
     renderPage();
 
     expect(screen.getByText('Risikovurdering')).toBeInTheDocument();
-    expect(screen.getByText('Vendor delay')).toBeInTheDocument();
+    expect(screen.getAllByText('Vendor delay').length).toBeGreaterThan(0);
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ny risiko' })).toBeInTheDocument();
 

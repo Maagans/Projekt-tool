@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 import { useProjectRouteContext } from './ProjectLayout';
 import { useProjectRisks } from '../../../hooks/useProjectRisks';
+import { ProjectRiskMatrix } from '../../../components/ProjectRiskMatrix';
 import type {
   ProjectRisk,
   ProjectRiskCategoryKey,
@@ -95,6 +96,7 @@ export const ProjectRisksPage = () => {
   });
   const [formState, setFormState] = useState<ProjectRiskInput>(defaultFormState);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedRiskId, setSelectedRiskId] = useState<string | null>(null);
 
   const { risks, isLoading, isFetching, error, createRisk, updateRisk, archiveRisk, isMutating } = useProjectRisks(
     PROJECT_RISK_ANALYSIS_ENABLED ? project.id : null,
@@ -159,6 +161,15 @@ export const ProjectRisksPage = () => {
     }));
   };
 
+  const handleMoveRisk = async (riskId: string, probability: number, impact: number) => {
+    if (!canEdit) return;
+    try {
+      await updateRisk({ riskId, updates: { probability, impact } });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Kunne ikke opdatere risikoens placering.');
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
@@ -219,6 +230,14 @@ export const ProjectRisksPage = () => {
             </button>
           )}
         </div>
+
+        <ProjectRiskMatrix
+          risks={filteredRisks}
+          selectedRiskId={selectedRiskId}
+          onSelectRisk={setSelectedRiskId}
+          onMoveRisk={handleMoveRisk}
+          disabled={!canEdit}
+        />
 
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
