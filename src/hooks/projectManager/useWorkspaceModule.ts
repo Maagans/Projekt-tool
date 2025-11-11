@@ -1363,18 +1363,23 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               .reverse();
           },
           create: (weekKey: string, copyLatest: boolean) => {
+            let nextReports: Report[] | null = null;
             updateProjects((prevProjects) =>
               prevProjects.map((p) => {
                 if (p.id !== projectId || p.reports.some((report) => report.weekKey === weekKey)) return p;
                 const latest = copyLatest ? [...p.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0] : null;
                 const baseState = latest ? latest.state : getInitialProjectState();
                 const newReport: Report = { weekKey, state: cloneStateWithNewIds(baseState) };
+                nextReports = [...p.reports, newReport].sort((a, b) => b.weekKey.localeCompare(a.weekKey));
                 return {
                   ...p,
-                  reports: [...p.reports, newReport].sort((a, b) => b.weekKey.localeCompare(a.weekKey)),
+                  reports: nextReports,
                 };
               }),
             );
+            if (nextReports) {
+              scheduleProjectSync(projectId, { reports: nextReports });
+            }
           },
           createNext: () => {
             const allPossibleWeeksSet = new Set<string>();
@@ -1396,6 +1401,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               const baseline = parseDateOnlyToUtcDate(project.config.projectStartDate) ?? new Date();
               const firstWeek = getWeekKey(baseline);
               const weekToCreate = existingWeeks.has(firstWeek) ? getWeekKey(new Date()) : firstWeek;
+              let seededReports: Report[] | null = null;
               updateProjects((prevProjects) =>
                 prevProjects.map((p) => {
                   if (p.id !== projectId) return p;
@@ -1403,9 +1409,13 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                     weekKey: weekToCreate,
                     state: cloneStateWithNewIds(getInitialProjectState()),
                   };
-                  return { ...p, reports: [...p.reports, newReport] };
+                  seededReports = [...p.reports, newReport];
+                  return { ...p, reports: seededReports };
                 }),
               );
+              if (seededReports) {
+                scheduleProjectSync(projectId, { reports: seededReports });
+              }
               return weekToCreate;
             }
 
@@ -1424,30 +1434,46 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               return nextWeekKey;
             }
             const clonedState = cloneStateWithNewIds(latestReport.state);
+            let createdReports: Report[] | null = null;
             updateProjects((prevProjects) =>
               prevProjects.map((p) => {
                 if (p.id !== projectId) return p;
                 const newReport: Report = { weekKey: nextWeekKey, state: clonedState };
+                createdReports = [...p.reports, newReport].sort((a, b) => b.weekKey.localeCompare(a.weekKey));
                 return {
                   ...p,
-                  reports: [...p.reports, newReport].sort((a, b) => b.weekKey.localeCompare(a.weekKey)),
+                  reports: createdReports,
                 };
               }),
             );
+            if (createdReports) {
+              scheduleProjectSync(projectId, { reports: createdReports });
+            }
 
             return nextWeekKey;
           },
           delete: (weekKeyToDelete: string) => {
+            let nextReports: Report[] | null = null;
             updateProjects((prevProjects) =>
               prevProjects.map((p) =>
                 p.id !== projectId
                   ? p
-                  : {
-                      ...p,
-                      reports: p.reports.filter((report) => report.weekKey !== weekKeyToDelete),
-                    },
+                  : (() => {
+                      const filtered = p.reports.filter((report) => report.weekKey !== weekKeyToDelete);
+                      if (filtered.length === p.reports.length) {
+                        return p;
+                      }
+                      nextReports = filtered;
+                      return {
+                        ...p,
+                        reports: filtered,
+                      };
+                    })(),
               ),
             );
+            if (nextReports) {
+              scheduleProjectSync(projectId, { reports: nextReports });
+            }
           },
           replaceState: (state: ProjectState) => {
             if (!weekKey) {
@@ -1477,6 +1503,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       updateTimeLogForMember,
       bulkUpdateTimeLogForMember,
       updateProjects,
+      scheduleProjectSync,
     ],
   );
 
