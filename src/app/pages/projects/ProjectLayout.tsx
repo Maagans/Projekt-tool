@@ -3,6 +3,7 @@ import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from '
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import type { Project } from '../../../types';
+import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 
 type ProjectRouteContextValue = {
   project: Project;
@@ -31,15 +32,19 @@ export const ProjectLayout = () => {
     [getProjectById, projectId],
   );
 
-  const tabs = useMemo(
-    () =>
-      [
-        { key: 'reports', label: 'Rapporter', path: 'reports' },
-        { key: 'organization', label: 'Projektorganisation', path: 'organization' },
-        ...(canManage ? [{ key: 'settings', label: 'Indstillinger', path: 'settings' }] : []),
-      ] as const,
-    [canManage],
-  );
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { key: 'reports', label: 'Rapporter', path: 'reports' },
+      { key: 'organization', label: 'Projektorganisation', path: 'organization' },
+    ];
+    if (PROJECT_RISK_ANALYSIS_ENABLED) {
+      baseTabs.push({ key: 'risks', label: 'Risikovurdering', path: 'risks' });
+    }
+    if (canManage) {
+      baseTabs.push({ key: 'settings', label: 'Indstillinger', path: 'settings' });
+    }
+    return baseTabs as const;
+  }, [canManage]);
 
   const isReportsRoute = location.pathname.endsWith('/reports') || location.pathname.endsWith(projectId ?? '');
 

@@ -696,7 +696,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Når flag er false, eksponeres ingen nye ruter; docs beskriver flagget.
   - Afhængigheder: RISK-002.
 
-- [ ] RISK-004: Frontend Risikovurderingstab
+- [x] RISK-004: Frontend Risikovurderingstab
   - Formål: Ny route `/projects/:id/risks` med liste, filtrering og drawer-editor (Plan A/B, kategori, owner, follow-up).
   - Ændringer: React Query hooks (`useProjectRisks*`), komponenter for liste + editor, badges for “sidst fulgt op”.
   - Test (TDD): RTL for liste (filtre + badges) og drawer (valideringer, Plan A/B submit), hook-tests med mocked fetch.

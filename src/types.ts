@@ -187,3 +187,79 @@ export interface ResourceAnalyticsQuery {
   fromWeek: string;
   toWeek: string;
 }
+
+export type ProjectRiskCategoryKey =
+  | 'technical'
+  | 'resource'
+  | 'scope'
+  | 'timeline'
+  | 'budget'
+  | 'compliance'
+  | 'other';
+
+export type ProjectRiskStatus = 'open' | 'monitoring' | 'closed';
+
+export interface ProjectRiskCategoryMeta {
+  key: ProjectRiskCategoryKey;
+  label: string;
+  badge: string;
+}
+
+export interface ProjectRiskOwner {
+  id: string;
+  name: string | null;
+  email: string | null;
+}
+
+export interface ProjectRisk {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  probability: number;
+  impact: number;
+  score: number;
+  mitigationPlanA: string | null;
+  mitigationPlanB: string | null;
+  owner: ProjectRiskOwner | null;
+  followUpNotes: string | null;
+  followUpFrequency: string | null;
+  category: ProjectRiskCategoryMeta;
+  lastFollowUpAt: string | null;
+  dueDate: string | null;
+  status: ProjectRiskStatus;
+  isArchived: boolean;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectRiskInput {
+  title: string;
+  description?: string | null;
+  probability?: number;
+  impact?: number;
+  mitigationPlanA?: string | null;
+  mitigationPlanB?: string | null;
+  ownerId?: string | null;
+  followUpNotes?: string | null;
+  followUpFrequency?: string | null;
+  category?: ProjectRiskCategoryKey;
+  lastFollowUpAt?: string | null;
+  dueDate?: string | null;
+  status?: ProjectRiskStatus;
+}
+
+export type ProjectRiskUpdateInput = Partial<ProjectRiskInput> & {
+  title?: string;
+  isArchived?: boolean;
+};
+
+export interface ProjectRiskFilters {
+  status?: ProjectRiskStatus;
+  ownerId?: string;
+  category?: ProjectRiskCategoryKey;
+  includeArchived?: boolean;
+  overdue?: boolean;
+}

@@ -7,6 +7,7 @@ import { GlobalErrorScreen } from './components/GlobalErrorScreen';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegistrationPage } from './pages/auth/RegistrationPage';
 import FirstTimeSetupPage from './pages/setup/FirstTimeSetupPage';
+import { PROJECT_RISK_ANALYSIS_ENABLED } from './constants';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const EmployeePage = lazy(() => import('./pages/employees/EmployeePage'));
@@ -24,6 +25,9 @@ const ProjectSettingsPage = lazy(
 );
 const ProjectIndexRedirect = lazy(
   () => import('./pages/projects/ProjectLayout').then((module) => ({ default: module.ProjectIndexRedirect })),
+);
+const ProjectRisksPage = lazy(
+  () => import('./pages/projects/ProjectRisksPage').then((module) => ({ default: module.ProjectRisksPage })),
 );
 
 const RouteLoader = () => (
@@ -166,6 +170,7 @@ export const AppShell = () => {
                 <Route index element={<ProjectIndexRedirect />} />
                 <Route path="reports" element={<ProjectReportsPage />} />
                 <Route path="organization" element={<ProjectOrganizationPage />} />
+                {PROJECT_RISK_ANALYSIS_ENABLED && <Route path="risks" element={<ProjectRisksPage />} />}
                 <Route
                   path="settings"
                   element={canManage ? <ProjectSettingsPage /> : <Navigate to="../reports" replace />}
