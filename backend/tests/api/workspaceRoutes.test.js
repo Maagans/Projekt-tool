@@ -191,7 +191,7 @@ describe("Workspace routes", () => {
       id: "b54d8b63-02c1-4bf5-9c17-111111111111",
       name: "Existing Employee",
       email: "existing@example.com",
-      location: "Sano Aarhus",
+      location: "",
       department: "IT",
       max_capacity_hours_week: 37.5,
       azure_ad_id: null,
@@ -215,8 +215,7 @@ describe("Workspace routes", () => {
     });
   });
 
-  it("ensures location and department stay in sync after saving workspace data", async () => {
-    const csrfToken = "csrf-token";
+  it("mirrors department into location when fetching workspace data", async () => {
     const authCookie = buildAuthCookie({
       id: "user-1",
       role: "Administrator",
@@ -224,35 +223,6 @@ describe("Workspace routes", () => {
       email: "admin@example.com",
       name: "Admin",
     });
-
-    const saveResponse = await request(app)
-      .post("/api/workspace")
-      .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
-      .set("x-csrf-token", csrfToken)
-      .send({
-        projects: [],
-        employees: [
-          {
-            id: "b54d8b63-02c1-4bf5-9c17-111111111111",
-            name: "Existing Employee",
-            email: "existing@example.com",
-            location: "Sano Aarhus",
-            department: "IT",
-            maxCapacityHoursWeek: 37.5,
-          },
-        ],
-      });
-
-    expect(saveResponse.status).toBe(200);
-    expect(saveResponse.body.success).toBe(true);
-    const [savedEmployee] = saveResponse.body.workspace.employees;
-    expect(savedEmployee.location).toBe("Sano Aarhus");
-    expect(savedEmployee.department).toBe("Sano Aarhus");
-    expect(saveResponse.body.workspace.settings).toEqual({ pmoBaselineHoursWeek: 0 });
-
-    const persistedRecord = employeesTable.get("b54d8b63-02c1-4bf5-9c17-111111111111");
-    expect(persistedRecord.location).toBe("Sano Aarhus");
-    expect(persistedRecord.department).toBe("Sano Aarhus");
 
     const getResponse = await request(app)
       .get("/api/workspace")
@@ -260,12 +230,12 @@ describe("Workspace routes", () => {
 
     expect(getResponse.status).toBe(200);
     const [fetchedEmployee] = getResponse.body.employees;
-    expect(fetchedEmployee.location).toBe("Sano Aarhus");
-    expect(fetchedEmployee.department).toBe("Sano Aarhus");
+    expect(fetchedEmployee.location).toBe("IT");
+    expect(fetchedEmployee.department).toBe("IT");
     expect(getResponse.body.settings).toEqual({ pmoBaselineHoursWeek: 0 });
   });
 
-  it("persists PMO baseline hours when provided", async () => {
+  it("updates PMO baseline via workspace settings endpoint", async () => {
     const csrfToken = "csrf-token";
     const authCookie = buildAuthCookie({
       id: "user-1",
@@ -275,20 +245,17 @@ describe("Workspace routes", () => {
       name: "Admin",
     });
 
-    const saveResponse = await request(app)
-      .post("/api/workspace")
+    const patchResponse = await request(app)
+      .patch("/api/workspace/settings")
       .set("Cookie", [authCookie, buildCsrfCookie(csrfToken)])
       .set("x-csrf-token", csrfToken)
       .send({
-        projects: [],
-        employees: [],
-        settings: {
-          pmoBaselineHoursWeek: 185.5,
-        },
+        pmoBaselineHoursWeek: 185.5,
       });
 
-    expect(saveResponse.status).toBe(200);
-    expect(saveResponse.body.workspace.settings).toEqual({ pmoBaselineHoursWeek: 185.5 });
+    expect(patchResponse.status).toBe(200);
+    expect(patchResponse.body.success).toBe(true);
+    expect(patchResponse.body.settings).toEqual({ pmoBaselineHoursWeek: 185.5 });
 
     const getResponse = await request(app)
       .get("/api/workspace")

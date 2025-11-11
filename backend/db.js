@@ -1,5 +1,6 @@
 import pg from "pg";
 import { config } from "./config/index.js";
+import logger from "./logger.js";
 
 const { Pool } = pg;
 
@@ -8,11 +9,11 @@ const pool = new Pool({
 });
 
 pool.on("connect", () => {
-  console.log("Connected to the database");
+  logger.info("Connected to the database");
 });
 
 pool.on("error", (err) => {
-  console.error("Unexpected error on idle client", err);
+  logger.error(err, "Unexpected error on idle client");
   process.exit(-1);
 });
 

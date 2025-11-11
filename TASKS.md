@@ -607,7 +607,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: 401-fejl sender brugeren til login via React Router uden fuld browser-reload.
   - Afhængigheder: FE-006, DX-002.
 
-- [ ] FE-008 (Arkitektur): Granulære Mutationer (Færdiggør DX-002)
+- [x] FE-008 (Arkitektur): Granulære Mutationer (Færdiggør DX-002)
   - Formål: Erstatte api.saveWorkspace med specifikke mutationer for bedre performance og færre race conditions.
   - Ændringer:
     - **FE-008a Backend API** (færdig): eksponer medarbejder/projekt/indstillinger-ruter.
@@ -621,11 +621,11 @@ resourceAnalyticsService og API-controllerens svar.
       - Dashboard-tekst beskriver ikke længere autosave men backend-synkronisering.
     - **FE-008e Test & oprydning** (i gang): tilføj Vitest/RTL-tests for nye mutationer og fjern api.saveWorkspace-stubs.
       - Done: useProjectManager-tests dækker nu employee-/project-mutationerne (inkl. cache-invalidation); backendens gamle `saveWorkspace`-route + validator er fjernet, så ingen stubs er tilbage.
-      - TODO: udvid evt. med yderligere mutation-tests (fx project members/time logging), men kritiske stier er dækket.
+      - Optional: udvid evt. med yderligere mutation-tests (fx project members/time logging), men kritiske stier er dækket.
     - **FE-008f UX Polish** (færdig): Optimér mutationsflowet så UI ikke "hopper til toppen".
       - Done: ProjectReportsPage viser nu en “Gem tidslinje”-badge, når der foretages drag/tilføjelser i Timeline; ændringer holdes lokalt, og brugeren gemmer/fortryder eksplicit (ingen auto-flush midt i interaktionen).
       - Done: useWorkspaceModule understøtter targeted `reportsManager.replaceState`, så QueryClient opdateres stille uden at nulstille scroll, mens save-knappen bruger samme mutation-flow som resten af projekthandlingerne.
-      - TODO: Tilføj evt. en Vitest/RTL-interaktionstest, der simulerer timeline-drag og bekræfter at dirty-state + gem-knap opfører sig korrekt, samt at andre rapportsektioner stadig synker mod serveren.
+      - Optional: Tilføj evt. en Vitest/RTL-interaktionstest, der simulerer timeline-drag og bekræfter at dirty-state + gem-knap opfører sig korrekt, samt at andre rapportsektioner stadig synker mod serveren.
   - Test (TDD):
     1) Opret Vitest/RTL-test for redigering af medarbejder.
     2) Mock api.updateEmployee og bekræft korrekt payload.
@@ -649,7 +649,7 @@ resourceAnalyticsService og API-controllerens svar.
     - Understøt evt. flere smoke-tests (fx StackedLegend) og filtrér Recharts/React Router warnings i tests for at holde logs rene.
   - Afhængigheder: DX-003, RM-005.
 
-- [ ] BE-008 (Optimering): Konsekvent Backend Logging (Ryd op i db.js)
+- [x] BE-008 (Optimering): Konsekvent Backend Logging (Ryd op i db.js)
   - Formål: Erstatte console.log/error i database-laget med den centraliserede logger.
   - Ændringer:
     - Importer logger fra ../logger.js i backend/db.js.
@@ -662,7 +662,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Ingen console.log/error i db.js; loggeren bruges konsekvent.
   - Afhængigheder: BE-006.
 
-- [ ] BE-009 (Robusthed): 'Fail-Fast' ved Serveropstart
+- [x] BE-009 (Robusthed): 'Fail-Fast' ved Serveropstart
   - Formål: Stoppe serveren tidligt hvis kritiske env-variabler mangler.
   - Ændringer:
     - Tjek config.jwtSecret og config.databaseUrl ved opstart i backend/index.js.
@@ -672,3 +672,54 @@ resourceAnalyticsService og API-controllerens svar.
     2) npm run test --prefix backend.
   - Accept: Serveren nægter at starte uden kritiske env-variabler og logger tydeligt hvorfor.
   - Afhængigheder: ST-002, BE-006.
+
+## Fase P12 – Risikoanalyse & Matrix (se docs/risk-matrix-sdd.md)
+
+- [ ] RISK-001: Data Model & Migration
+  - Formål: Opret `project_risks` (+ optional history) og ryd legacy rapport-risici.
+  - Ændringer: Migrationer, kategori-enum, defaults (score, last_follow_up_at, category=other).
+  - Test (TDD): Vitest migrations (up/down), helper-unit test for kategorimapping, seed-script sanity.
+  - Accept: `npm run migrate` opretter tabellerne og `down` ruller clean tilbage.
+  - Afhængigheder: SDD godkendt.
+
+- [ ] RISK-002: Backend Services & APIs
+  - Formål: CRUD-service + REST-endpoints (liste, create, patch, archive) med adgangskontrol.
+  - Ændringer: `projectRiskService`, routes (`GET/POST /projects/:id/risks`, `PATCH/DELETE /risks/:id`), filterparams, category metadata.
+  - Test (TDD): Vitest service-tests (filters, validations, drag updates), Supertest suite (flag on), role-guard tests, snapshot assertions.
+  - Accept: API returnerer forventede felter og respekterer feature flag + roller.
+  - Afhængigheder: RISK-001.
+
+- [ ] RISK-003: Feature Flag & Config
+  - Formål: Styre nye endpoints via `PROJECT_RISK_ANALYSIS_ENABLED` + dokumentér opsætning.
+  - Ændringer: Config parsing, README/.env.example note, middleware der lukker ruter når flag er false.
+  - Test (TDD): Config-unit test for defaults, Supertest der viser 404/409 ved flag off.
+  - Accept: Når flag er false, eksponeres ingen nye ruter; docs beskriver flagget.
+  - Afhængigheder: RISK-002.
+
+- [ ] RISK-004: Frontend Risikovurderingstab
+  - Formål: Ny route `/projects/:id/risks` med liste, filtrering og drawer-editor (Plan A/B, kategori, owner, follow-up).
+  - Ændringer: React Query hooks (`useProjectRisks*`), komponenter for liste + editor, badges for “sidst fulgt op”.
+  - Test (TDD): RTL for liste (filtre + badges) og drawer (valideringer, Plan A/B submit), hook-tests med mocked fetch.
+  - Accept: Projektleder kan oprette/redigere risici fra fanen; Teammedlem ser read-only.
+  - Afhængigheder: RISK-002, RISK-003.
+
+- [ ] RISK-005: Moderniseret Risiko Matrix
+  - Formål: Full-width matrix med drag/drop + kategori-badges og keyboard fallback.
+  - Ændringer: Ny matrixkomponent (@dnd-kit), helper til koordinater/farver, responsive layout.
+  - Test (TDD): RTL/user-event for drag/kb-interaktioner, unit-test for heatmap helper, visuel kontrol (Storybook/Chromatic hvis muligt).
+  - Accept: Cards kan flyttes mellem celler med mutationer; UI matcher designkrav.
+  - Afhængigheder: RISK-004.
+
+- [ ] RISK-006: Rapport & Snapshot Integration
+  - Formål: Rapportmodulet refererer kuraterede risici og gemmer snapshots inkl. badges for arkiverede.
+  - Ændringer: `POST /reports/:id/risks`, snapshot-tabeller, rapport-UI for valg og matrix-rendering (snapshot mode), eksport-opdateringer.
+  - Test (TDD): Supertest for snapshot endpoints, RTL for rapport-editor/matrix, unit-tests for eksport (CSV/PDF) med nye felter.
+  - Accept: Rapportens matrix bruger snapshot-data og viser “Arkiveret siden uge X” når relevant.
+  - Afhængigheder: RISK-002, RISK-005.
+
+- [ ] RISK-007: QA, UAT & Dokumentation
+  - Formål: Sikre end-to-end kvalitet, UAT og release-noter.
+  - Ændringer: Cypress/Playwright smoke-scenarie, README + CHANGELOG, UAT-script.
+  - Test (TDD): E2E-flow (create risk → drag i matrix → tilføj til rapport), evt. jest-axe sanity, dokumentationsreview.
+  - Accept: PMO/Projektleder tester accepteret; release-notes klar.
+  - Afhængigheder: Alle foregående RISK-ops.

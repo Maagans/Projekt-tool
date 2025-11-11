@@ -23,16 +23,10 @@ const optionalNonNegativeNumber = (fieldName) =>
         .optional();
 
 const workspaceSettingsSchema = z.object({
-    pmoBaselineHoursWeek: optionalNonNegativeNumber('pmoBaselineHoursWeek'),
+  pmoBaselineHoursWeek: optionalNonNegativeNumber("pmoBaselineHoursWeek"),
 });
 
 const workspaceSettingsUpdateSchema = workspaceSettingsSchema.partial();
-
-export const workspacePayloadSchema = z.object({
-    projects: z.any(),
-    employees: z.any(),
-    settings: workspaceSettingsSchema.optional(),
-});
 
 export const timeEntryParamsSchema = z.object({
     projectId: z.string({ required_error: "projectId is required." }).uuid('projectId must be a valid UUID.'),
@@ -55,15 +49,6 @@ export const timeEntryBodySchema = z
             path: ['plannedHours'],
         },
     );
-
-export const validateWorkspacePayload = (req, res, next) => {
-    const parsed = workspacePayloadSchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
-        return respondValidationError(res, "Invalid workspace data format.", parsed.error.issues);
-    }
-    req.validatedBody = parsed.data;
-    return next();
-};
 
 export const validateTimeEntryRequest = (req, res, next) => {
     const paramsParsed = timeEntryParamsSchema.safeParse(req.params ?? {});

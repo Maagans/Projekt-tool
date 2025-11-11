@@ -1,35 +1,36 @@
-ï»¿# Changelog
+# Changelog
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-- Ingen nye Ã¦ndringer endnu.âœ¨
+### Removed
+- Fjernet den gamle /api/workspace POST-route, tilhørende validator og Supertest-suite, så backend nu kun understøtter de granulære mutationer fra FE-008.
 
 ## [1.3.0] - 2025-11-11
 ### Added
 - Employee-databasen viser nu kapacitet (timer/uge) med validering og fornuftige defaults.
-- Nye Vitest-suiter dÃ¦kker kapacitetsflowet i EmployeePage og useProjectManager.
-- PMO workspace settings gemmer baseline (timer/uge) og bruger den i stacked chart med reference og overload-markÃ¸rer.
-- Resource Analytics har en sticky filter-sidebar med time-horizon-toggle, sÃ¥ PMO kan inspicere op til 52 uger uden at scrolle til toppen.
-- Backend eksponerer granulÃ¦re employees-/projects-ruter med `workspaceMutator`, validators og seed-script, sÃ¥ FE-008 kan sende prÃ¦cise payloads.
-- Frontenden har dedikerede React Query mutationer + `SyncStatusPill` og "Gem tidslinje"-CTA, der holder Ã¦ndringer lokalt indtil brugeren gemmer.
-- ResourceAnalyticsPage har fÃ¥et udbrudte komponenter + utils og tilhÃ¸rende smoke-tests for nÃ¸glevyer (DX-004).
+- Nye Vitest-suiter dækker kapacitetsflowet i EmployeePage og useProjectManager.
+- PMO workspace settings gemmer baseline (timer/uge) og bruger den i stacked chart med reference og overload-markører.
+- Resource Analytics har en sticky filter-sidebar med time-horizon-toggle, så PMO kan inspicere op til 52 uger uden at scrolle til toppen.
+- Backend eksponerer granulære employees-/projects-ruter med `workspaceMutator`, validators og seed-script, så FE-008 kan sende præcise payloads.
+- Frontenden har dedikerede React Query mutationer + `SyncStatusPill` og "Gem tidslinje"-CTA, der holder ændringer lokalt indtil brugeren gemmer.
+- ResourceAnalyticsPage har fået udbrudte komponenter + utils og tilhørende smoke-tests for nøglevyer (DX-004).
 ### Changed
-- CSV-import accepterer en valgfri kapacitetskolonne og normaliserer vÃ¦rdier under autosave.
-- README og screenshot-guide forklarer nu baseline-konceptet og hvordan det stÃ¸tter PMO stacked chart.
-- PMO baseline-kortet i dashboardet har fÃ¥et en poleret gradient med inline-hjÃ¦lp til admins og seere.
-- Hele workspace-flowet er migreret vÃ¦k fra `api.saveWorkspace` til granulÃ¦re mutationer med targeted cache-invalidation, sÃ¥ siderne ikke hopper ved drag/drop (FE-008).
+- CSV-import accepterer en valgfri kapacitetskolonne og normaliserer værdier under autosave.
+- README og screenshot-guide forklarer nu baseline-konceptet og hvordan det støtter PMO stacked chart.
+- PMO baseline-kortet i dashboardet har fået en poleret gradient med inline-hjælp til admins og seere.
+- Hele workspace-flowet er migreret væk fra `api.saveWorkspace` til granulære mutationer med targeted cache-invalidation, så siderne ikke hopper ved drag/drop (FE-008).
 - ResourceAnalyticsPage er reduceret til <300 linjer og orkestrerer de nye komponenter i `src/app/pages/resources/components/` (DX-004).
 ### Fixed
-- Risikomatrixen bruger nu en dedikeret `position`-kolonne + migration, sÃ¥ risici ikke bytter pladser efter redigering.
-- Leverance- og timeline-Ã¦ndringer respekterer lokale drafts og udlÃ¸ser ikke lÃ¦ngere utilsigtede dato-justeringer eller store scroll-jumps.
+- Risikomatrixen bruger nu en dedikeret `position`-kolonne + migration, så risici ikke bytter pladser efter redigering.
+- Leverance- og timeline-ændringer respekterer lokale drafts og udløser ikke længere utilsigtede dato-justeringer eller store scroll-jumps.
 
 
 ## [1.2.8] - 2025-11-04
 ### Added
 - Ressource Analytics er nu indlejret som en fane i PMO med delt komponent og Vitest-daekning for tab-navigation og adgangsregler (PMO-010).
 ### Changed
-- Direkte rute til `/resources` redirecter til PMO med korrekt fane, og dashboardet viser ikke lÃ¦ngere det gamle Ressource Analytics-link.
+- Direkte rute til `/resources` redirecter til PMO med korrekt fane, og dashboardet viser ikke længere det gamle Ressource Analytics-link.
 
 ## [1.2.7] - 2025-10-28
 ### Added
@@ -160,6 +161,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og milj?baseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
 
 
 
