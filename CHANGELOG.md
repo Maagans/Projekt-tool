@@ -3,15 +3,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+- Ingen nye ændringer endnu.✨
+
+## [1.3.0] - 2025-11-11
 ### Added
-- Employee database shows capacity (hours/week) with validation and sensible defaults.
-- New Vitest suites cover the capacity flow in EmployeePage and useProjectManager.
-- PMO workspace settings now persist a baseline (hours/week) and power the stacked capacity chart with a baseline reference and overload markers.
- - Resource Analytics now has a sticky filter sidebar with a time-horizon toggle so PMO can inspect up to 52 upcoming weeks of planned load without scrolling back to the top.
+- Employee-databasen viser nu kapacitet (timer/uge) med validering og fornuftige defaults.
+- Nye Vitest-suiter dækker kapacitetsflowet i EmployeePage og useProjectManager.
+- PMO workspace settings gemmer baseline (timer/uge) og bruger den i stacked chart med reference og overload-markører.
+- Resource Analytics har en sticky filter-sidebar med time-horizon-toggle, så PMO kan inspicere op til 52 uger uden at scrolle til toppen.
+- Backend eksponerer granulære employees-/projects-ruter med `workspaceMutator`, validators og seed-script, så FE-008 kan sende præcise payloads.
+- Frontenden har dedikerede React Query mutationer + `SyncStatusPill` og "Gem tidslinje"-CTA, der holder ændringer lokalt indtil brugeren gemmer.
+- ResourceAnalyticsPage har fået udbrudte komponenter + utils og tilhørende smoke-tests for nøglevyer (DX-004).
 ### Changed
-- CSV import accepts an optional capacity column and normalises values during autosave.
-- README and screenshot guidance explain the baseline concept and how it supports the PMO stacked chart.
-- PMO baseline card in the dashboard now has a polished gradient layout with inline guidance for admins and viewers.
+- CSV-import accepterer en valgfri kapacitetskolonne og normaliserer værdier under autosave.
+- README og screenshot-guide forklarer nu baseline-konceptet og hvordan det støtter PMO stacked chart.
+- PMO baseline-kortet i dashboardet har fået en poleret gradient med inline-hjælp til admins og seere.
+- Hele workspace-flowet er migreret væk fra `api.saveWorkspace` til granulære mutationer med targeted cache-invalidation, så siderne ikke hopper ved drag/drop (FE-008).
+- ResourceAnalyticsPage er reduceret til <300 linjer og orkestrerer de nye komponenter i `src/app/pages/resources/components/` (DX-004).
+### Fixed
+- Risikomatrixen bruger nu en dedikeret `position`-kolonne + migration, så risici ikke bytter pladser efter redigering.
+- Leverance- og timeline-ændringer respekterer lokale drafts og udløser ikke længere utilsigtede dato-justeringer eller store scroll-jumps.
 
 
 ## [1.2.8] - 2025-11-04
