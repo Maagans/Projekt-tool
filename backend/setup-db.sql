@@ -153,6 +153,7 @@ CREATE TABLE report_main_table_rows (
 CREATE TABLE report_risks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
     name TEXT NOT NULL,
     probability SMALLINT NOT NULL,
     consequence SMALLINT NOT NULL,

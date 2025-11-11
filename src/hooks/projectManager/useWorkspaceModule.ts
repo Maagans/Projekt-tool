@@ -1,5 +1,5 @@
-import { useCallback, useEffect } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { DEFAULT_EMPLOYEE_CAPACITY } from '../../constants';
 import {
@@ -16,19 +16,41 @@ import {
   Report,
   locations,
 } from '../../types';
-import type { WorkspaceData } from '../../types';
+import type { WorkspaceData, WorkspaceSettings } from '../../types';
 import type { ProjectManagerStore } from './store';
 import {
   TimelineItemType,
   TimelineUpdatePayload,
   cloneStateWithNewIds,
   generateId,
+  getErrorMessage,
   getInitialProjectState,
   getWeekKey,
 } from './utils';
 
 type ProjectUpdater = (prev: Project[]) => Project[];
 type EmployeeUpdater = (prev: Employee[]) => Employee[];
+const WORKSPACE_QUERY_KEY = ['workspace'] as const;
+
+const PROJECT_SYNC_DEBOUNCE_MS = 400;
+const clampPercentage = (value: number) => Math.max(0, Math.min(100, value));
+const parseDateOnlyToUtcDate = (value?: string | null): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const [yearStr, monthStr, dayStr] = value.split('-');
+  const year = Number.parseInt(yearStr ?? '', 10);
+  const month = Number.parseInt(monthStr ?? '', 10);
+  const day = Number.parseInt(dayStr ?? '', 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  return new Date(Date.UTC(year, month - 1, day));
+};
+const toUtcTimestamp = (value?: string | null): number | null => {
+  const date = parseDateOnlyToUtcDate(value);
+  return date ? date.getTime() : null;
+};
 
 const sanitizeHours = (value: number | undefined) =>
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -68,9 +90,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     projects,
     setProjects,
     setEmployees,
-    currentUser,
     isAuthenticated,
-    isLoading,
     setIsLoading,
     setIsSaving,
     setApiError,
@@ -78,63 +98,405 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
 
   const setWorkspaceSettingsState = store.setWorkspaceSettings;
 
+  const queryClient = useQueryClient();
+  const pendingMutations = useRef(0);
+  const beginMutation = () => {
+    pendingMutations.current += 1;
+    setIsSaving(true);
+    setApiError(null);
+  };
+
+  const endMutation = () => {
+    pendingMutations.current = Math.max(0, pendingMutations.current - 1);
+    if (pendingMutations.current === 0) {
+      setIsSaving(false);
+    }
+  };
+
+  const invalidateWorkspace = async () => {
+    await queryClient.invalidateQueries({ queryKey: WORKSPACE_QUERY_KEY });
+  };
+
+  const handleMutationError = async (error: unknown, fallbackMessage: string) => {
+    console.error(fallbackMessage, error);
+    setApiError(fallbackMessage);
+    await invalidateWorkspace();
+  };
+
+  const createEmployeeMutation = useMutation({
+    mutationFn: (employee: Partial<Employee> & { name: string; email: string; id?: string }) =>
+      api.createEmployee(employee),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (createdEmployee) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        return {
+          ...previous,
+          employees: [...previous.employees.filter((employee) => employee.id !== createdEmployee.id), createdEmployee],
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke oprette medarbejderen.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const updateEmployeeMutation = useMutation({
+    mutationFn: ({ employeeId, updates }: { employeeId: string; updates: Partial<Employee> }) =>
+      api.updateEmployee(employeeId, updates),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (updatedEmployee) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        return {
+          ...previous,
+          employees: previous.employees.map((employee) => (employee.id === updatedEmployee.id ? updatedEmployee : employee)),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke opdatere medarbejderen.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: (employeeId: string) => api.deleteEmployee(employeeId),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (_, employeeId) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        return {
+          ...previous,
+          employees: previous.employees.filter((employee) => employee.id !== employeeId),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke slette medarbejderen.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: (project: Project) => api.createProject(project),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (createdProject) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        return {
+          ...previous,
+          projects: [...previous.projects.filter((project) => project.id !== createdProject.id), createdProject],
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke oprette projektet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: (project: Partial<Project> & { id: string }) => api.updateProject(project),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (updatedProject) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          projects: previous.projects.map((project) => (project.id === updatedProject.id ? updatedProject : project)),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke opdatere projektet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: (projectId: string) => api.deleteProject(projectId),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (_, projectId) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          projects: previous.projects.filter((project) => project.id !== projectId),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke slette projektet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const createProjectMemberMutation = useMutation({
+    mutationFn: (variables: {
+      projectId: string;
+      member: { employeeId: string; role?: string; group?: ProjectMember['group']; id?: string };
+    }) => api.addProjectMember(variables.projectId, variables.member),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (member, variables) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          projects: previous.projects.map((project) =>
+            project.id === variables.projectId
+              ? {
+                  ...project,
+                  projectMembers: [...project.projectMembers.filter((projMember) => projMember.id !== member.id), member],
+                }
+              : project,
+          ),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke tilføje projektmedlemmet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const patchProjectMemberMutation = useMutation({
+    mutationFn: (variables: {
+      projectId: string;
+      memberId: string;
+      updates: { role?: string; group?: ProjectMember['group']; isProjectLead?: boolean };
+    }) => api.updateProjectMember(variables.projectId, variables.memberId, variables.updates),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (updatedMember, variables) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          projects: previous.projects.map((project) =>
+            project.id === variables.projectId
+              ? {
+                  ...project,
+                  projectMembers: project.projectMembers.map((member) =>
+                    member.id === updatedMember.id ? { ...member, ...updatedMember } : member,
+                  ),
+                }
+              : project,
+          ),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke opdatere projektmedlemmet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const deleteProjectMemberMutation = useMutation({
+    mutationFn: ({ projectId, memberId }: { projectId: string; memberId: string }) =>
+      api.deleteProjectMember(projectId, memberId),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (_, variables) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          projects: previous.projects.map((project) =>
+            project.id === variables.projectId
+              ? {
+                  ...project,
+                  projectMembers: project.projectMembers.filter((member) => member.id !== variables.memberId),
+                }
+              : project,
+          ),
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke fjerne projektmedlemmet.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
+  const updateWorkspaceSettingsMutation = useMutation({
+    mutationFn: (settings: Partial<WorkspaceSettings>) => api.updateWorkspaceSettings(settings),
+    onMutate: () => {
+      beginMutation();
+    },
+    onSuccess: (settings) => {
+      syncWorkspaceCache((previous) => {
+        if (!previous) return previous;
+        return {
+          ...previous,
+          settings,
+        };
+      });
+    },
+    onError: async (error: unknown) => {
+      await handleMutationError(error, 'Kunne ikke opdatere indstillingerne.');
+    },
+    onSettled: () => {
+      endMutation();
+    },
+  });
+
   const workspaceQuery = useQuery<WorkspaceData>({
-    queryKey: ['workspace'],
+    queryKey: WORKSPACE_QUERY_KEY,
     queryFn: api.getWorkspace,
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const syncWorkspaceCache = useCallback(
+    (updater: (prev: WorkspaceData | undefined) => WorkspaceData | undefined) => {
+      queryClient.setQueryData<WorkspaceData | undefined>(WORKSPACE_QUERY_KEY, (previous) =>
+        updater(previous as WorkspaceData | undefined),
+      );
+    },
+    [queryClient],
+  );
+  const projectSyncQueue = useRef(
+    new Map<string, { patch: Partial<Project>; timer: ReturnType<typeof setTimeout> | null }>(),
+  );
 
-  const { mutateAsync: persistWorkspace } = useMutation({
-    mutationFn: (workspaceData: WorkspaceData) => api.saveWorkspace(workspaceData),
-    onMutate: () => {
-      setIsSaving(true);
-      setApiError(null);
+  const flushProjectSync = useCallback(
+    (projectId: string) => {
+      const entry = projectSyncQueue.current.get(projectId);
+      if (!entry) {
+        return;
+      }
+      if (entry.timer) {
+        clearTimeout(entry.timer);
+      }
+      projectSyncQueue.current.delete(projectId);
+      updateProjectMutation.mutate({ id: projectId, ...entry.patch });
     },
-    onError: (error: unknown) => {
-      console.error('Autosave failed:', error);
-      setApiError('Ændringer kunne ikke gemmes. Tjek din forbindelse.');
+    [updateProjectMutation],
+  );
+
+  const scheduleProjectSync = useCallback(
+    (projectId: string, patch: Partial<Project>) => {
+      const existing = projectSyncQueue.current.get(projectId);
+      const mergedPatch: Partial<Project> = { ...(existing?.patch ?? {}), ...patch };
+
+      if (existing?.patch?.config || patch.config) {
+        mergedPatch.config = {
+          ...(existing?.patch?.config ?? {}),
+          ...(patch.config ?? {}),
+        } as ProjectConfig;
+      }
+
+      if (patch.reports) {
+        mergedPatch.reports = patch.reports;
+      }
+
+      if (existing?.timer) {
+        clearTimeout(existing.timer);
+      }
+
+      const timer = setTimeout(() => flushProjectSync(projectId), PROJECT_SYNC_DEBOUNCE_MS);
+      projectSyncQueue.current.set(projectId, { patch: mergedPatch, timer });
     },
-    onSettled: () => {
-      setIsSaving(false);
-    },
-  });
+    [flushProjectSync],
+  );
+  const workspaceData = workspaceQuery.data;
+  const workspaceStatus = workspaceQuery.status;
+  const workspaceError = workspaceQuery.error;
+  const workspaceFetchStatus = workspaceQuery.fetchStatus;
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setIsLoading(false);
       return;
     }
-    setIsLoading(workspaceQuery.isLoading || workspaceQuery.isFetching);
-  }, [isAuthenticated, setIsLoading, workspaceQuery.isFetching, workspaceQuery.isLoading]);
 
-  useEffect(() => {
-    if (workspaceQuery.data) {
-      setProjects(workspaceQuery.data.projects);
-      setEmployees(
-        workspaceQuery.data.employees.map((employee) => ({
-          ...employee,
-          maxCapacityHoursWeek: sanitizeCapacity(employee.maxCapacityHoursWeek, 0),
-        })),
-      );
+    if (workspaceFetchStatus === 'fetching') {
+      setIsLoading(true);
+    }
+
+    if (workspaceStatus === 'success' && workspaceData) {
+      setProjects(workspaceData.projects ?? []);
+      setEmployees(workspaceData.employees ?? []);
+      const nextSettings = workspaceData.settings ?? { pmoBaselineHoursWeek: 0 };
       if (setWorkspaceSettingsState) {
-        setWorkspaceSettingsState({
-          pmoBaselineHoursWeek: sanitizeCapacity(
-            workspaceQuery.data.settings?.pmoBaselineHoursWeek,
-            0,
-          ),
-        });
+        setWorkspaceSettingsState(nextSettings);
+      }
+      setApiError(null);
+      if (workspaceFetchStatus !== 'fetching') {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (workspaceStatus === 'error' && workspaceError) {
+      console.error('Kunne ikke hente workspace-data:', workspaceError);
+      setApiError(getErrorMessage(workspaceError));
+      if (workspaceFetchStatus !== 'fetching') {
+        setIsLoading(false);
       }
     }
-  }, [setEmployees, setProjects, setWorkspaceSettingsState, workspaceQuery.data]);
+  }, [
+    isAuthenticated,
+    setApiError,
+    setEmployees,
+    setIsLoading,
+    setProjects,
+    setWorkspaceSettingsState,
+    workspaceData,
+    workspaceError,
+    workspaceFetchStatus,
+    workspaceStatus,
+  ]);
 
-  useEffect(() => {
-    if (workspaceQuery.error) {
-      console.error('Workspace fetch failed:', workspaceQuery.error);
-      setApiError('Kunne ikke hente data. Prøv at genindlæse siden.');
-    }
-  }, [setApiError, workspaceQuery.error]);
+  useEffect(
+    () => () => {
+      projectSyncQueue.current.forEach((_, projectId) => flushProjectSync(projectId));
+    },
+    [flushProjectSync],
+  );
 
   const updateProjects = useCallback(
     (updater: ProjectUpdater) => {
@@ -150,62 +512,51 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     [setEmployees],
   );
 
-  useEffect(() => {
-    const canPersist =
-      !isLoading &&
-      isAuthenticated &&
-      currentUser &&
-      (currentUser.role === 'Administrator' || currentUser.role === 'Projektleder');
-
-    if (!canPersist) {
-      setIsSaving(false);
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      void persistWorkspace({
-        projects: store.projects,
-        employees: store.employees,
-        settings: store.workspaceSettings,
-      });
-    }, 1000);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [
-    currentUser,
-    isAuthenticated,
-    isLoading,
-    persistWorkspace,
-    setIsSaving,
-    store.employees,
-    store.projects,
-    store.workspaceSettings,
-  ]);
-
   const addEmployee = useCallback(
     (name: string, location: Location, email: string, maxCapacityHoursWeek: number = DEFAULT_EMPLOYEE_CAPACITY) => {
+      const sanitizedCapacity = sanitizeCapacity(maxCapacityHoursWeek, DEFAULT_EMPLOYEE_CAPACITY);
+      const candidateEmployee: Employee = {
+        id: generateId(),
+        name,
+        location,
+        email,
+        maxCapacityHoursWeek: sanitizedCapacity,
+      };
+
+      let didCreate = false;
       updateEmployees((prev) => {
         if (prev.some((employee) => employee.email.toLowerCase() === email.toLowerCase())) {
           alert('En medarbejder med denne email findes allerede.');
           return prev;
         }
-        const newEmployee: Employee = {
-          id: generateId(),
-          name,
-          location,
-          email,
-          maxCapacityHoursWeek: sanitizeCapacity(maxCapacityHoursWeek, DEFAULT_EMPLOYEE_CAPACITY),
-        };
-        return [...prev, newEmployee];
+        didCreate = true;
+        return [...prev, candidateEmployee];
       });
+
+      if (!didCreate) {
+        return;
+      }
+
+      const payload: Partial<Employee> & { name: string; email: string; id?: string } = {
+        id: candidateEmployee.id,
+        name: candidateEmployee.name,
+        email: candidateEmployee.email,
+      };
+      if (candidateEmployee.location) {
+        payload.location = candidateEmployee.location;
+      }
+      if (typeof candidateEmployee.maxCapacityHoursWeek === 'number') {
+        payload.maxCapacityHoursWeek = candidateEmployee.maxCapacityHoursWeek;
+      }
+
+      createEmployeeMutation.mutate(payload);
     },
-    [updateEmployees],
+    [createEmployeeMutation, updateEmployees],
   );
 
   const updateEmployee = useCallback(
     (id: string, updates: Partial<Employee>) => {
+      let updatesPayload: { employeeId: string; updates: Partial<Employee> } | null = null;
       updateEmployees((prev) => {
         if (
           updates.email &&
@@ -225,49 +576,79 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             next.maxCapacityHoursWeek = sanitizeCapacity(next.maxCapacityHoursWeek, employee.maxCapacityHoursWeek ?? 0);
           }
 
-          return { ...employee, ...next };
+          const merged = { ...employee, ...next };
+          const mutationPayload: Partial<Employee> = {
+            name: merged.name,
+            email: merged.email,
+          };
+          if (merged.location) {
+            mutationPayload.location = merged.location;
+          }
+          if (merged.department !== undefined) {
+            mutationPayload.department = merged.department;
+          }
+          if (typeof merged.maxCapacityHoursWeek === 'number') {
+            mutationPayload.maxCapacityHoursWeek = merged.maxCapacityHoursWeek;
+          }
+
+          updatesPayload = {
+            employeeId: id,
+            updates: mutationPayload,
+          };
+          return merged;
         });
       });
+
+      if (!updatesPayload) {
+        return;
+      }
+
+      updateEmployeeMutation.mutate(updatesPayload);
     },
-    [updateEmployees],
+    [updateEmployeeMutation, updateEmployees],
   );
 
   const deleteEmployee = useCallback(
     (id: string) => {
-      let shouldDelete = true;
-      updateProjects((prevProjects) => {
-        const hasAssignments = prevProjects.some((project) =>
-          project.projectMembers.some((member) => member.employeeId === id),
+      const assignedProjects = projects.filter((project) =>
+        project.projectMembers.some((member) => member.employeeId === id),
+      );
+
+      if (
+        assignedProjects.length > 0 &&
+        !window.confirm(
+          'Denne medarbejder er tilknyttet et eller flere projekter. Vil du fjerne dem fra alle projekter og slette dem permanent?',
+        )
+      ) {
+        return;
+      }
+
+      const assignedProjectIds = new Set(assignedProjects.map((project) => project.id));
+      if (assignedProjectIds.size > 0) {
+        updateProjects((prevProjects) =>
+          prevProjects.map((project) =>
+            assignedProjectIds.has(project.id)
+              ? {
+                  ...project,
+                  projectMembers: project.projectMembers.filter((member) => member.employeeId !== id),
+                }
+              : project,
+          ),
         );
-
-        if (hasAssignments) {
-          shouldDelete = window.confirm(
-            'Denne medarbejder er tilknyttet et eller flere projekter. Vil du fjerne dem fra alle projekter og slette dem permanent?',
-          );
-        }
-
-        if (!shouldDelete) {
-          return prevProjects;
-        }
-
-        return prevProjects.map((project) => ({
-          ...project,
-          projectMembers: project.projectMembers.filter((member) => member.employeeId !== id),
-        }));
-      });
-
-      if (!shouldDelete) return;
+      }
 
       updateEmployees((prev) => prev.filter((employee) => employee.id !== id));
+      deleteEmployeeMutation.mutate(id);
     },
-    [updateEmployees, updateProjects],
+    [deleteEmployeeMutation, projects, updateEmployees, updateProjects],
   );
+
 
   const importEmployeesFromCsv = useCallback(
     (csvContent: string) => {
       const lines = csvContent.split('\n').filter((line) => line.trim() !== '');
       if (lines.length <= 1) {
-        alert('CSV-filen er tom eller indeholder kun en overskriftsrække.');
+        alert('CSV-filen er tom eller indeholder kun en overskriftsraekke.');
         return;
       }
 
@@ -278,6 +659,15 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         return;
       }
       const capacityIndex = normalizedHeader.findIndex((column) => CSV_CAPACITY_HEADERS.has(column));
+
+      const employeesToCreate: (Partial<Employee> & {
+        id: string;
+        name: string;
+        email: string;
+        location: Location;
+        maxCapacityHoursWeek: number;
+      })[] = [];
+      const employeesToUpdatePayload: { employeeId: string; updates: Partial<Employee> }[] = [];
 
       updateEmployees((currentEmployees) => {
         const newEmployeesList = [...currentEmployees];
@@ -298,10 +688,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             continue;
           }
 
+          const normalizedLocation = location as Location;
           const existingEmployee = existingEmailMap.get(email.toLowerCase());
           if (existingEmployee) {
             const index = newEmployeesList.findIndex((employee) => employee.id === existingEmployee.id);
-            const updatedEmployee: Employee = { ...existingEmployee, name, location: location as Location };
+            const updatedEmployee: Employee = { ...existingEmployee, name, location: normalizedLocation };
             if (capacityIndex >= 0) {
               updatedEmployee.maxCapacityHoursWeek = parseCapacityFromCsv(
                 cells[capacityIndex],
@@ -309,36 +700,69 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               );
             }
             newEmployeesList[index] = updatedEmployee;
+            const updatesForEmployee: Partial<Employee> = {
+              name: updatedEmployee.name,
+            };
+            if (updatedEmployee.location) {
+              updatesForEmployee.location = updatedEmployee.location;
+            }
+            if (typeof updatedEmployee.maxCapacityHoursWeek === 'number') {
+              updatesForEmployee.maxCapacityHoursWeek = updatedEmployee.maxCapacityHoursWeek;
+            }
+            employeesToUpdatePayload.push({
+              employeeId: updatedEmployee.id,
+              updates: updatesForEmployee,
+            });
             updatedCount += 1;
           } else {
+            const capacity =
+              capacityIndex >= 0
+                ? parseCapacityFromCsv(cells[capacityIndex], DEFAULT_EMPLOYEE_CAPACITY)
+                : DEFAULT_EMPLOYEE_CAPACITY;
             const newEmployee: Employee = {
               id: generateId(),
               name,
-              location: location as Location,
+              location: normalizedLocation,
               email,
-              maxCapacityHoursWeek:
-                capacityIndex >= 0
-                  ? parseCapacityFromCsv(cells[capacityIndex], DEFAULT_EMPLOYEE_CAPACITY)
-                  : DEFAULT_EMPLOYEE_CAPACITY,
+              maxCapacityHoursWeek: capacity,
             };
             newEmployeesList.push(newEmployee);
+            employeesToCreate.push({
+              id: newEmployee.id,
+              name: newEmployee.name,
+              email: newEmployee.email,
+              location: normalizedLocation,
+              maxCapacityHoursWeek: capacity,
+            });
             addedCount += 1;
           }
         }
 
         alert(
-          `Import færdig.\n- ${addedCount} nye medarbejdere tilføjet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rækker sprunget over pga. fejl.`,
+          `Import faerdig.\n- ${addedCount} nye medarbejdere tilfoejet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} raekker sprunget over pga. fejl.`,
         );
 
         return newEmployeesList;
       });
-    },
-    [updateEmployees],
-  );
 
+      employeesToCreate.forEach((payload) => {
+        createEmployeeMutation.mutate(payload);
+      });
+      employeesToUpdatePayload.forEach((payload) => {
+        updateEmployeeMutation.mutate(payload);
+      });
+    },
+    [createEmployeeMutation, updateEmployeeMutation, updateEmployees],
+  );
   const createNewProject = useCallback(
     (name: string): Project | null => {
-      if (projects.some((project) => project.config.projectName.toLowerCase() === name.toLowerCase())) {
+      const normalizedName = name.trim();
+      if (!normalizedName) {
+        alert('Projektnavn er påkrævet.');
+        return null;
+      }
+
+      if (projects.some((project) => project.config.projectName.toLowerCase() === normalizedName.toLowerCase())) {
         alert('Et projekt med dette navn eksisterer allerede.');
         return null;
       }
@@ -350,7 +774,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       const newProject: Project = {
         id: generateId(),
         config: {
-          projectName: name,
+          projectName: normalizedName,
           projectStartDate: today.toISOString().split('T')[0],
           projectEndDate: endDate.toISOString().split('T')[0],
         },
@@ -361,47 +785,73 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       };
 
       setProjects((prev) => [...prev, newProject]);
+      createProjectMutation.mutate(newProject);
       return newProject;
     },
-    [projects, setProjects],
+    [createProjectMutation, projects, setProjects],
   );
 
   const deleteProject = useCallback(
     (projectId: string) => {
       setProjects((prev) => prev.filter((project) => project.id !== projectId));
+      deleteProjectMutation.mutate(projectId);
     },
-    [setProjects],
+    [deleteProjectMutation, setProjects],
   );
 
   const updateProjectConfig = useCallback(
     (projectId: string, newConfig: Partial<ProjectConfig>) => {
-      updateProjects((prev) =>
-        prev.map((project) => {
-          if (project.id !== projectId) return project;
+      const nextName = typeof newConfig.projectName === 'string' ? newConfig.projectName.trim() : null;
+      if (
+        nextName &&
+        projects.some(
+          (project) => project.id !== projectId && project.config.projectName.trim().toLowerCase() === nextName.toLowerCase(),
+        )
+      ) {
+        alert('Et projekt med dette navn eksisterer allerede.');
+        return;
+      }
 
-          if (
-            newConfig.projectName &&
-            prev.some(
-              (otherProject) =>
-                otherProject.id !== projectId && otherProject.config.projectName === newConfig.projectName,
-            )
-          ) {
-            alert('Et projekt med dette navn eksisterer allerede.');
+      let nextConfig: ProjectConfig | null = null;
+      updateProjects((prevProjects) =>
+        prevProjects.map((project) => {
+          if (project.id !== projectId) {
             return project;
           }
-
-          return { ...project, config: { ...project.config, ...newConfig } };
+          const normalizedConfig = nextName ? { ...newConfig, projectName: nextName } : newConfig;
+          nextConfig = { ...project.config, ...normalizedConfig };
+          return {
+            ...project,
+            config: nextConfig,
+          };
         }),
       );
+
+      if (nextConfig) {
+        scheduleProjectSync(projectId, { config: nextConfig });
+      }
     },
-    [updateProjects],
+    [projects, scheduleProjectSync, updateProjects],
   );
 
   const updateProjectStatus = useCallback(
     (projectId: string, status: ProjectStatus) => {
-      updateProjects((prev) => prev.map((project) => (project.id === projectId ? { ...project, status } : project)));
+      let didUpdate = false;
+      updateProjects((prevProjects) =>
+        prevProjects.map((project) => {
+          if (project.id !== projectId || project.status === status) {
+            return project;
+          }
+          didUpdate = true;
+          return { ...project, status };
+        }),
+      );
+
+      if (didUpdate) {
+        scheduleProjectSync(projectId, { status });
+      }
     },
-    [updateProjects],
+    [scheduleProjectSync, updateProjects],
   );
 
   const getProjectById = useCallback(
@@ -411,11 +861,16 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
 
   const updateProjectState = useCallback(
     (projectId: string, weekKey: string, updater: (prevState: ProjectState) => ProjectState) => {
+      let nextReports: Report[] | null = null;
       updateProjects((prevProjects) =>
         prevProjects.map((project) => {
-          if (project.id !== projectId) return project;
+          if (project.id !== projectId) {
+            return project;
+          }
           const reportIndex = project.reports.findIndex((report) => report.weekKey === weekKey);
-          if (reportIndex === -1) return project;
+          if (reportIndex === -1) {
+            return project;
+          }
 
           const updatedReport: Report = {
             ...project.reports[reportIndex],
@@ -424,32 +879,57 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
 
           const updatedReports = [...project.reports];
           updatedReports[reportIndex] = updatedReport;
+          nextReports = updatedReports;
           return { ...project, reports: updatedReports };
         }),
       );
+
+      if (nextReports) {
+        scheduleProjectSync(projectId, { reports: nextReports });
+      }
     },
-    [updateProjects],
+    [scheduleProjectSync, updateProjects],
   );
 
   const assignEmployeeToProject = useCallback(
     (projectId: string, employeeId: string) => {
+      const project = projects.find((candidate) => candidate.id === projectId);
+      if (!project) {
+        return;
+      }
+      if (project.projectMembers.some((member) => member.employeeId === employeeId)) {
+        alert('Medarbejderen er allerede tilknyttet projektet.');
+        return;
+      }
+
+      const newMember: ProjectMember = {
+        id: generateId(),
+        employeeId,
+        role: 'Ny rolle',
+        group: 'unassigned',
+        timeEntries: [],
+        isProjectLead: false,
+      };
+
       updateProjects((prevProjects) =>
-        prevProjects.map((project) => {
-          if (project.id !== projectId || project.projectMembers.some((member) => member.employeeId === employeeId)) {
-            return project;
-          }
-          const newMember: ProjectMember = {
-            id: generateId(),
-            employeeId,
-            role: 'Ny rolle',
-            group: 'unassigned',
-            timeEntries: [],
-          };
-          return { ...project, projectMembers: [...project.projectMembers, newMember] };
-        }),
+        prevProjects.map((candidate) =>
+          candidate.id === projectId
+            ? { ...candidate, projectMembers: [...candidate.projectMembers, newMember] }
+            : candidate,
+        ),
       );
+
+      createProjectMemberMutation.mutate({
+        projectId,
+        member: {
+          id: newMember.id,
+          employeeId,
+          role: newMember.role,
+          group: newMember.group,
+        },
+      });
     },
-    [updateProjects],
+    [createProjectMemberMutation, projects, updateProjects],
   );
 
   const updateProjectMember = useCallback(
@@ -466,8 +946,25 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               },
         ),
       );
+
+      const payload: { role?: string; group?: ProjectMember['group']; isProjectLead?: boolean } = {};
+      if (updates.role !== undefined) {
+        payload.role = updates.role;
+      }
+      if (updates.group !== undefined) {
+        payload.group = updates.group;
+      }
+      if (updates.isProjectLead !== undefined) {
+        payload.isProjectLead = updates.isProjectLead;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        return;
+      }
+
+      patchProjectMemberMutation.mutate({ projectId, memberId, updates: payload });
     },
-    [updateProjects],
+    [patchProjectMemberMutation, updateProjects],
   );
 
   const deleteProjectMember = useCallback(
@@ -482,8 +979,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               },
         ),
       );
+
+      deleteProjectMemberMutation.mutate({ projectId, memberId });
     },
-    [updateProjects],
+    [deleteProjectMemberMutation, updateProjects],
   );
 
   const updateTimeLogForMember = useCallback(
@@ -599,8 +1098,28 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           };
         }),
       );
+
+      const payloads = entriesToUpdate
+        .filter((entry) => Number.isFinite(entry.plannedHours))
+        .map(({ weekKey, plannedHours }) => ({
+          weekKey,
+          plannedHours: Math.max(0, plannedHours),
+        }));
+
+      if (!payloads.length) {
+        return;
+      }
+
+      void Promise.all(
+        payloads.map(({ weekKey, plannedHours }) =>
+          api.logTimeEntry(projectId, memberId, weekKey, { plannedHours }),
+        ),
+      ).catch((error) => {
+        console.error('Time log sync failed:', error);
+        setApiError('Kunne ikke synkronisere timeregistrering. Proev igen.');
+      });
     },
-    [updateProjects],
+    [setApiError, updateProjects],
   );
 
   const projectActions = useCallback(
@@ -770,81 +1289,72 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             });
           },
           calculateDateFromPosition: (position: number) => {
-            try {
-              const start = new Date(project.config.projectStartDate).getTime();
-              const end = new Date(project.config.projectEndDate).getTime();
-              const date = new Date(start + ((end - start) * position) / 100);
-              return date.toISOString().split('T')[0] ?? '';
-            } catch {
+            const start = toUtcTimestamp(project.config.projectStartDate);
+            const end = toUtcTimestamp(project.config.projectEndDate);
+            if (start === null || end === null || end <= start) {
               return '';
             }
+            const date = new Date(start + ((end - start) * clampPercentage(position)) / 100);
+            return date.toISOString().split('T')[0] ?? '';
           },
           calculatePositionFromDate: (date: string) => {
-            try {
-              const start = new Date(project.config.projectStartDate).getTime();
-              const end = new Date(project.config.projectEndDate).getTime();
-              if (end <= start) {
-                return 0;
-              }
-              return Math.max(0, Math.min(100, ((new Date(date).getTime() - start) / (end - start)) * 100));
-            } catch {
+            const start = toUtcTimestamp(project.config.projectStartDate);
+            const end = toUtcTimestamp(project.config.projectEndDate);
+            const target = toUtcTimestamp(date);
+            if (start === null || end === null || target === null || end <= start) {
               return 0;
             }
+            return clampPercentage(((target - start) / (end - start)) * 100);
           },
           getTodayPosition: () => {
-            try {
-              const start = new Date(project.config.projectStartDate).getTime();
-              const end = new Date(project.config.projectEndDate).getTime();
-              const today = Date.now();
-              if (today < start || today > end || end <= start) {
-                return null;
-              }
-              return ((today - start) / (end - start)) * 100;
-            } catch {
+            const start = toUtcTimestamp(project.config.projectStartDate);
+            const end = toUtcTimestamp(project.config.projectEndDate);
+            if (start === null || end === null || end <= start) {
               return null;
             }
+            const now = new Date();
+            const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+            if (todayUtc < start || todayUtc > end) {
+              return null;
+            }
+            return ((todayUtc - start) / (end - start)) * 100;
           },
           getMonthMarkers: () => {
-            try {
-              const start = new Date(project.config.projectStartDate);
-              const end = new Date(project.config.projectEndDate);
-              if (end <= start) {
-                return [];
-              }
-              const markers: { position: number; label: string }[] = [];
-              const current = new Date(start);
-              current.setDate(1);
-              while (current <= end) {
-                const position = ((current.getTime() - start.getTime()) / (end.getTime() - start.getTime())) * 100;
-                if (position >= 0 && position <= 100) {
-                  markers.push({
-                    position,
-                    label: current.toLocaleString('da-DK', { month: 'short', year: '2-digit' }),
-                  });
-                }
-                current.setMonth(current.getMonth() + 1);
-              }
-              return markers;
-            } catch {
+            const startDate = parseDateOnlyToUtcDate(project.config.projectStartDate);
+            const endDate = parseDateOnlyToUtcDate(project.config.projectEndDate);
+            if (!startDate || !endDate || endDate <= startDate) {
               return [];
             }
+            const startMs = startDate.getTime();
+            const endMs = endDate.getTime();
+            const markers: { position: number; label: string }[] = [];
+            const current = new Date(startDate);
+            current.setUTCDate(1);
+            while (current.getTime() <= endMs) {
+              const position = ((current.getTime() - startMs) / (endMs - startMs)) * 100;
+              if (position >= 0 && position <= 100) {
+                markers.push({
+                  position,
+                  label: current.toLocaleString('da-DK', { month: 'short', year: '2-digit' }),
+                });
+              }
+              current.setUTCMonth(current.getUTCMonth() + 1);
+            }
+            return markers;
           },
         },
         reportsManager: {
           getAvailableWeeks: () => {
             const weeks = new Set<string>();
-            try {
-              const start = new Date(project.config.projectStartDate);
-              const end = new Date(project.config.projectEndDate);
-              if (start > end) return [];
-              const current = new Date(start);
-              while (current <= end) {
-                weeks.add(getWeekKey(new Date(current)));
-                current.setDate(current.getDate() + 7);
-              }
-            } catch (error) {
-              console.error('Kunne ikke udregne uger', error);
+            const startDate = parseDateOnlyToUtcDate(project.config.projectStartDate);
+            const endDate = parseDateOnlyToUtcDate(project.config.projectEndDate);
+            if (!startDate || !endDate || startDate > endDate) {
               return [];
+            }
+            const current = new Date(startDate);
+            while (current.getTime() <= endDate.getTime()) {
+              weeks.add(getWeekKey(new Date(current)));
+              current.setUTCDate(current.getUTCDate() + 7);
             }
             const existingWeeks = new Set(project.reports.map((report) => report.weekKey));
             return Array.from(weeks)
@@ -868,27 +1378,23 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           },
           createNext: () => {
             const allPossibleWeeksSet = new Set<string>();
-            try {
-              const start = new Date(project.config.projectStartDate);
-              const end = new Date(project.config.projectEndDate);
-              if (start > end) {
-                alert('Projektets slutdato er før startdatoen.');
-                return null;
-              }
-              const current = new Date(start);
-              while (current <= end) {
-                allPossibleWeeksSet.add(getWeekKey(new Date(current)));
-                current.setDate(current.getDate() + 7);
-              }
-            } catch (error) {
-              console.error('Ugyldig dato i projektkonfiguration', error);
+            const startDate = parseDateOnlyToUtcDate(project.config.projectStartDate);
+            const endDate = parseDateOnlyToUtcDate(project.config.projectEndDate);
+            if (!startDate || !endDate || startDate > endDate) {
+              alert('Projektets slutdato er f??r startdatoen.');
               return null;
+            }
+            const current = new Date(startDate);
+            while (current.getTime() <= endDate.getTime()) {
+              allPossibleWeeksSet.add(getWeekKey(new Date(current)));
+              current.setUTCDate(current.getUTCDate() + 7);
             }
 
             const existingWeeks = new Set(project.reports.map((report) => report.weekKey));
 
             if (project.reports.length === 0) {
-              const firstWeek = getWeekKey(new Date(project.config.projectStartDate));
+              const baseline = parseDateOnlyToUtcDate(project.config.projectStartDate) ?? new Date();
+              const firstWeek = getWeekKey(baseline);
               const weekToCreate = existingWeeks.has(firstWeek) ? getWeekKey(new Date()) : firstWeek;
               updateProjects((prevProjects) =>
                 prevProjects.map((p) => {
@@ -910,7 +1416,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             const nextWeekKey = getWeekKey(date);
 
             if (!allPossibleWeeksSet.has(nextWeekKey)) {
-              alert('Næste uge er uden for projektets tidsramme.');
+              alert('N��ste uge er uden for projektets tidsramme.');
               return null;
             }
             if (existingWeeks.has(nextWeekKey)) {
@@ -942,6 +1448,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                     },
               ),
             );
+          },
+          replaceState: (state: ProjectState) => {
+            if (!weekKey) {
+              return;
+            }
+            updateProjectState(projectId, weekKey, () => state);
           },
         },
         organizationManager: {
@@ -977,6 +1489,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       ...prev,
       pmoBaselineHoursWeek: sanitized,
     }));
+    updateWorkspaceSettingsMutation.mutate({ pmoBaselineHoursWeek: sanitized });
   };
 
   return {
@@ -1002,3 +1515,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     bulkUpdateTimeLogForMember,
   };
 };
+
+
+
+

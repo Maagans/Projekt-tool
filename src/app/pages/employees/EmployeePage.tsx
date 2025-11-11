@@ -5,6 +5,7 @@ import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import { EditableField } from '../../../components/EditableField';
 import { UploadIcon, TrashIcon } from '../../../components/Icons';
+import { SyncStatusPill } from '../../../components/SyncStatusPill';
 import { locations } from '../../../types';
 import type { Location } from '../../../types';
 import { DEFAULT_EMPLOYEE_CAPACITY } from '../../../constants';
@@ -34,6 +35,9 @@ export const EmployeePage = () => {
   const [newEmployeeError, setNewEmployeeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const capacityValidationMessage = 'Kapacitet skal være et tal større end eller lig 0.';
+  const isBusy = isSaving;
+  const canSubmitNewEmployee = newEmployee.name.trim().length > 0 && newEmployee.email.trim().length > 0;
+  const floatingSyncClass = 'fixed bottom-6 right-4 sm:right-6 pointer-events-none z-40 drop-shadow-lg';
 
   const formatCapacity = (value: number | undefined) =>
     Number.isFinite(value) ? String(value ?? 0) : DEFAULT_EMPLOYEE_CAPACITY.toString();
@@ -88,6 +92,9 @@ export const EmployeePage = () => {
   };
 
   const handleCapacityCommit = (id: string) => {
+    if (isBusy) {
+      return;
+    }
     const draft = capacityDrafts[id] ?? '';
     const parsed = parseCapacityInput(draft);
     if (parsed === null) {
@@ -111,6 +118,9 @@ export const EmployeePage = () => {
   };
 
   const handleSaveNewEmployee = () => {
+    if (isBusy) {
+      return;
+    }
     if (!newEmployee.name || !newEmployee.email) {
       alert('Navn og email er påkrævet.');
       return;
@@ -131,6 +141,7 @@ export const EmployeePage = () => {
   };
 
   const handleFileImport = (event: ChangeEvent<HTMLInputElement>) => {
+    if (isBusy) return;
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -141,6 +152,9 @@ export const EmployeePage = () => {
 
   return (
     <div>
+      {isBusy && (
+        <SyncStatusPill message="Synkroniserer medarbejderændringer..." className={floatingSyncClass} />
+      )}
       <AppHeader title="Medarbejderdatabase" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
         <button onClick={() => navigate('/')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
           Tilbage til Dashboard
@@ -151,7 +165,10 @@ export const EmployeePage = () => {
           <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".csv" className="hidden" />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors font-semibold"
+            disabled={isBusy}
+            className={`flex items-center gap-2 text-sm px-4 py-2 rounded-md font-semibold transition-colors ${
+              isBusy ? 'bg-green-200 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
           >
             <UploadIcon /> Importer fra CSV
           </button>
@@ -172,13 +189,18 @@ export const EmployeePage = () => {
               {employees.map((employee) => (
                 <tr key={employee.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="p-2">
-                    <EditableField initialValue={employee.name} onSave={(name) => updateEmployee(employee.id, { name })} />
+                    <EditableField
+                      initialValue={employee.name}
+                      onSave={(name) => updateEmployee(employee.id, { name })}
+                      disabled={isBusy}
+                    />
                   </td>
                   <td className="p-2">
                     <select
                       value={employee.location}
                       onChange={(event) => updateEmployee(employee.id, { location: event.target.value as Location })}
-                      className="bg-white border border-slate-300 rounded-md p-1.5 text-sm w-full"
+                      disabled={isBusy}
+                      className="bg-white border border-slate-300 rounded-md p-1.5 text-sm w-full disabled:cursor-not-allowed disabled:bg-slate-100"
                     >
                       {locations.map((location) => (
                         <option key={location} value={location}>
@@ -188,7 +210,11 @@ export const EmployeePage = () => {
                     </select>
                   </td>
                   <td className="p-2">
-                    <EditableField initialValue={employee.email} onSave={(email) => updateEmployee(employee.id, { email })} />
+                    <EditableField
+                      initialValue={employee.email}
+                      onSave={(email) => updateEmployee(employee.id, { email })}
+                      disabled={isBusy}
+                    />
                   </td>
                   <td className="p-2">
                     <div className="flex flex-col gap-1">
@@ -209,9 +235,10 @@ export const EmployeePage = () => {
                             handleCapacityReset(employee.id);
                           }
                         }}
+                        disabled={isBusy}
                         className={`bg-white border ${
                           capacityErrors[employee.id] ? 'border-red-400' : 'border-slate-300'
-                        } rounded-md p-1.5 text-sm w-full`}
+                        } rounded-md p-1.5 text-sm w-full disabled:cursor-not-allowed disabled:bg-slate-100`}
                         aria-invalid={capacityErrors[employee.id] ? 'true' : 'false'}
                         aria-describedby={capacityErrors[employee.id] ? `capacity-error-${employee.id}` : undefined}
                       />
@@ -227,7 +254,8 @@ export const EmployeePage = () => {
                       onClick={() => {
                         if (window.confirm(`Er du sikker på du vil slette ${employee.name}?`)) deleteEmployee(employee.id);
                       }}
-                      className="text-slate-400 hover:text-red-500 p-1"
+                      disabled={isBusy}
+                      className={`p-1 ${isBusy ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500'}`}
                     >
                       <TrashIcon />
                     </button>
@@ -241,14 +269,16 @@ export const EmployeePage = () => {
                     placeholder="Nyt navn"
                     value={newEmployee.name}
                     onChange={(event) => setNewEmployee((state) => ({ ...state, name: event.target.value }))}
-                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full"
+                    disabled={isBusy}
+                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="p-2">
                   <select
                     value={newEmployee.location}
                     onChange={(event) => setNewEmployee((state) => ({ ...state, location: event.target.value as Location }))}
-                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full"
+                    disabled={isBusy}
+                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
                   >
                     {locations.map((location) => (
                       <option key={location} value={location}>
@@ -263,7 +293,8 @@ export const EmployeePage = () => {
                     placeholder="Email"
                     value={newEmployee.email}
                     onChange={(event) => setNewEmployee((state) => ({ ...state, email: event.target.value }))}
-                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full"
+                    disabled={isBusy}
+                    className="bg-white border border-slate-300 rounded-md p-2 text-sm w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="p-2">
@@ -278,9 +309,10 @@ export const EmployeePage = () => {
                         setNewEmployee((state) => ({ ...state, maxCapacityHoursWeek: event.target.value }));
                         setNewEmployeeError(null);
                       }}
+                      disabled={isBusy}
                       className={`bg-white border ${
                         newEmployeeError ? 'border-red-400' : 'border-slate-300'
-                      } rounded-md p-2 text-sm w-full`}
+                      } rounded-md p-2 text-sm w-full disabled:bg-slate-100 disabled:cursor-not-allowed`}
                       aria-invalid={newEmployeeError ? 'true' : 'false'}
                       aria-describedby={newEmployeeError ? 'new-employee-capacity-error' : undefined}
                     />
@@ -294,7 +326,12 @@ export const EmployeePage = () => {
                 <td className="p-2">
                   <button
                     onClick={handleSaveNewEmployee}
-                    className="bg-blue-500 text-white text-sm px-3 py-2 rounded-md hover:bg-blue-600 w-full font-semibold"
+                    disabled={isBusy || !canSubmitNewEmployee}
+                    className={`text-sm px-3 py-2 rounded-md w-full font-semibold ${
+                      isBusy || !canSubmitNewEmployee
+                        ? 'bg-blue-200 text-white cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
                   >
                     Tilføj
                   </button>

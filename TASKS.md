@@ -610,11 +610,22 @@ resourceAnalyticsService og API-controllerens svar.
 - [ ] FE-008 (Arkitektur): Granulære Mutationer (Færdiggør DX-002)
   - Formål: Erstatte api.saveWorkspace med specifikke mutationer for bedre performance og færre race conditions.
   - Ændringer:
-    - Find alle saveWorkspace-kald (fx useWorkspaceModule) og erstat med nye API-funktioner.
-    - Tilføj granulære endpoints i src/api.ts (fx updateProjectConfig, addEmployee, updateEmployee).
-    - Opret dedikerede useMutation-hooks for hver handling og brug queryClient.invalidateQueries(['workspace']).
-    - Refaktorer UI (ProjectSettingsPage, EmployeePage m.fl.) til at bruge de nye mutationer.
-    - Fjern api.saveWorkspace når den ikke længere bruges.
+    - **FE-008a Backend API** (færdig): eksponer medarbejder/projekt/indstillinger-ruter.
+    - **FE-008b Frontend API-adapter** (færdig): udvid src/api.ts med nye endpoints og sanitizing helper.
+    - **FE-008c Hooks & State** (færdig): refaktorer useWorkspaceModule til dedikerede mutationer, fjern autosave, håndter query invalidation.
+      - Done: workspaceQuery hydrerer nu projects/employees/settings og styrer isLoading/apiError, så hooks arbejder på server-konsistent data.
+      - Done: projekt-organization handlinger (assign/update/delete) rammer nu nye /api/projects/:id/members-endpoints via egne useMutation-hooks med invalidateQueries.
+      - Done: autosave-helperen `setProjectAndSync` er udfaset; projektkonfig/status/report-ændringer bruger nu eksplicitte mutationer (partial PATCH) med lokal optimisme og efterfølgende invalidation.
+    - **FE-008d UI-integration** (færdig): alle væsentlige UI’er er nu koblet på mutation-hooks og viser tydelig status.
+      - EmployeePage, ProjectSettingsPage, ProjectOrganizationPage/Chart og ProjectReportsPage bruger SyncStatusPill og låser inputs/handlinger under igangværende mutationer.
+      - Dashboard-tekst beskriver ikke længere autosave men backend-synkronisering.
+    - **FE-008e Test & oprydning** (i gang): tilføj Vitest/RTL-tests for nye mutationer og fjern api.saveWorkspace-stubs.
+      - Done: useProjectManager-tests dækker nu employee-/project-mutationerne (inkl. cache-invalidation); backendens gamle `saveWorkspace`-route + validator er fjernet, så ingen stubs er tilbage.
+      - TODO: udvid evt. med yderligere mutation-tests (fx project members/time logging), men kritiske stier er dækket.
+    - **FE-008f UX Polish** (færdig): Optimér mutationsflowet så UI ikke "hopper til toppen".
+      - Done: ProjectReportsPage viser nu en “Gem tidslinje”-badge, når der foretages drag/tilføjelser i Timeline; ændringer holdes lokalt, og brugeren gemmer/fortryder eksplicit (ingen auto-flush midt i interaktionen).
+      - Done: useWorkspaceModule understøtter targeted `reportsManager.replaceState`, så QueryClient opdateres stille uden at nulstille scroll, mens save-knappen bruger samme mutation-flow som resten af projekthandlingerne.
+      - TODO: Tilføj evt. en Vitest/RTL-interaktionstest, der simulerer timeline-drag og bekræfter at dirty-state + gem-knap opfører sig korrekt, samt at andre rapportsektioner stadig synker mod serveren.
   - Test (TDD):
     1) Opret Vitest/RTL-test for redigering af medarbejder.
     2) Mock api.updateEmployee og bekræft korrekt payload.
@@ -623,18 +634,19 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: saveWorkspace er fjernet; alle dataskrivninger bruger specifikke mutationer.
   - Afhængigheder: DX-002.
 
-- [ ] DX-004 (Optimering): Opdel 'God Component' (ResourceAnalyticsPage)
-  - Formål: Reducere kompleksiteten i ResourceAnalyticsPage (< 300 linjer) via komponent- og utils-opdeling.
+- [x] DX-004 (Optimering): Opdel 'God Component' (ResourceAnalyticsPage)
+  - Resultat: ResourceAnalyticsPage.tsx er nu 298 linjer og fungerer som tynd orchestrator oven på udbrudte komponenter + utils.
   - Ændringer:
-    - Flyt utility-funktioner til src/utils/date.ts og src/utils/format.ts.
-    - Opret src/app/pages/resources/components/ og flyt sub-komponenter hertil.
-    - Importer komponenterne tilbage i ResourceAnalyticsPage.tsx.
-    - Tilføj smoke-tests for de vigtigste udbrudte komponenter.
-  - Test (TDD):
-    1) Eksisterende ResourceAnalyticsPage-tests skal bestå.
-    2) Nye smoke-tests for nøglekomponenter (mock de udbrudte utils) kører grønt.
-    3) npm run lint && npm run build uden fejl.
-  - Accept: ResourceAnalyticsPage.tsx er < 300 linjer og bruger udbrudte komponenter/utilities.
+    - Utility-funktioner er flyttet til `src/utils/date.ts` og `src/utils/format.ts`, så andre domæner kan genbruge uge-/timeformatteringen.
+    - En ny komponentmappe (`src/app/pages/resources/components/`) rummer nu alle cards, states og layouts (fx `StackedProjectsCard`, `ProjectBreakdownSection`, `AnalyticsContent`).
+    - ResourceAnalyticsPage importerer kun de nødvendige byggeklodser og håndterer range/department-state; logikken deles mellem `constants.ts` og `types.ts`.
+    - Nye smoke-tests (`StackedProjectsCard.test.tsx`, `ProjectBreakdownSection.test.tsx`) sikrer at de vigtigste komponenter kan rendre isoleret i testmiljøet (med ResizeObserver-mock).
+  - Tests:
+    - `npm run lint`
+    - `npm run test -- src/app/pages/resources/ResourceAnalyticsPage.test.tsx src/app/pages/resources/components/__tests__/StackedProjectsCard.test.tsx src/app/pages/resources/components/__tests__/ProjectBreakdownSection.test.tsx`
+    - `npm run build`
+  - Opfølgning:
+    - Understøt evt. flere smoke-tests (fx StackedLegend) og filtrér Recharts/React Router warnings i tests for at holde logs rene.
   - Afhængigheder: DX-003, RM-005.
 
 - [ ] BE-008 (Optimering): Konsekvent Backend Logging (Ryd op i db.js)

@@ -63,6 +63,12 @@ npm run seed:admin
 ### Brug af .env (fx i testmiljo)
 Tilfoej felterne i `.env` og koer derefter `npm run seed:admin`. Fjern kodeordet igen efter brug, hvis filen deles.
 
+## Demo data til salgsmateriale og showcases
+- `npm run seed:demo` opretter et realistisk datasæt med tre projekter, tilknyttede projektdeltagere, ugentlige timeposter og opdaterede statusrapporter.
+- Tilfoej flaget `--reset` hvis du vil rydde eksisterende projekter, rapporter og relaterede tabeller foer seeded koeres.
+- Brug `--skip-users` hvis du ikke vil oprette/overskrive de tre demo-brugere (standardkodeord er `Velkommen2025!`).
+- Scriptet er idempotent, saa du kan koere det flere gange for at opdatere dataene.
+
 ## Backup af database
 - Koer `npm run backup` for at gemme en dump-fil (format=custom) via `pg_dump`.
 - Backups gemmes i `backend/backups` eller den sti du angiver i `PG_BACKUP_DIR`.

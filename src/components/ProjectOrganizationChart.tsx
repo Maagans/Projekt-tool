@@ -28,6 +28,7 @@ interface ProjectOrganizationChartProps {
   canManageMembers: boolean;
   canLogTime: boolean;
   currentUserEmployeeId?: string | null;
+  isSaving?: boolean;
   onAssignEmployee: (employeeId: string) => void;
   onUpdateMember: (id: string, updates: Partial<ProjectMember>) => void;
   onDeleteMember: (id: string) => void;
@@ -40,6 +41,7 @@ interface MemberCardProps {
   employee?: Employee;
   canManageMembers: boolean;
   canLogThisMember: boolean;
+  disableInteractions: boolean;
   onUpdate: (id: string, updates: Partial<ProjectMember>) => void;
   onDelete: (id: string) => void;
   onTimeLogClick: () => void;
@@ -50,12 +52,13 @@ const MemberCard: React.FC<MemberCardProps> = ({
   employee,
   canManageMembers,
   canLogThisMember,
+  disableInteractions,
   onUpdate,
   onDelete,
   onTimeLogClick,
 }) => {
   const handleDragStart = (e: React.DragEvent) => {
-    if (!canManageMembers) {
+    if (!canManageMembers || disableInteractions) {
       e.preventDefault();
       return;
     }
@@ -63,14 +66,16 @@ const MemberCard: React.FC<MemberCardProps> = ({
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const showTimeLog = canManageMembers || canLogThisMember;
-  const showDelete = canManageMembers;
+  const showTimeLog = !disableInteractions && (canManageMembers || canLogThisMember);
+  const showDelete = canManageMembers && !disableInteractions;
 
   return (
     <div
-      draggable={canManageMembers}
+      draggable={canManageMembers && !disableInteractions}
       onDragStart={handleDragStart}
-      className={`group bg-white p-3 rounded-md shadow-sm border border-slate-200 ${canManageMembers ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      className={`group bg-white p-3 rounded-md shadow-sm border border-slate-200 ${
+        canManageMembers && !disableInteractions ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+      } ${disableInteractions ? 'opacity-60' : ''}`}
     >
       <div className="flex justify-between items-start gap-2">
         <div className="flex-grow">
@@ -79,7 +84,7 @@ const MemberCard: React.FC<MemberCardProps> = ({
             initialValue={member.role}
             onSave={(role) => onUpdate(member.id, { role })}
             className="text-sm text-slate-500 !p-0"
-            disabled={!canManageMembers}
+            disabled={!canManageMembers || disableInteractions}
           />
         </div>
         {(showTimeLog || showDelete) && (
@@ -89,7 +94,8 @@ const MemberCard: React.FC<MemberCardProps> = ({
                 onClick={onTimeLogClick}
                 aria-label={`Åbn timelog for ${employee?.name ?? 'medlem'}`}
                 title="Åbn timelog"
-                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-blue-500"
+                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-blue-500 disabled:cursor-not-allowed disabled:text-slate-300"
+                disabled={disableInteractions}
               >
                 <ClockIcon />
               </button>
@@ -97,7 +103,8 @@ const MemberCard: React.FC<MemberCardProps> = ({
             {showDelete && (
               <button
                 onClick={() => onDelete(member.id)}
-                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-red-500"
+                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-red-500 disabled:cursor-not-allowed disabled:text-slate-300"
+                disabled={disableInteractions}
               >
                 <TrashIcon />
               </button>
@@ -158,9 +165,10 @@ interface AddMemberModalProps {
   projectMembers: ProjectMember[];
   onAssign: (employeeId: string) => void;
   onClose: () => void;
+  isBusy: boolean;
 }
 
-const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMembers, onAssign, onClose }) => {
+const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMembers, onAssign, onClose, isBusy }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [assignableEmployees, setAssignableEmployees] = useState<Employee[]>([]);
 
@@ -176,19 +184,22 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMe
   }, [allEmployees, projectMembers, searchTerm]);
 
   const handleAssign = (employeeId: string) => {
+    if (isBusy) return;
     onAssign(employeeId);
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg flex flex-col h-[70vh]">
-        <h3 className="text-xl font-bold mb-4 text-slate-800">Tilføj medlem fra database</h3>
+        <h3 className="text-xl font-bold mb-2 text-slate-800">Tilføj medlem fra database</h3>
+        {isBusy && <p className="text-xs text-slate-500 mb-2">Afventer synkronisering...</p>}
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Søg efter navn eller email..."
-          className="w-full bg-white border border-slate-300 rounded-md p-2 mb-4"
+          disabled={isBusy}
+          className="w-full bg-white border border-slate-300 rounded-md p-2 mb-4 disabled:bg-slate-100 disabled:cursor-not-allowed"
         />
         <div className="flex-grow overflow-y-auto border-y border-slate-200 -mx-6 px-6 py-2">
           {assignableEmployees.length > 0 ? (
@@ -201,7 +212,8 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMe
                   </div>
                   <button
                     onClick={() => handleAssign(emp.id)}
-                    className="bg-blue-100 text-blue-700 px-3 py-1 text-sm font-semibold rounded-md hover:bg-blue-200"
+                    disabled={isBusy}
+                    className="bg-blue-100 text-blue-700 px-3 py-1 text-sm font-semibold rounded-md hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Tilføj
                   </button>
@@ -486,6 +498,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   canManageMembers,
   canLogTime,
   currentUserEmployeeId,
+  isSaving = false,
   onAssignEmployee,
   onUpdateMember,
   onDeleteMember,
@@ -495,6 +508,9 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   const [draggedOverGroup, setDraggedOverGroup] = useState<MemberGroup | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [timeLogMemberId, setTimeLogMemberId] = useState<string | null>(null);
+  const interactionsLocked = Boolean(isSaving);
+  const canManageNow = canManageMembers && !interactionsLocked;
+  const canLogTimeNow = canLogTime && !interactionsLocked;
 
   const employeeMap = useMemo(() => new Map(allEmployees.map((e) => [e.id, e])), [allEmployees]);
 
@@ -523,7 +539,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   }, [timeLogMemberId, activeMember, activeEmployee]);
 
   const handleDrop = (e: React.DragEvent, group: MemberGroup) => {
-    if (!canManageMembers) return;
+    if (!canManageNow) return;
     e.preventDefault();
     const memberAssignmentIdStr = e.dataTransfer.getData('application/member-assignment-id');
     if (memberAssignmentIdStr) {
@@ -535,16 +551,17 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   const renderMemberCard = (member: ProjectMember) => {
     const employee = employeeMap.get(member.employeeId);
     const isCurrentUsersMember = !!currentEmployeeId && member.employeeId === currentEmployeeId;
-    const canLogThisMember = canManageMembers || (canLogTime && isCurrentUsersMember);
+    const canLogThisMember = canManageMembers || (canLogTimeNow && isCurrentUsersMember);
 
     const memberCardProps: MemberCardProps = {
       member,
       canManageMembers,
       canLogThisMember,
+      disableInteractions: interactionsLocked,
       onUpdate: onUpdateMember,
       onDelete: onDeleteMember,
       onTimeLogClick: () => {
-        if (!canLogThisMember) return;
+        if (!canLogThisMember || interactionsLocked) return;
         setTimeLogMemberId(member.id);
       },
     };
@@ -556,9 +573,11 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     return <MemberCard key={member.id} {...memberCardProps} />;
   };
 
-  const canEditPlanned = canManageMembers;
+  const canEditPlanned = canManageNow;
   const canEditActual = (member: ProjectMember | null) =>
-    !!member && (canManageMembers || (canLogTime && !!currentEmployeeId && member.employeeId === currentEmployeeId));
+    !!member &&
+    !interactionsLocked &&
+    (canManageMembers || (canLogTime && !!currentEmployeeId && member.employeeId === currentEmployeeId));
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -570,7 +589,10 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
         {canManageMembers && (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center justify-center gap-1 text-sm text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors font-semibold export-hide"
+            disabled={!canManageNow}
+            className={`flex items-center justify-center gap-1 text-sm p-2 rounded-md transition-colors font-semibold export-hide ${
+              canManageNow ? 'text-blue-600 hover:bg-blue-100' : 'text-slate-400 cursor-not-allowed'
+            }`}
           >
             <PlusIcon /> Tilføj medlem
           </button>
@@ -582,7 +604,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
           <MemberGroupColumn
             key={group}
             group={group}
-            canManageMembers={canManageMembers}
+            canManageMembers={canManageNow}
             onDrop={handleDrop}
             isDraggedOver={draggedOverGroup === group}
             onDragEnter={() => setDraggedOverGroup(group)}
@@ -597,7 +619,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
         <div className="mt-6">
           <MemberGroupColumn
             group="unassigned"
-            canManageMembers={canManageMembers}
+            canManageMembers={canManageNow}
             onDrop={handleDrop}
             isDraggedOver={draggedOverGroup === 'unassigned'}
             onDragEnter={() => setDraggedOverGroup('unassigned')}
@@ -614,6 +636,7 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
           projectMembers={members}
           onAssign={onAssignEmployee}
           onClose={() => setIsAddModalOpen(false)}
+          isBusy={interactionsLocked}
         />
       )}
 
@@ -632,3 +655,4 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     </div>
   );
 };
+

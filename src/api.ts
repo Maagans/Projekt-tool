@@ -5,9 +5,12 @@ import type {
   ResourceAnalyticsStackEntry,
   ResourceAnalyticsStackProject,
   ResourceAnalyticsTotals,
+  Employee,
+  Project,
   User,
   UserRole,
   WorkspaceData,
+  WorkspaceSettings,
 } from './types';
 import { notifyUnauthorizedLogout } from './hooks/projectManager/authEvents';
 
@@ -67,6 +70,15 @@ const buildHttpError = (response: Response, body: unknown): HttpError => {
     error.data = body;
   }
   return error;
+};
+
+const sanitizeProjectPayload = (project: Partial<Project>): Partial<Project> => {
+  const clone = JSON.parse(JSON.stringify(project ?? {})) as Partial<Project>;
+  const mutableClone = clone as Record<string, unknown>;
+  if (mutableClone && typeof mutableClone === 'object' && 'permissions' in mutableClone) {
+    delete mutableClone.permissions;
+  }
+  return clone;
 };
 
 const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
@@ -355,13 +367,83 @@ export const api = {
     return fetchWithAuth('/api/workspace');
   },
 
-  async saveWorkspace(workspaceData: WorkspaceData): Promise<{ success: boolean }> {
-    // Send the entire workspace state to the backend to be saved.
-    await fetchWithAuth('/api/workspace', {
-        method: 'POST', // Or PUT, depending on backend API design (POST for create/update)
-        body: JSON.stringify(workspaceData),
+  async createEmployee(employee: Partial<Employee> & { name: string; email: string; id?: string }): Promise<Employee> {
+    const response = await fetchWithAuth('/api/employees', {
+      method: 'POST',
+      body: JSON.stringify(employee),
     });
-    return { success: true };
+    return (response as { employee: Employee }).employee;
+  },
+
+  async updateEmployee(employeeId: string, updates: Partial<Employee>): Promise<Employee> {
+    const response = await fetchWithAuth(`/api/employees/${employeeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+    return (response as { employee: Employee }).employee;
+  },
+
+  async deleteEmployee(employeeId: string): Promise<void> {
+    await fetchWithAuth(`/api/employees/${employeeId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async createProject(project: Project): Promise<Project> {
+    const response = await fetchWithAuth('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(sanitizeProjectPayload(project)),
+    });
+    return (response as { project: Project }).project;
+  },
+
+  async updateProject(project: Partial<Project> & { id: string }): Promise<Project> {
+    const response = await fetchWithAuth(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ project: sanitizeProjectPayload(project) }),
+    });
+    return (response as { project: Project }).project;
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    await fetchWithAuth(`/api/projects/${projectId}`, { method: 'DELETE' });
+  },
+
+  async addProjectMember(
+    projectId: string,
+    payload: { employeeId: string; role?: string; group?: ProjectMember['group']; id?: string },
+  ): Promise<ProjectMember> {
+    const response = await fetchWithAuth(`/api/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return (response as { member: ProjectMember }).member;
+  },
+
+  async updateProjectMember(
+    projectId: string,
+    memberId: string,
+    updates: { role?: string; group?: ProjectMember['group']; isProjectLead?: boolean },
+  ): Promise<ProjectMember> {
+    const response = await fetchWithAuth(`/api/projects/${projectId}/members/${memberId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+    return (response as { member: ProjectMember }).member;
+  },
+
+  async deleteProjectMember(projectId: string, memberId: string): Promise<void> {
+    await fetchWithAuth(`/api/projects/${projectId}/members/${memberId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async updateWorkspaceSettings(settings: Partial<WorkspaceSettings>): Promise<WorkspaceSettings> {
+    const response = await fetchWithAuth('/api/workspace/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    });
+    return (response as { settings: WorkspaceSettings }).settings;
   },
 
   async logTimeEntry(projectId: string, memberId: string, weekKey: string, hours: { plannedHours?: number; actualHours?: number }): Promise<{ success: boolean; member?: ProjectMember }> {
@@ -416,6 +498,11 @@ export const api = {
     return normalizeResourceAnalyticsPayload(response);
   },
 };
+
+
+
+
+
 
 
 

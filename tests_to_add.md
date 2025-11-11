@@ -1,0 +1,1 @@
+- useWorkspaceModule should call api.addProjectMember + invalidate workspace\n- useWorkspaceModule should call api.updateProject + invalidate workspace\n- more

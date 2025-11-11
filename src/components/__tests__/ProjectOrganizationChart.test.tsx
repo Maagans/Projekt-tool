@@ -165,6 +165,7 @@ describe('ProjectOrganizationChart', () => {
     canManageMembers: true,
     canLogTime: true,
     currentUserEmployeeId: null,
+    isSaving: false,
     onAssignEmployee: vi.fn(),
     onUpdateMember: vi.fn(),
     onDeleteMember: vi.fn(),
@@ -248,5 +249,10 @@ describe('ProjectOrganizationChart', () => {
   it('viser knap med teksten "Tilføj medlem"', () => {
     render(<ProjectOrganizationChart {...createDefaultProps()} members={[]} />);
     expect(screen.getByRole('button', { name: /Tilføj medlem/ })).toBeInTheDocument();
+  });
+
+  it('deaktiverer styringsknapper når synkronisering er i gang', () => {
+    render(<ProjectOrganizationChart {...createDefaultProps()} isSaving members={[]} />);
+    expect(screen.getByRole('button', { name: /Tilføj medlem/ })).toBeDisabled();
   });
 });

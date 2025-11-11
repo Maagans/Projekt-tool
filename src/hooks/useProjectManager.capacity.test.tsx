@@ -38,7 +38,7 @@ const baseWorkspace = vi.hoisted(() => ({
 }));
 
 const mockApi = vi.hoisted(() => {
-  const cloneWorkspace = () => structuredClone(baseWorkspace);
+  const cloneWorkspace = () => JSON.parse(JSON.stringify(baseWorkspace));
   return {
     checkSetupStatus: vi.fn(async () => ({ needsSetup: false })),
     getAuthenticatedUser: vi.fn(async () => ({
@@ -48,14 +48,35 @@ const mockApi = vi.hoisted(() => {
       role: 'Administrator',
     })),
     getWorkspace: vi.fn(async () => cloneWorkspace()),
-    saveWorkspace: vi.fn(async () => ({ success: true })),
+    createEmployee: vi.fn(async (employee) => employee),
+    updateEmployee: vi.fn(async ({ employeeId, updates }) => ({ id: employeeId, ...updates })),
+    deleteEmployee: vi.fn(async () => undefined),
+    createProject: vi.fn(async (project) => ({ project })),
+    updateProject: vi.fn(async (project) => ({ project })),
+    deleteProject: vi.fn(async () => undefined),
+    addProjectMember: vi.fn(async () => ({
+      id: 'member-1',
+      employeeId: 'employee-1',
+      role: 'Ny rolle',
+      group: 'unassigned',
+      timeEntries: [],
+    })),
+    updateProjectMember: vi.fn(async () => ({
+      id: 'member-1',
+      employeeId: 'employee-1',
+      role: 'Opdateret rolle',
+      group: 'unassigned',
+      timeEntries: [],
+    })),
+    deleteProjectMember: vi.fn(async () => undefined),
+    updateWorkspaceSettings: vi.fn(async (settings) => ({ settings })),
     login: vi.fn(async () => ({ success: true })),
     logout: vi.fn(async () => undefined),
     register: vi.fn(async () => ({ success: true, message: 'ok' })),
     getUsers: vi.fn(async () => []),
     updateUserRole: vi.fn(async () => ({ success: true })),
     logTimeEntry: vi.fn(async () => ({ success: true, member: null })),
-  };
+  } as const;
 });
 
 vi.mock('../api', () => ({
@@ -77,14 +98,20 @@ describe('useProjectManager capacity handling', () => {
       </QueryClientProvider>
     );
 
-    Object.values(mockApi).forEach((fn) => fn.mockClear());
+    Object.values(mockApi).forEach((fn) => {
+      if (typeof fn?.mockClear === 'function') {
+        fn.mockClear();
+      }
+    });
+
     mockApi.getAuthenticatedUser.mockResolvedValue({
       id: 'user-1',
       email: 'admin@example.com',
       name: 'Admin',
       role: 'Administrator',
     });
-    mockApi.getWorkspace.mockResolvedValue(structuredClone(baseWorkspace));
+    mockApi.getWorkspace.mockResolvedValue(JSON.parse(JSON.stringify(baseWorkspace)));
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -96,19 +123,14 @@ describe('useProjectManager capacity handling', () => {
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     act(() => {
       result.current.addEmployee('Bob', 'Sano Aarhus', 'bob@example.com', 40);
       result.current.addEmployee('Charlie', 'Sano Aarhus', 'charlie@example.com');
     });
 
-    await waitFor(() => {
-      expect(
-        result.current.employees.filter((employee) =>
-          ['bob@example.com', 'charlie@example.com'].includes(employee.email),
-        ).length,
-      ).toBe(2);
-    });
+    await waitFor(() => expect(result.current.employees.length).toBe(3));
 
     const bob = result.current.employees.find((employee) => employee.email === 'bob@example.com');
     const charlie = result.current.employees.find((employee) => employee.email === 'charlie@example.com');
@@ -123,6 +145,7 @@ describe('useProjectManager capacity handling', () => {
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     const csvContent = [
       'Navn,Lokation,Email,Kapacitet (timer/uge)',
@@ -134,9 +157,7 @@ describe('useProjectManager capacity handling', () => {
       result.current.importEmployeesFromCsv(csvContent);
     });
 
-    await waitFor(() => {
-      expect(result.current.employees.some((employee) => employee.email === 'charlie@example.com')).toBe(true);
-    });
+    await waitFor(() => expect(result.current.employees.some((employee) => employee.email === 'charlie@example.com')).toBe(true));
 
     const updatedAlice = result.current.employees.find((employee) => employee.email === 'alice@example.com');
     const newEmployee = result.current.employees.find((employee) => employee.email === 'charlie@example.com');

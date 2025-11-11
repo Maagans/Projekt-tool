@@ -26,6 +26,8 @@ const workspaceSettingsSchema = z.object({
     pmoBaselineHoursWeek: optionalNonNegativeNumber('pmoBaselineHoursWeek'),
 });
 
+const workspaceSettingsUpdateSchema = workspaceSettingsSchema.partial();
+
 export const workspacePayloadSchema = z.object({
     projects: z.any(),
     employees: z.any(),
@@ -76,5 +78,14 @@ export const validateTimeEntryRequest = (req, res, next) => {
 
     req.validatedParams = paramsParsed.data;
     req.validatedBody = bodyParsed.data;
+    return next();
+};
+
+export const validateWorkspaceSettings = (req, res, next) => {
+    const parsed = workspaceSettingsUpdateSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+        return respondValidationError(res, 'Invalid workspace settings payload.', parsed.error.issues);
+    }
+    req.validatedBody = parsed.data;
     return next();
 };

@@ -1,5 +1,6 @@
 import pool from "../db.js";
-import { buildWorkspaceForUser, persistWorkspace, ensureEmployeeLinkForUser } from "../services/workspaceService.js";
+import { mutateWorkspace } from '../services/workspaceMutator.js';
+import { buildWorkspaceForUser, ensureEmployeeLinkForUser, persistWorkspace } from "../services/workspaceService.js";
 
 export const getWorkspace = async (req, res, next) => {
     try {
@@ -21,6 +22,22 @@ export const saveWorkspace = async (req, res, next) => {
         await persistWorkspace(workspaceData, enrichedUser);
         const workspace = await buildWorkspaceForUser(enrichedUser);
         res.json({ success: true, workspace });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateWorkspaceSettings = async (req, res, next) => {
+    try {
+        const settings = req.validatedBody ?? {};
+        const { workspace } = await mutateWorkspace(req.user, (draft) => {
+            draft.settings = {
+                ...(draft.settings ?? {}),
+                ...settings,
+            };
+        });
+
+        res.json({ success: true, settings: workspace.settings });
     } catch (error) {
         next(error);
     }

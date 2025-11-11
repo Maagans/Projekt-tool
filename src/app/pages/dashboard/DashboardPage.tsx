@@ -84,7 +84,7 @@ export const DashboardPage = () => {
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white/80 shadow-sm transition hover:bg-white/20"
           aria-label="Vis tips til brug af dashboardet"
-          title="Hold øje med aktiviteten i dine projekter – tallene opdateres automatisk via autosave. Brug PMO-modulet til at forstå ressourcer på tværs af projekter, importer medarbejdere via CSV i Databasen, og eksporter ugerapporter som PDF fra projektsiden."
+          title="Hold øje med aktiviteten i dine projekter – tallene opdateres løbende via backend-synkronisering. Brug PMO-modulet til at forstå ressourcer på tværs af projekter, importer medarbejdere via CSV i Databasen, og eksporter ugerapporter som PDF fra projektsiden."
         >
           ?
         </button>

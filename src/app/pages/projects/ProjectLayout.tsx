@@ -26,7 +26,10 @@ export const ProjectLayout = () => {
   const projectManager = useProjectManager();
   const { getProjectById, logout, currentUser, isSaving, apiError, canManage } = projectManager;
 
-  const project = projectId ? getProjectById(projectId) : null;
+  const project = useMemo(
+    () => (projectId ? getProjectById(projectId) : null),
+    [getProjectById, projectId],
+  );
 
   const tabs = useMemo(
     () =>

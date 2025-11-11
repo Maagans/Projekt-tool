@@ -24,9 +24,28 @@ export const normalizeEmail = (email) => (typeof email === 'string' ? email.trim
 
 export const toDateOnly = (value) => {
     if (!value) return null;
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toISOString().slice(0, 10);
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed === '') {
+            return null;
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            return trimmed;
+        }
+        const parsed = new Date(trimmed);
+        if (Number.isNaN(parsed.getTime())) {
+            return null;
+        }
+        value = parsed;
+    }
+
+    if (value instanceof Date) {
+        const adjusted = new Date(value.getTime() - value.getTimezoneOffset() * 60 * 1000);
+        return adjusted.toISOString().slice(0, 10);
+    }
+
+    return null;
 };
 
 export const toNonNegativeCapacity = (value) => {

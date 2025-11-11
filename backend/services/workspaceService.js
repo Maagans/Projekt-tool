@@ -237,10 +237,10 @@ export const loadFullWorkspace = async (clientOverride) => {
         });
 
         const risks = await fetchReportItems(`
-            SELECT id::text, report_id::text, name, probability, consequence
+            SELECT id::text, report_id::text, position, name, probability, consequence
             FROM report_risks
             WHERE report_id::text = ANY($1::text[])
-            ORDER BY id::uuid ASC
+            ORDER BY position ASC, id::uuid ASC
         `);
         risks.forEach((row) => {
             const report = reportMap.get(row.report_id);
@@ -653,8 +653,13 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const deliverableUsedIds = new Set((previousState.deliverables ?? []).map((item) => item?.id).filter(Boolean));
     const taskUsedIds = new Set((previousState.kanbanTasks ?? []).map((item) => item?.id).filter(Boolean));
 
-    const ensureFreshId = (candidate, usedSet) => {
-        let candidateId = ensureUuid(candidate);
+    const ensureStableId = (candidate, usedSet) => {
+        if (typeof candidate === 'string' && candidate.trim().length > 0 && !usedSet.has(candidate)) {
+            usedSet.add(candidate);
+            return candidate;
+        }
+
+        let candidateId = ensureUuid();
         while (usedSet.has(candidateId)) {
             candidateId = ensureUuid();
         }
@@ -662,30 +667,12 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         return candidateId;
     };
 
-    const hydrateUsedIds = async (tableName, targetSet) => {
-        const result = await client.query('SELECT id::text FROM ' + tableName);
-        for (const row of result.rows) {
-            if (row?.id) {
-                targetSet.add(row.id);
-            }
-        }
-    };
-
-    await hydrateUsedIds('report_status_items', statusUsedIds);
-    await hydrateUsedIds('report_challenge_items', challengeUsedIds);
-    await hydrateUsedIds('report_main_table_rows', mainRowUsedIds);
-    await hydrateUsedIds('report_risks', riskUsedIds);
-    await hydrateUsedIds('report_phases', phaseUsedIds);
-    await hydrateUsedIds('report_milestones', milestoneUsedIds);
-    await hydrateUsedIds('report_deliverables', deliverableUsedIds);
-    await hydrateUsedIds('report_kanban_tasks', taskUsedIds);
-
     const insertListItems = async (items, tableName, usedSet) => {
         const list = Array.isArray(items) ? items : [];
         for (let index = 0; index < list.length; index += 1) {
             const item = list[index];
             if (!item) continue;
-            let itemId = ensureFreshId(item.id, usedSet);
+            let itemId = ensureStableId(item.id, usedSet);
             item.id = itemId;
             const content = typeof item.content === 'string' ? item.content : '';
 
@@ -702,7 +689,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
                 } catch (error) {
                     if (error.code === '23505' && attempt < 2) {
                         usedSet.delete(itemId);
-                        itemId = ensureFreshId(null, usedSet);
+                        itemId = ensureStableId(null, usedSet);
                         item.id = itemId;
                         continue;
                     }
@@ -719,7 +706,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     for (let index = 0; index < mainRows.length; index += 1) {
         const row = mainRows[index];
         if (!row) continue;
-        let rowId = ensureFreshId(row.id, mainRowUsedIds);
+        let rowId = ensureStableId(row.id, mainRowUsedIds);
         row.id = rowId;
         const status = ['green', 'yellow', 'red'].includes(row.status) ? row.status : 'green';
         for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -735,7 +722,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     mainRowUsedIds.delete(rowId);
-                    rowId = ensureFreshId(null, mainRowUsedIds);
+                    rowId = ensureStableId(null, mainRowUsedIds);
                     row.id = rowId;
                     continue;
                 }
@@ -745,9 +732,10 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     }
 
     const risks = Array.isArray(safeState.risks) ? safeState.risks : [];
-    for (const risk of risks) {
+    for (let index = 0; index < risks.length; index += 1) {
+        const risk = risks[index];
         if (!risk) continue;
-        let riskId = ensureFreshId(risk.id, riskUsedIds);
+        let riskId = ensureStableId(risk.id, riskUsedIds);
         risk.id = riskId;
         const probability = Number.isFinite(risk.s) ? Math.max(1, Math.min(5, Number(risk.s))) : 1;
         const consequence = Number.isFinite(risk.k) ? Math.max(1, Math.min(5, Number(risk.k))) : 1;
@@ -755,16 +743,16 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             try {
                 await client.query(
                     `
-            INSERT INTO report_risks (id, report_id, name, probability, consequence)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5)
+            INSERT INTO report_risks (id, report_id, position, name, probability, consequence)
+            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
         `,
-                    [riskId, reportIdValue, risk.name ?? '', probability, consequence],
+                    [riskId, reportIdValue, index, risk.name ?? '', probability, consequence],
                 );
                 break;
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     riskUsedIds.delete(riskId);
-                    riskId = ensureFreshId(null, riskUsedIds);
+                    riskId = ensureStableId(null, riskUsedIds);
                     risk.id = riskId;
                     continue;
                 }
@@ -776,7 +764,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const phases = Array.isArray(safeState.phases) ? safeState.phases : [];
     for (const phase of phases) {
         if (!phase) continue;
-        let phaseId = ensureFreshId(phase.id, phaseUsedIds);
+        let phaseId = ensureStableId(phase.id, phaseUsedIds);
         phase.id = phaseId;
         const start = Number.isFinite(phase.start) ? Math.max(0, Math.min(100, Number(phase.start))) : 0;
         const end = Number.isFinite(phase.end) ? Math.max(0, Math.min(100, Number(phase.end))) : start;
@@ -793,7 +781,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     phaseUsedIds.delete(phaseId);
-                    phaseId = ensureFreshId(null, phaseUsedIds);
+                    phaseId = ensureStableId(null, phaseUsedIds);
                     phase.id = phaseId;
                     continue;
                 }
@@ -805,7 +793,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const milestones = Array.isArray(safeState.milestones) ? safeState.milestones : [];
     for (const milestone of milestones) {
         if (!milestone) continue;
-        let milestoneId = ensureFreshId(milestone.id, milestoneUsedIds);
+        let milestoneId = ensureStableId(milestone.id, milestoneUsedIds);
         milestone.id = milestoneId;
         const position = Number.isFinite(milestone.position) ? Math.max(0, Math.min(100, Number(milestone.position))) : 0;
         for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -821,7 +809,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     milestoneUsedIds.delete(milestoneId);
-                    milestoneId = ensureFreshId(null, milestoneUsedIds);
+                    milestoneId = ensureStableId(null, milestoneUsedIds);
                     milestone.id = milestoneId;
                     continue;
                 }
@@ -833,7 +821,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const deliverables = Array.isArray(safeState.deliverables) ? safeState.deliverables : [];
     for (const deliverable of deliverables) {
         if (!deliverable) continue;
-        let deliverableId = ensureFreshId(deliverable.id, deliverableUsedIds);
+        let deliverableId = ensureStableId(deliverable.id, deliverableUsedIds);
         deliverable.id = deliverableId;
         const position = Number.isFinite(deliverable.position) ? Math.max(0, Math.min(100, Number(deliverable.position))) : 0;
         for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -849,7 +837,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     deliverableUsedIds.delete(deliverableId);
-                    deliverableId = ensureFreshId(null, deliverableUsedIds);
+                    deliverableId = ensureStableId(null, deliverableUsedIds);
                     deliverable.id = deliverableId;
                     continue;
                 }
@@ -861,7 +849,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const tasks = Array.isArray(safeState.kanbanTasks) ? safeState.kanbanTasks : [];
     for (const task of tasks) {
         if (!task) continue;
-        let taskId = ensureFreshId(task.id, taskUsedIds);
+        let taskId = ensureStableId(task.id, taskUsedIds);
         task.id = taskId;
         const status = ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo';
         for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -877,7 +865,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
                     taskUsedIds.delete(taskId);
-                    taskId = ensureFreshId(null, taskUsedIds);
+                    taskId = ensureStableId(null, taskUsedIds);
                     task.id = taskId;
                     continue;
                 }
