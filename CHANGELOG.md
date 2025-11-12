@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+_Nothing yet._
+
+## [1.4.0] - 2025-11-12
 ### Added
 - Ny project_risks + project_risk_history schema inkl. standardkategorier og helper-moduler til risikoskalaer (RISK-001).
 - Backend CRUD-service, validators og REST-endpoints for projekt-risici inkl. tests og Supertest-suiter (RISK-002).
@@ -169,6 +172,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og milj?baseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
+
+
+
+
 
 
 
