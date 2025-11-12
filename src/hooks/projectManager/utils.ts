@@ -4,6 +4,7 @@ import {
   Phase,
   ProjectState,
 } from '../../types';
+import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../app/constants';
 
 export const generateId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -50,7 +51,7 @@ export const getInitialProjectState = (): ProjectState => ({
       id: generateId(),
       title: 'Tid',
       status: 'green',
-      note: '<p>Tidsplanen holder. Milepælen for fase 2 blev når som planlagt.</p>',
+      note: '<p>Tidsplanen holder. Milepælen for fase 2 blev nået som planlagt.</p>',
     },
     {
       id: generateId(),
@@ -65,20 +66,22 @@ export const getInitialProjectState = (): ProjectState => ({
       note: '<p>Vi mangler en specialist i udviklingsfasen – handlinger er igangsat.</p>',
     },
   ],
-  risks: [
-    {
-      id: generateId(),
-      name: 'Manglende tilgængelighed hos nøglebrugere til test i fase 3',
-      s: 3,
-      k: 3,
-    },
-    {
-      id: generateId(),
-      name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation',
-      s: 2,
-      k: 4,
-    },
-  ],
+  risks: PROJECT_RISK_ANALYSIS_ENABLED
+    ? []
+    : [
+        {
+          id: generateId(),
+          name: 'Manglende tilgængelighed hos nøglebrugere til test i fase 3',
+          s: 3,
+          k: 3,
+        },
+        {
+          id: generateId(),
+          name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation',
+          s: 2,
+          k: 4,
+        },
+      ],
   phases: [
     { id: generateId(), text: 'Idebeskrivelse', start: 0, end: 15, highlight: 'blue' },
     { id: generateId(), text: 'Forberedelse & planlægning', start: 15, end: 35, highlight: 'green' },

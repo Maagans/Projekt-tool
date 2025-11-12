@@ -562,6 +562,32 @@ export const api = {
 
     return normalizeResourceAnalyticsPayload(response);
   },
+
+  async attachReportRisks(reportId: string, riskIds: string[]): Promise<ProjectRisk[]> {
+    if (!reportId) {
+      throw new Error('reportId is required to synkronisere risici.');
+    }
+    const response = await fetchWithAuth(`/api/reports/${reportId}/risks`, {
+      method: 'POST',
+      body: JSON.stringify({ riskIds }),
+    });
+    return (response as { snapshots: ProjectRisk[] }).snapshots;
+  },
+
+  async updateReportRiskSnapshot(
+    reportId: string,
+    snapshotId: string,
+    payload: { probability: number; impact: number },
+  ): Promise<ProjectRisk> {
+    if (!reportId || !snapshotId) {
+      throw new Error('reportId og snapshotId er påkrævet for at opdatere risici.');
+    }
+    const response = await fetchWithAuth(`/api/reports/${reportId}/risks/${snapshotId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return (response as { snapshot: ProjectRisk }).snapshot;
+  },
 };
 
 

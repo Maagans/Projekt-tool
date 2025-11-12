@@ -34,8 +34,22 @@ export interface MainTableRow {
 export interface Risk {
   id: string;
   name: string;
-  s: number; // Sandsynlighed (Probability)
-  k: number; // Konsekvens (Consequence)
+  s: number; // Sandsynlighed
+  k: number; // Konsekvens
+  projectRiskId?: string | null;
+  description?: string | null;
+  status?: ProjectRiskStatus;
+  categoryKey?: ProjectRiskCategoryKey;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  mitigationPlanA?: string | null;
+  mitigationPlanB?: string | null;
+  followUpNotes?: string | null;
+  followUpFrequency?: string | null;
+  dueDate?: string | null;
+  lastFollowUpAt?: string | null;
+  projectRiskArchived?: boolean;
+  projectRiskUpdatedAt?: string | null;
 }
 
 export interface Phase {
@@ -214,6 +228,7 @@ export interface ProjectRiskOwner {
 export interface ProjectRisk {
   id: string;
   projectId: string;
+  projectRiskId?: string | null;
   title: string;
   description: string | null;
   probability: number;
@@ -233,6 +248,7 @@ export interface ProjectRisk {
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
+  projectRiskUpdatedAt?: string | null;
 }
 
 export interface ProjectRiskInput {

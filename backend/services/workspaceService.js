@@ -236,23 +236,97 @@ export const loadFullWorkspace = async (clientOverride) => {
             }
         });
 
-        const risks = await fetchReportItems(`
-            SELECT id::text, report_id::text, position, name, probability, consequence
-            FROM report_risks
-            WHERE report_id::text = ANY($1::text[])
-            ORDER BY position ASC, id::uuid ASC
+        const toIsoString = (value) => {
+            if (!value) return null;
+            if (typeof value === 'string') {
+                return value;
+            }
+            try {
+                return value.toISOString();
+            } catch (error) {
+                return String(value);
+            }
+        };
+
+        const snapshotRows = await fetchReportItems(`
+            SELECT
+                s.id::text,
+                s.report_id::text,
+                s.project_risk_id::text,
+                s.title,
+                s.description,
+                s.probability,
+                s.impact,
+                s.score,
+                s.category,
+                s.status,
+                s.owner_name,
+                s.owner_email,
+                s.mitigation_plan_a,
+                s.mitigation_plan_b,
+                s.follow_up_notes,
+                s.follow_up_frequency,
+                s.due_date,
+                s.last_follow_up_at,
+                pr.is_archived AS project_risk_archived,
+                pr.updated_at AS project_risk_updated_at
+            FROM report_risk_snapshots s
+            LEFT JOIN project_risks pr ON pr.id = s.project_risk_id
+            WHERE s.report_id::text = ANY($1::text[])
+            ORDER BY s.created_at ASC
         `);
-        risks.forEach((row) => {
+
+        const snapshotReportIds = new Set();
+        snapshotRows.forEach((row) => {
             const report = reportMap.get(row.report_id);
             if (report) {
+                snapshotReportIds.add(row.report_id);
                 report.state.risks.push({
                     id: row.id,
-                    name: row.name,
+                    name: row.title,
                     s: Number(row.probability ?? 1),
-                    k: Number(row.consequence ?? 1),
+                    k: Number(row.impact ?? 1),
+                    projectRiskId: row.project_risk_id ?? null,
+                    description: row.description ?? null,
+                    status: row.status ?? 'open',
+                    categoryKey: row.category ?? 'other',
+                    ownerName: row.owner_name ?? null,
+                    ownerEmail: row.owner_email ?? null,
+                    mitigationPlanA: row.mitigation_plan_a ?? null,
+                    mitigationPlanB: row.mitigation_plan_b ?? null,
+                    followUpNotes: row.follow_up_notes ?? null,
+                    followUpFrequency: row.follow_up_frequency ?? null,
+                    dueDate: toIsoString(row.due_date),
+                    lastFollowUpAt: toIsoString(row.last_follow_up_at),
+                    projectRiskArchived: row.project_risk_archived ?? false,
+                    projectRiskUpdatedAt: toIsoString(row.project_risk_updated_at),
                 });
             }
         });
+
+        const legacyReportIds = reportIds.filter((id) => !snapshotReportIds.has(id));
+        if (legacyReportIds.length > 0) {
+            const legacyRisksResult = await executor.query(
+                `
+                SELECT id::text, report_id::text, position, name, probability, consequence
+                FROM report_risks
+                WHERE report_id::text = ANY($1::text[])
+                ORDER BY position ASC, id::uuid ASC
+            `,
+                [legacyReportIds],
+            );
+            legacyRisksResult.rows.forEach((row) => {
+                const report = reportMap.get(row.report_id);
+                if (report) {
+                    report.state.risks.push({
+                        id: row.id,
+                        name: row.name,
+                        s: Number(row.probability ?? 1),
+                        k: Number(row.consequence ?? 1),
+                    });
+                }
+            });
+        }
 
         const phases = await fetchReportItems(`
             SELECT id::text, report_id::text, label, start_percentage::float, end_percentage::float, highlight
@@ -633,12 +707,15 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         'report_status_items',
         'report_challenge_items',
         'report_main_table_rows',
-        'report_risks',
         'report_phases',
         'report_milestones',
         'report_deliverables',
         'report_kanban_tasks',
     ];
+
+    if (!config.features.projectRiskAnalysisEnabled) {
+        resetTables.push('report_risks');
+    }
 
     for (const table of resetTables) {
         await client.query(`DELETE FROM ${table} WHERE report_id = $1${reportIdCast}`, [reportIdValue]);
@@ -731,32 +808,34 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         }
     }
 
-    const risks = Array.isArray(safeState.risks) ? safeState.risks : [];
-    for (let index = 0; index < risks.length; index += 1) {
-        const risk = risks[index];
-        if (!risk) continue;
-        let riskId = ensureStableId(risk.id, riskUsedIds);
-        risk.id = riskId;
-        const probability = Number.isFinite(risk.s) ? Math.max(1, Math.min(5, Number(risk.s))) : 1;
-        const consequence = Number.isFinite(risk.k) ? Math.max(1, Math.min(5, Number(risk.k))) : 1;
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-            try {
-                await client.query(
-                    `
-            INSERT INTO report_risks (id, report_id, position, name, probability, consequence)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
-        `,
-                    [riskId, reportIdValue, index, risk.name ?? '', probability, consequence],
-                );
-                break;
-            } catch (error) {
-                if (error.code === '23505' && attempt < 2) {
-                    riskUsedIds.delete(riskId);
-                    riskId = ensureStableId(null, riskUsedIds);
-                    risk.id = riskId;
-                    continue;
+    if (!config.features.projectRiskAnalysisEnabled) {
+        const risks = Array.isArray(safeState.risks) ? safeState.risks : [];
+        for (let index = 0; index < risks.length; index += 1) {
+            const risk = risks[index];
+            if (!risk) continue;
+            let riskId = ensureStableId(risk.id, riskUsedIds);
+            risk.id = riskId;
+            const probability = Number.isFinite(risk.s) ? Math.max(1, Math.min(5, Number(risk.s))) : 1;
+            const consequence = Number.isFinite(risk.k) ? Math.max(1, Math.min(5, Number(risk.k))) : 1;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                    await client.query(
+                        `
+                INSERT INTO report_risks (id, report_id, position, name, probability, consequence)
+                VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
+            `,
+                        [riskId, reportIdValue, index, risk.name ?? '', probability, consequence],
+                    );
+                    break;
+                } catch (error) {
+                    if (error.code === '23505' && attempt < 2) {
+                        riskUsedIds.delete(riskId);
+                        riskId = ensureStableId(null, riskUsedIds);
+                        risk.id = riskId;
+                        continue;
+                    }
+                    throw error;
                 }
-                throw error;
             }
         }
     }

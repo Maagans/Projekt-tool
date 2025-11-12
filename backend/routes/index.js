@@ -7,6 +7,7 @@ import usersRoutes from "./usersRoutes.js";
 import employeesRoutes from "./employeesRoutes.js";
 import analyticsRoutes from "./analyticsRoutes.js";
 import projectRiskRoutes from "./projectRiskRoutes.js";
+import reportRoutes from "./reportRoutes.js";
 
 export const createApiRouter = ({ resourcesEnabled, riskAnalysisEnabled } = {}) => {
   const router = Router();
@@ -17,6 +18,7 @@ export const createApiRouter = ({ resourcesEnabled, riskAnalysisEnabled } = {}) 
   router.use("/projects", projectsRoutes);
   if (riskAnalysisEnabled) {
     router.use("/", projectRiskRoutes);
+    router.use("/", reportRoutes);
   }
   router.use("/employees", employeesRoutes);
   router.use("/users", usersRoutes);

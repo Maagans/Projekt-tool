@@ -98,6 +98,14 @@ Vil du teste ressourcemodulet i preview-tilstand, så sæt `VITE_RESOURCES_ANALY
 - Access remains restricted to administrators and inherits the PMO permissions used elsewhere; project managers and team members stay on the classic overview.
 - Capture an updated screenshot for release notes (see `docs/screenshots/`).
 
+### Risikoanalyse (RISK-006 / RISK-007)
+- `PROJECT_RISK_ANALYSIS_ENABLED` er nu `true` som standard (du kan sætte den til `false` i `.env`, hvis funktionen skal skjules i særlige miljøer).
+- Ny QA/UAT playbook findes i [`docs/risk-analysis-qa.md`](docs/risk-analysis-qa.md) med manuelle smoke-scenarier og sign-off skema.
+- Automatiske regressionstests kan køres med:
+  1. `npm run test -- ProjectRiskMatrix`
+  2. `npm run test --prefix backend -- --run tests/services/reportRiskSnapshotService.test.js`
+  3. `npm run test --prefix backend -- --run tests/api/reportRiskRoutes.test.js`
+
 #### PMO baseline og stacked kapacitetschart
 - The embedded Resource Analytics view now renders a stacked project chart with a baseline reference line. Each week displays the total planned/actual load plus coloured areas for individual projects.
 - Weeks where actual hours exceed the baseline are highlighted with badges and tooltips so PMO staff can spot overload periods at a glance.

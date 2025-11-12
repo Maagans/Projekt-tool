@@ -42,6 +42,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "citext";
 
 -- Ryd op i gamle objekter
+DROP TABLE IF EXISTS report_risk_snapshots CASCADE;
 DROP TABLE IF EXISTS project_risk_history CASCADE;
 DROP TABLE IF EXISTS project_risks CASCADE;
 DROP TABLE IF EXISTS report_kanban_tasks CASCADE;
@@ -166,6 +167,31 @@ CREATE TABLE project_risk_history (
     changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE report_risk_snapshots (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    project_risk_id UUID REFERENCES project_risks(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    probability SMALLINT NOT NULL,
+    impact SMALLINT NOT NULL,
+    score SMALLINT NOT NULL,
+    category TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    owner_name TEXT,
+    owner_email TEXT,
+    mitigation_plan_a TEXT,
+    mitigation_plan_b TEXT,
+    follow_up_notes TEXT,
+    follow_up_frequency TEXT,
+    due_date DATE,
+    last_follow_up_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_report_risk_snapshots_report ON report_risk_snapshots(report_id);
+CREATE INDEX idx_report_risk_snapshots_project_risk ON report_risk_snapshots(project_risk_id);
 
 CREATE TABLE report_status_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

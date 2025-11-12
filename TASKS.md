@@ -710,11 +710,11 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Cards kan flyttes mellem celler med mutationer; UI matcher designkrav.
   - Afhængigheder: RISK-004.
 
-- [ ] RISK-006: Rapport & Snapshot Integration
+- [x] RISK-006: Rapport & Snapshot Integration
   - Formål: Rapportmodulet refererer kuraterede risici og gemmer snapshots inkl. badges for arkiverede.
   - Ændringer: `POST /reports/:id/risks`, snapshot-tabeller, rapport-UI for valg og matrix-rendering (snapshot mode), eksport-opdateringer.
   - Test (TDD): Supertest for snapshot endpoints, RTL for rapport-editor/matrix, unit-tests for eksport (CSV/PDF) med nye felter.
-  - Accept: Rapportens matrix bruger snapshot-data og viser “Arkiveret siden uge X” når relevant.
+  - Accept: Rapportens matrix bruger snapshot-data og viser "Arkiveret siden uge X" når relevant.
   - Afhængigheder: RISK-002, RISK-005.
 
 - [ ] RISK-007: QA, UAT & Dokumentation

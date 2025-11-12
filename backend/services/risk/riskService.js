@@ -270,19 +270,24 @@ export const createProjectRisk = async (projectId, payload, user, options = {}) 
     const insertPayload = prepareInsertParams(projectId, payload, effectiveUser);
     const result = await client.query(
       `
-        INSERT INTO project_risks (
-          project_id, title, description, probability, impact, score,
-          mitigation_plan_a, mitigation_plan_b, owner_id,
-          follow_up_notes, follow_up_frequency, category,
-          last_follow_up_at, due_date, status, created_by, updated_by
+        WITH inserted AS (
+          INSERT INTO project_risks (
+            project_id, title, description, probability, impact, score,
+            mitigation_plan_a, mitigation_plan_b, owner_id,
+            follow_up_notes, follow_up_frequency, category,
+            last_follow_up_at, due_date, status, created_by, updated_by
+          )
+          VALUES (
+            $1::uuid, $2, $3, $4, $5, $6,
+            $7, $8, $9::uuid,
+            $10, $11, $12,
+            $13, $14, $15, $16::uuid, $16::uuid
+          )
+          RETURNING *
         )
-        VALUES (
-          $1::uuid, $2, $3, $4, $5, $6,
-          $7, $8, $9::uuid,
-          $10, $11, $12,
-          $13, $14, $15, $16::uuid, $16::uuid
-        )
-        RETURNING ${SELECT_FIELDS}
+        SELECT ${SELECT_FIELDS}
+        FROM inserted r
+        LEFT JOIN employees e ON e.id = r.owner_id
       `,
       [
         insertPayload.projectId,

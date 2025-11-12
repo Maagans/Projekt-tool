@@ -7,6 +7,7 @@ const risks: ProjectRisk[] = [
   {
     id: 'risk-1',
     projectId: 'proj-1',
+    projectRiskId: 'risk-1',
     title: 'Delay',
     description: null,
     probability: 2,
@@ -26,6 +27,7 @@ const risks: ProjectRisk[] = [
     updatedBy: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    projectRiskUpdatedAt: null,
   },
 ];
 
@@ -41,7 +43,7 @@ describe('ProjectRiskMatrix', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('Delay'));
+    fireEvent.click(screen.getByRole('button', { name: /Delay/i }));
     expect(onSelectRisk).toHaveBeenCalledWith('risk-1');
   });
 
@@ -59,5 +61,24 @@ describe('ProjectRiskMatrix', () => {
     const targetCell = screen.getAllByRole('gridcell')[0];
     fireEvent.click(targetCell);
     expect(onMoveRisk).toHaveBeenCalled();
+  });
+
+  it('shows archived badge with timestamp meta', () => {
+    const archivedRisk: ProjectRisk = {
+      ...risks[0],
+      id: 'risk-arch',
+      isArchived: true,
+      projectRiskUpdatedAt: '2025-01-10T12:00:00.000Z',
+    };
+    render(
+      <ProjectRiskMatrix
+        risks={[archivedRisk]}
+        selectedRiskId={null}
+        onSelectRisk={vi.fn()}
+        onMoveRisk={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Arkiveret siden/i)).toBeInTheDocument();
   });
 });

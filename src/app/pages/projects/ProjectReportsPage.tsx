@@ -1,17 +1,83 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { KanbanBoard } from '../../../components/KanbanBoard';
 import { Timeline } from '../../../components/Timeline';
 import { EditableList } from '../../../components/RichTextEditor';
 import { MainStatusTable } from '../../../components/MainStatusTable';
 import { DeliverablesList } from '../../../components/DeliverablesList';
 import { RiskMatrix } from '../../../components/RiskMatrix';
+import { ProjectRiskMatrix, PROJECT_RISK_CATEGORY_META } from '../../../components/ProjectRiskMatrix';
 import { CalendarIcon, PlusIcon, StepForwardIcon, TrashIcon } from '../../../components/Icons';
 import { SyncStatusPill } from '../../../components/SyncStatusPill';
-import type { Deliverable, Milestone, Phase, ProjectState, Report } from '../../../types';
+import type {
+  Deliverable,
+  Milestone,
+  Phase,
+  ProjectRisk,
+  ProjectRiskCategoryKey,
+  ProjectRiskStatus,
+  ProjectState,
+  Report,
+  Risk,
+} from '../../../types';
 import { generateId, TimelineItemType, TimelineUpdatePayload } from '../../../hooks/projectManager/utils';
+import { useProjectRisks as useCuratedProjectRisks } from '../../../hooks/useProjectRisks';
+import { api } from '../../../api';
 import { useProjectRouteContext } from './ProjectLayout';
+import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 
 const DEFAULT_PHASE_WIDTH = 10;
+
+const getCategoryMeta = (key: ProjectRiskCategoryKey | string | undefined) =>
+  PROJECT_RISK_CATEGORY_META[key as ProjectRiskCategoryKey] ?? PROJECT_RISK_CATEGORY_META.other;
+
+const snapshotToProjectRisk = (risk: Risk, projectId: string): ProjectRisk => {
+  const meta = getCategoryMeta(risk.categoryKey);
+  return {
+    id: risk.id,
+    projectId,
+    projectRiskId: risk.projectRiskId ?? null,
+    title: risk.name,
+    description: risk.description ?? null,
+    probability: risk.s,
+    impact: risk.k,
+    score: risk.s * risk.k,
+    category: meta,
+    status: (risk.status as ProjectRiskStatus) ?? 'open',
+    owner: risk.ownerName
+      ? { id: risk.projectRiskId ?? risk.id, name: risk.ownerName, email: risk.ownerEmail ?? null }
+      : null,
+    mitigationPlanA: risk.mitigationPlanA ?? null,
+    mitigationPlanB: risk.mitigationPlanB ?? null,
+    followUpNotes: risk.followUpNotes ?? null,
+    followUpFrequency: risk.followUpFrequency ?? null,
+    dueDate: risk.dueDate ?? null,
+    lastFollowUpAt: risk.lastFollowUpAt ?? null,
+    isArchived: Boolean(risk.projectRiskArchived),
+    projectRiskUpdatedAt: risk.projectRiskUpdatedAt ?? null,
+  };
+};
+
+const projectRiskToReportState = (risk: ProjectRisk): Risk => ({
+  id: risk.id,
+  name: risk.title,
+  s: risk.probability,
+  k: risk.impact,
+  projectRiskId: risk.projectRiskId ?? risk.id,
+  description: risk.description ?? null,
+  status: risk.status,
+  categoryKey: risk.category?.key ?? 'other',
+  ownerName: risk.owner?.name ?? null,
+  ownerEmail: risk.owner?.email ?? null,
+  mitigationPlanA: risk.mitigationPlanA ?? null,
+  mitigationPlanB: risk.mitigationPlanB ?? null,
+  followUpNotes: risk.followUpNotes ?? null,
+  followUpFrequency: risk.followUpFrequency ?? null,
+  dueDate: risk.dueDate ?? null,
+  lastFollowUpAt: risk.lastFollowUpAt ?? null,
+  projectRiskArchived: Boolean(risk.isArchived),
+  projectRiskUpdatedAt: risk.projectRiskUpdatedAt ?? null,
+});
 
 const getLatestWeekKey = (reports: Report[]): string | null => {
   if (!reports.length) {
@@ -64,6 +130,11 @@ export const ProjectReportsPage = () => {
   const [isTimelineDirty, setIsTimelineDirty] = useState(false);
   const pendingTimelineStateRef = useRef<{ weekKey: string; state: ProjectState } | null>(null);
   const dirtyWeekKeyRef = useRef<string | null>(initialWeekKeyRef.current);
+  const [isRiskSelectorOpen, setIsRiskSelectorOpen] = useState(false);
+  const [selectedReportRiskIds, setSelectedReportRiskIds] = useState<string[]>([]);
+  const [selectorError, setSelectorError] = useState<string | null>(null);
+  const [selectedSnapshotRiskId, setSelectedSnapshotRiskId] = useState<string | null>(null);
+  const [riskMatrixError, setRiskMatrixError] = useState<string | null>(null);
 
   const updateDraftReportState = useCallback(
     (updater: (state: ProjectState) => ProjectState) => {
@@ -101,7 +172,43 @@ export const ProjectReportsPage = () => {
     () => draftProject.reports.find((report) => report.weekKey === activeWeekKey) ?? null,
     [draftProject, activeWeekKey],
   );
+  const snapshotProjectRisks = useMemo<ProjectRisk[]>(
+    () => {
+      if (!PROJECT_RISK_ANALYSIS_ENABLED) {
+        return [];
+      }
+      return (activeReport?.state.risks ?? [])
+        .filter((risk) => Boolean(risk.projectRiskId))
+        .map((risk) => snapshotToProjectRisk(risk, project.id));
+    },
+    [activeReport?.state.risks, project.id],
+  );
+  const selectedSnapshotRisk = useMemo(
+    () => snapshotProjectRisks.find((risk) => risk.id === selectedSnapshotRiskId) ?? null,
+    [snapshotProjectRisks, selectedSnapshotRiskId],
+  );
+  useEffect(() => {
+    if (!PROJECT_RISK_ANALYSIS_ENABLED) {
+      setSelectedSnapshotRiskId(null);
+      return;
+    }
+    setSelectedSnapshotRiskId((current) => {
+      if (snapshotProjectRisks.length === 0) {
+        return null;
+      }
+      if (current && snapshotProjectRisks.some((risk) => risk.id === current)) {
+        return current;
+      }
+      return snapshotProjectRisks[0]?.id ?? null;
+    });
+  }, [snapshotProjectRisks]);
+  const handleSelectSnapshotRisk = useCallback((riskId: string) => {
+    setSelectedSnapshotRiskId((current) => (current === riskId ? null : riskId));
+  }, []);
   const { canManage } = projectManager;
+  const curatedRisksQuery = useCuratedProjectRisks(PROJECT_RISK_ANALYSIS_ENABLED ? project.id : null);
+  const curatedRisks = curatedRisksQuery.risks ?? [];
+  const curatedRisksQueryState = curatedRisksQuery.query;
   const floatingSyncClass = 'fixed bottom-6 right-4 sm:right-6 pointer-events-none z-40 drop-shadow-lg';
   const isTimelineDraftActive = isTimelineDirty && dirtyWeekKeyRef.current === activeWeekKey;
   const resetTimelineDraft = useCallback(() => {
@@ -109,6 +216,17 @@ export const ProjectReportsPage = () => {
     dirtyWeekKeyRef.current = null;
     setIsTimelineDirty(false);
   }, []);
+
+  useEffect(() => {
+    if (!PROJECT_RISK_ANALYSIS_ENABLED) {
+      return;
+    }
+    const currentIds =
+      activeReport?.state.risks
+        ?.map((risk) => risk.projectRiskId)
+        .filter((value): value is string => Boolean(value)) ?? [];
+    setSelectedReportRiskIds(currentIds);
+  }, [activeReport?.state.risks]);
 
   useEffect(() => {
     if (isTimelineDirty) {
@@ -165,10 +283,69 @@ export const ProjectReportsPage = () => {
     resetTimelineDraft();
   }, [project, resetTimelineDraft]);
 
-  const actions = projectManager.projectActions(project.id, activeWeekKey);
-  if (!actions) return null;
+  const toggleReportRiskSelection = useCallback((riskId: string) => {
+    setSelectedReportRiskIds((prev) =>
+      prev.includes(riskId) ? prev.filter((id) => id !== riskId) : [...prev, riskId],
+    );
+  }, []);
 
-  const { reportsManager, ...restActions } = actions;
+  const actions = projectManager.projectActions(project.id, activeWeekKey);
+  const reportsManager = actions?.reportsManager ?? null;
+  const restActions = actions
+    ? (({ reportsManager: _reportsManager, ...rest }) => rest)(actions)
+    : null;
+
+  const attachRisksMutation = useMutation({
+    mutationFn: async (riskIds: string[]) => {
+      if (!activeReport?.id) {
+        throw new Error('Rapporten er ikke gemt endnu.');
+      }
+      return api.attachReportRisks(activeReport.id, riskIds);
+    },
+    onSuccess: (snapshots) => {
+      if (!reportsManager || !activeReport) {
+        return;
+      }
+      const normalizedSnapshots = snapshots.map(
+        (snapshot) =>
+          ({
+            ...snapshot,
+            projectId: project.id,
+            category: getCategoryMeta(snapshot.category as ProjectRiskCategoryKey),
+          }) as ProjectRisk,
+      );
+      reportsManager.replaceState({
+        ...activeReport.state,
+        risks: normalizedSnapshots.map(projectRiskToReportState),
+      });
+      setSelectedReportRiskIds(normalizedSnapshots.map((snapshot) => snapshot.projectRiskId ?? snapshot.id));
+      setSelectedSnapshotRiskId((current) => {
+        if (current && normalizedSnapshots.some((snapshot) => snapshot.id === current)) {
+          return current;
+        }
+        return normalizedSnapshots[0]?.id ?? null;
+      });
+      setSelectorError(null);
+      setIsRiskSelectorOpen(false);
+    },
+    onError: (error) => {
+      setSelectorError(error instanceof Error ? error.message : 'Kunne ikke opdatere rapportens risici.');
+    },
+  });
+
+  const updateReportSnapshotMutation = useMutation({
+    mutationFn: ({
+      reportId,
+      snapshotId,
+      probability,
+      impact,
+    }: {
+      reportId: string;
+      snapshotId: string;
+      probability: number;
+      impact: number;
+    }) => api.updateReportRiskSnapshot(reportId, snapshotId, { probability, impact }),
+  });
 
   const handleCreateNext = () => {
     if (isBusy) return;
@@ -188,6 +365,10 @@ export const ProjectReportsPage = () => {
       setActiveWeekKey(null);
     }
   };
+
+  if (!reportsManager || !restActions) {
+    return null;
+  }
 
   if (project.reports.length === 0) {
     return (
@@ -211,6 +392,48 @@ export const ProjectReportsPage = () => {
   }
 
   const { timelineManager, statusListManager, challengeListManager, kanbanManager, riskManager } = restActions;
+  const legacyRiskMove = guardManage(riskManager.updatePosition);
+  const handleSnapshotMove = guardManage(
+    (riskId: string, probability: number, impact: number) => {
+      if (!PROJECT_RISK_ANALYSIS_ENABLED) {
+        return;
+      }
+      if (!reportsManager || !activeReport) {
+        return;
+      }
+      if (!activeReport.id) {
+        setRiskMatrixError('Gem rapporten før du opdaterer risici.');
+        return;
+      }
+      const previousRisks = activeReport.state.risks ?? [];
+      const previousRisk = previousRisks.find((risk) => risk.id === riskId);
+      if (!previousRisk) {
+        return;
+      }
+      const optimisticRisks = previousRisks.map((risk) =>
+        risk.id === riskId ? { ...risk, s: probability, k: impact } : risk,
+      );
+      reportsManager.replaceState({ ...activeReport.state, risks: optimisticRisks });
+      setRiskMatrixError(null);
+      (async () => {
+        try {
+          await updateReportSnapshotMutation.mutateAsync({
+            reportId: activeReport.id!,
+            snapshotId: riskId,
+            probability,
+            impact,
+          });
+        } catch (error) {
+          const revertedRisks = previousRisks.map((risk) =>
+            risk.id === riskId ? { ...risk, s: previousRisk.s, k: previousRisk.k } : risk,
+          );
+          reportsManager.replaceState({ ...activeReport.state, risks: revertedRisks });
+          setRiskMatrixError(error instanceof Error ? error.message : 'Kunne ikke opdatere risikomatrix.');
+        }
+      })();
+    },
+    { allowWhileTimelineDraft: true },
+  );
 
   return (
     <>
@@ -387,23 +610,68 @@ export const ProjectReportsPage = () => {
             updateNote={guardManage(restActions.updateMainTableRowNote)}
           />
         </div>
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1">
-            <DeliverablesList
-              deliverables={activeReport.state.deliverables}
-              calculateDateFromPosition={timelineManager.calculateDateFromPosition}
-            />
+        {PROJECT_RISK_ANALYSIS_ENABLED ? (
+          <>
+            <div className="lg:col-span-2">
+              <DeliverablesList
+                deliverables={activeReport.state.deliverables}
+                calculateDateFromPosition={timelineManager.calculateDateFromPosition}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              {canManage && (
+                <div className="mb-3 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={!activeReport?.id}
+                    onClick={() => {
+                      setSelectorError(null);
+                      setIsRiskSelectorOpen(true);
+                    }}
+                    className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Synkroniser risici
+                  </button>
+                </div>
+              )}
+              <div className="space-y-4">
+                  <ProjectRiskMatrix
+                    risks={snapshotProjectRisks}
+                    selectedRiskId={selectedSnapshotRiskId}
+                    onSelectRisk={handleSelectSnapshotRisk}
+                    onMoveRisk={PROJECT_RISK_ANALYSIS_ENABLED ? handleSnapshotMove : legacyRiskMove}
+                    disabled={!canManage}
+                  />
+                  {riskMatrixError && (
+                    <p className="text-sm text-red-600">{riskMatrixError}</p>
+                  )}
+                <SnapshotRiskDetailsPanel
+                  risk={selectedSnapshotRisk}
+                  totalRisks={snapshotProjectRisks.length}
+                  weekKey={activeReport.weekKey}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <DeliverablesList
+                deliverables={activeReport.state.deliverables}
+                calculateDateFromPosition={timelineManager.calculateDateFromPosition}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <RiskMatrix
+                risks={activeReport.state.risks}
+                updateRiskPosition={guardManage(riskManager.updatePosition)}
+                addRisk={guardManage(riskManager.add)}
+                updateRiskName={guardManage(riskManager.updateName)}
+                deleteRisk={guardManage(riskManager.delete)}
+              />
+            </div>
           </div>
-          <div className="md:col-span-2">
-            <RiskMatrix
-              risks={activeReport.state.risks}
-              updateRiskPosition={guardManage(riskManager.updatePosition)}
-              addRisk={guardManage(riskManager.add)}
-              updateRiskName={guardManage(riskManager.updateName)}
-              deleteRisk={guardManage(riskManager.delete)}
-            />
-          </div>
-        </div>
+        )}
       </main>
       {isNewReportModalOpen && (
         <NewReportModal
@@ -416,9 +684,248 @@ export const ProjectReportsPage = () => {
           }}
         />
       )}
+      {PROJECT_RISK_ANALYSIS_ENABLED && isRiskSelectorOpen && (
+        <div className="fixed inset-0 z-40 flex bg-black/30">
+          <div className="ml-auto flex h-full w-full max-w-xl flex-col bg-white shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Synkroniser risici</h3>
+                <p className="text-sm text-slate-600">
+                  Vælg hvilke kuraterede risici der skal vises i denne rapport.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRiskSelectorOpen(false)}
+                className="text-sm text-slate-500 hover:text-slate-700"
+              >
+                Luk
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6">
+              {curatedRisksQueryState.isLoading ? (
+                <p className="text-sm text-slate-500">Indlæser risici …</p>
+              ) : curatedRisks.length === 0 ? (
+                <p className="text-sm text-slate-500">Ingen kuraterede risici tilføjet endnu.</p>
+              ) : (
+                <div className="space-y-3">
+                  {curatedRisks.map((risk) => {
+                    const meta = risk.category ?? PROJECT_RISK_CATEGORY_META[risk.category?.key ?? 'other'];
+                    const isChecked = selectedReportRiskIds.includes(risk.id);
+                    return (
+                      <label
+                        key={risk.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm transition ${
+                          isChecked ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={isChecked}
+                          onChange={() => toggleReportRiskSelection(risk.id)}
+                        />
+                        <div className="flex flex-1 flex-col gap-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-900">{risk.title}</span>
+                            {risk.isArchived && (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                Arkiveret
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                            <span>S {risk.probability}</span>
+                            <span>K {risk.impact}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.badge}`}>
+                              {meta.label}
+                            </span>
+                            {risk.owner?.name && <span>Ansvarlig: {risk.owner.name}</span>}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              {selectorError && (
+                <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{selectorError}</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setIsRiskSelectorOpen(false)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Annuller
+              </button>
+              <button
+                type="button"
+                disabled={!activeReport?.id || attachRisksMutation.isPending}
+                onClick={() => attachRisksMutation.mutate([...selectedReportRiskIds])}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Gem risici
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </>
+  );
+};
+
+type SnapshotRiskDetailsPanelProps = {
+  risk: ProjectRisk | null;
+  totalRisks: number;
+  weekKey: string | null;
+};
+
+const SNAPSHOT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+};
+
+const SNAPSHOT_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  ...SNAPSHOT_DATE_OPTIONS,
+  hour: '2-digit',
+  minute: '2-digit',
+};
+
+const formatSnapshotDate = (
+  value: string | null | undefined,
+  options: Intl.DateTimeFormatOptions,
+): string | null => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat('da-DK', options).format(date);
+};
+
+const textOrPlaceholder = (value: string | null | undefined) =>
+  value && value.trim().length > 0 ? value : 'Ikke angivet';
+
+const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDetailsPanelProps) => {
+  if (totalRisks === 0) {
+    return (
+      <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        Ingen risici er synkroniseret til rapporten endnu. Brug knappen &quot;Synkroniser risici&quot; for at vælge kuraterede
+        risici fra fanen Risikovurdering.
+      </section>
+    );
+  }
+
+  if (!risk) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        Vælg en risiko i matrixen for at se detaljer og justere point for denne rapport. Snapshotdata viser den præcise
+        beskrivelse, planer og opfølgning for ugevalget.
+      </section>
+    );
+  }
+
+  const archivedLabel = risk.isArchived
+    ? `Arkiveret siden ${
+        formatSnapshotDate(risk.projectRiskUpdatedAt, SNAPSHOT_DATE_OPTIONS) ?? ''
+      }`.trim()
+    : null;
+
+  const scoreLabel = `Score ${risk.score} (S ${risk.probability} / K ${risk.impact})`;
+  const dueDate = formatSnapshotDate(risk.dueDate, SNAPSHOT_DATE_OPTIONS) ?? 'Ikke angivet';
+  const lastFollowUp =
+    formatSnapshotDate(risk.lastFollowUpAt, SNAPSHOT_DATE_TIME_OPTIONS) ?? 'Ikke angivet';
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div>
+          <h4 className="text-base font-semibold text-slate-900">Detaljer for valgte risiko</h4>
+          <p className="text-sm text-slate-600">
+            {weekKey ? `Snapshot for ${weekKey}` : 'Snapshot baseret på denne rapport.'}
+          </p>
+        </div>
+        {archivedLabel && (
+          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+            {archivedLabel}
+          </span>
+        )}
+      </div>
+      <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Score</dt>
+          <dd className="mt-1 text-sm text-slate-900">{scoreLabel}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</dt>
+          <dd className="mt-1 text-sm capitalize text-slate-900">{risk.status}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kategori</dt>
+          <dd className="mt-1">
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${risk.category.badge}`}
+            >
+              {risk.category.label}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ansvarlig</dt>
+          <dd className="mt-1 text-sm text-slate-900">
+            {risk.owner?.name ?? 'Ikke angivet'}
+            {risk.owner?.email && <span className="block text-xs text-slate-500">{risk.owner.email}</span>}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Opfølgning</dt>
+          <dd className="mt-1 text-sm text-slate-900">{textOrPlaceholder(risk.followUpFrequency)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sidst fulgt op</dt>
+          <dd className="mt-1 text-sm text-slate-900">{lastFollowUp}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Forfaldsdato</dt>
+          <dd className="mt-1 text-sm text-slate-900">{dueDate}</dd>
+        </div>
+      </dl>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-slate-100 p-3">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Beskrivelse</h5>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            {textOrPlaceholder(risk.description)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 p-3">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Opfølgningsnoter
+          </h5>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            {textOrPlaceholder(risk.followUpNotes)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 p-3">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan A</h5>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            {textOrPlaceholder(risk.mitigationPlanA)}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 p-3">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan B</h5>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
+            {textOrPlaceholder(risk.mitigationPlanB)}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -486,3 +993,18 @@ const NewReportModal = ({ manager, onClose, onSelect }: NewReportModalProps) => 
 };
 
 export default ProjectReportsPage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

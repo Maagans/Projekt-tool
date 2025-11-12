@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 import { useProjectRouteContext } from './ProjectLayout';
 import { useProjectRisks } from '../../../hooks/useProjectRisks';
-import { ProjectRiskMatrix } from '../../../components/ProjectRiskMatrix';
 import type {
   ProjectRisk,
   ProjectRiskCategoryKey,
@@ -41,8 +40,6 @@ const STATUS_OPTIONS: Array<{ key: ProjectRiskStatus; label: string }> = [
 
 const defaultFormState: ProjectRiskInput = {
   title: '',
-  probability: 3,
-  impact: 3,
   status: 'open',
   category: 'other',
   mitigationPlanA: '',
@@ -85,6 +82,11 @@ const toInputDateTime = (value: string | null) => {
 };
 
 const parseDateTimeInput = (value: string) => (value ? new Date(value).toISOString() : null);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const normalizeOwnerId = (value: string | null | undefined) => {
+  if (!value) return null;
+  return UUID_REGEX.test(value) ? value : null;
+};
 
 export const ProjectRisksPage = () => {
   const { project, projectManager } = useProjectRouteContext();
@@ -96,7 +98,6 @@ export const ProjectRisksPage = () => {
   });
   const [formState, setFormState] = useState<ProjectRiskInput>(defaultFormState);
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedRiskId, setSelectedRiskId] = useState<string | null>(null);
 
   const { risks, isLoading, isFetching, error, createRisk, updateRisk, archiveRisk, isMutating } = useProjectRisks(
     PROJECT_RISK_ANALYSIS_ENABLED ? project.id : null,
@@ -104,14 +105,26 @@ export const ProjectRisksPage = () => {
   );
   const canEdit = projectManager.canManage;
 
-  const ownerOptions = useMemo(
-    () =>
-      (projectManager.employees ?? []).map((employee) => ({
+  const memberEmployeeIds = useMemo(() => {
+    const ids = new Set<string>();
+    (project.projectMembers ?? []).forEach((member) => {
+      if (member.employeeId) {
+        ids.add(member.employeeId);
+      }
+    });
+    return ids;
+  }, [project.projectMembers]);
+
+  const ownerOptions = useMemo(() => {
+    const employees = projectManager.employees ?? [];
+    const shouldFilter = memberEmployeeIds.size > 0;
+    return employees
+      .filter((employee) => (shouldFilter ? memberEmployeeIds.has(employee.id) : true))
+      .map((employee) => ({
         id: employee.id,
         label: `${employee.name}${employee.department ? ` (${employee.department})` : ''}`,
-      })),
-    [projectManager.employees],
-  );
+      }));
+  }, [projectManager.employees, memberEmployeeIds]);
 
   if (!PROJECT_RISK_ANALYSIS_ENABLED) {
     return (
@@ -130,8 +143,6 @@ export const ProjectRisksPage = () => {
       setFormState({
         title: risk.title,
         description: risk.description ?? '',
-        probability: risk.probability,
-        impact: risk.impact,
         mitigationPlanA: risk.mitigationPlanA ?? '',
         mitigationPlanB: risk.mitigationPlanB ?? '',
         ownerId: risk.owner?.id ?? '',
@@ -161,26 +172,33 @@ export const ProjectRisksPage = () => {
     }));
   };
 
-  const handleMoveRisk = async (riskId: string, probability: number, impact: number) => {
-    if (!canEdit) return;
-    try {
-      await updateRisk({ riskId, updates: { probability, impact } });
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Kunne ikke opdatere risikoens placering.');
-    }
-  };
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
+    const probability = drawer.mode === 'edit' ? drawer.risk?.probability ?? 1 : 1;
+    const impact = drawer.mode === 'edit' ? drawer.risk?.impact ?? 1 : 1;
+    const ownerId = normalizeOwnerId(formState.ownerId);
     const payload: ProjectRiskInput = {
-      ...formState,
-      ownerId: formState.ownerId ? formState.ownerId : null,
-      probability: Number(formState.probability ?? 1),
-      impact: Number(formState.impact ?? 1),
-      lastFollowUpAt: formState.lastFollowUpAt ? parseDateTimeInput(formState.lastFollowUpAt) : null,
-      dueDate: formState.dueDate || null,
+      title: formState.title?.trim() ?? '',
+      description: formState.description ?? '',
+      mitigationPlanA: formState.mitigationPlanA ?? '',
+      mitigationPlanB: formState.mitigationPlanB ?? '',
+      followUpFrequency: formState.followUpFrequency ?? '',
+      followUpNotes: formState.followUpNotes ?? '',
+      category: formState.category ?? 'other',
+      status: formState.status ?? 'open',
+      probability,
+      impact,
     };
+    if (ownerId) {
+      payload.ownerId = ownerId;
+    }
+    if (formState.lastFollowUpAt) {
+      payload.lastFollowUpAt = parseDateTimeInput(formState.lastFollowUpAt);
+    }
+    if (formState.dueDate) {
+      payload.dueDate = formState.dueDate;
+    }
     try {
       if (drawer.mode === 'create') {
         await createRisk(payload);
@@ -220,24 +238,22 @@ export const ProjectRisksPage = () => {
               Opret og vedligehold projektets risikoregister. Listen synkroniseres automatisk med rapporternes matrix.
             </p>
           </div>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => openDrawer('create')}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
-            >
-              Ny risiko
-            </button>
-          )}
-        </div>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => openDrawer('create')}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+          >
+            Ny risiko
+          </button>
+        )}
+      </div>
 
-        <ProjectRiskMatrix
-          risks={filteredRisks}
-          selectedRiskId={selectedRiskId}
-          onSelectRisk={setSelectedRiskId}
-          onMoveRisk={handleMoveRisk}
-          disabled={!canEdit}
-        />
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        Point og placering i risikomatrix tildeles nu direkte i rapportmodulet, når du opdaterer snapshots af risici.
+        Denne fane bruges til at beskrive risici, ejerskab og opfølgning, mens scoren udvikler sig uge for uge i
+        rapporterne.
+      </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -369,20 +385,9 @@ export const ProjectRisksPage = () => {
                     </div>
                     <p className="mt-1 text-sm text-slate-600">{risk.description || 'Ingen beskrivelse angivet.'}</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <span className="text-xs uppercase tracking-wide text-slate-500">Score</span>
-                      <div className="text-2xl font-semibold text-slate-900">{risk.score}</div>
-                      <div className="text-xs text-slate-500">
-                        {risk.probability} × {risk.impact}
-                      </div>
-                    </div>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${risk.category.badge}`}
-                    >
-                      {risk.category.label}
-                    </span>
-                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${risk.category.badge}`}>
+                    {risk.category.label}
+                  </span>
                 </div>
 
                 <dl className="mt-4 grid gap-4 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
@@ -458,7 +463,8 @@ export const ProjectRisksPage = () => {
                     {drawer.mode === 'create' ? 'Ny risiko' : 'Redigér risiko'}
                   </h3>
                   <p className="text-sm text-slate-600">
-                    Udfyld sandsynlighed, konsekvens og plan for at holde risici ajourført.
+                    Beskriv risikoen, ejerskab og planer her. Point (S/K) sættes først i rapportmodulet, når risici
+                    synkroniseres.
                   </p>
                 </div>
                 <button type="button" onClick={closeDrawer} className="text-sm text-slate-500 hover:text-slate-700">
@@ -489,30 +495,6 @@ export const ProjectRisksPage = () => {
                 </label>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-                    Sandsynlighed (1-5)
-                    <input
-                      type="number"
-                      min={1}
-                      max={5}
-                      value={formState.probability}
-                      onChange={(event) => handleFormChange('probability', Number(event.target.value))}
-                      className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
-                    Konsekvens (1-5)
-                    <input
-                      type="number"
-                      min={1}
-                      max={5}
-                      value={formState.impact}
-                      onChange={(event) => handleFormChange('impact', Number(event.target.value))}
-                      className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-
                   <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
                     Status
                     <select
