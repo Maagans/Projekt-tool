@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProjectRouteContext } from './ProjectLayout';
+import { sanitizeRichText } from '../../../components/RichTextInlineEditor';
 
 const statusLabels: Record<string, string> = {
   active: 'Aktivt projekt',
@@ -67,7 +68,7 @@ const InfoRow = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const ProjectOverviewPage = () => {
-  const { project } = useProjectRouteContext();
+  const { project, projectManager } = useProjectRouteContext();
   const navigate = useNavigate();
 
   const latestReport = useMemo(() => {
@@ -77,12 +78,57 @@ export const ProjectOverviewPage = () => {
     return [...project.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0];
   }, [project.reports]);
 
-  const projectGoal = stripRichText(project.config.projectGoal);
   const businessCase = stripRichText(project.config.businessCase);
+  const businessCaseHtml = sanitizeRichText(project.config.businessCase ?? '');
+  const heroGoal = sanitizeRichText(project.config.projectGoal ?? '');
+
+  const projectOwner = useMemo(() => {
+    const lead = project.projectMembers?.find((member) => member.isProjectLead);
+    if (!lead) {
+      return null;
+    }
+    const employee = projectManager.employees?.find((employee) => employee.id === lead.employeeId);
+    return employee?.name ?? null;
+  }, [project.projectMembers, projectManager.employees]);
+
+  const heroMetadata: { label: string; value: string }[] = [
+    projectOwner ? { label: 'Projektleder', value: projectOwner } : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <SummaryCard title="Projektets fundament" className="lg:col-span-2">
+    <div>
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 p-6 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_transparent_60%)] opacity-60" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(15,23,42,0.15),_transparent_60%)] opacity-60" />
+        <div className="relative">
+          <h1 className="text-3xl font-bold text-white drop-shadow-sm">{project.config.projectName}</h1>
+          {heroGoal ? (
+            <div
+              className="prose prose-lg mt-2 max-w-4xl text-white/90"
+              dangerouslySetInnerHTML={{ __html: heroGoal }}
+            />
+          ) : (
+            <p className="mt-2 max-w-4xl text-lg text-white/90">
+              Tilføj projektmål i{' '}
+              <button className="font-semibold text-blue-100 underline-offset-2 hover:underline" onClick={() => navigate('settings')}>
+                indstillinger
+              </button>{' '}
+              for at give endnu bedre kontekst.
+            </p>
+          )}
+          {heroMetadata.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-white/80">
+              {heroMetadata.map((item) => (
+                <div key={item.label} className="rounded-full border border-white/40 bg-white/20 px-4 py-1 font-medium backdrop-blur-sm">
+                  <span className="text-white/70">{item.label}:</span> <span className="text-white">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <SummaryCard title="Projektets fundament" className="lg:col-span-2">
         <p>Et hurtigt overblik over nøgledatoer og de nyeste beskrivelser fra projektkonfigurationen.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <InfoRow label="Status" value={statusLabels[project.status] ?? project.status} />
@@ -91,29 +137,14 @@ export const ProjectOverviewPage = () => {
           <InfoRow label="Projektslut" value={formatDate(project.config.projectEndDate)} />
         </div>
 
-        <div className="mt-6 space-y-4">
-          <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Projektmål</p>
-            {projectGoal ? (
-              <p className="mt-1 text-base text-slate-800">{projectGoal}</p>
-            ) : (
-              <div className="mt-2 text-sm text-slate-500">
-                Ingen mål er gemt endnu.{' '}
-                <button
-                  type="button"
-                  className="font-semibold text-blue-600 hover:underline"
-                  onClick={() => navigate('settings')}
-                >
-                  Tilføj formål i indstillinger
-                </button>
-                .
-              </div>
-            )}
-          </div>
+        <div className="mt-6">
           <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-4">
             <p className="text-xs uppercase tracking-wide text-slate-500">Business case</p>
             {businessCase ? (
-              <p className="mt-1 text-base text-slate-800">{businessCase}</p>
+              <div
+                className="prose prose-sm mt-1 max-w-none text-slate-800 [&_strong]:font-semibold"
+                dangerouslySetInnerHTML={{ __html: businessCaseHtml }}
+              />
             ) : (
               <div className="mt-2 text-sm text-slate-500">
                 Beskriv kort gevinsterne for at hjælpe styregruppen.{' '}
@@ -131,7 +162,7 @@ export const ProjectOverviewPage = () => {
         </div>
       </SummaryCard>
 
-      <SummaryCard title="Statusrapporter">
+        <SummaryCard title="Statusrapporter">
         {latestReport ? (
           <>
             <p className="text-slate-700">
@@ -165,7 +196,7 @@ export const ProjectOverviewPage = () => {
         )}
       </SummaryCard>
 
-      <SummaryCard title="Kommende indsigter">
+        <SummaryCard title="Kommende indsigter">
         <p>
           Overblikssiden bliver snart udvidet med KPI-kort, milepæle og risk-nedslag. Indtil da kan du bruge
           tidslinje-, organisations- og risikofaner for at se detaljer.
@@ -183,6 +214,7 @@ export const ProjectOverviewPage = () => {
           Gå til projektorganisationen
         </button>
       </SummaryCard>
+      </div>
     </div>
   );
 };

@@ -723,7 +723,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Test (TDD): E2E-flow (create risk → drag i matrix → tilføj til rapport), evt. jest-axe sanity, dokumentationsreview.
   - Accept: PMO/Projektleder tester accepteret; release-notes klar.
   - Afhængigheder: Alle foregående RISK-ops.
-## Fase P13 – Kode-review fund (november 2025)
+## Fase P13 - Kode-review fund (november 2025)
 
 - [x] PERF-010: Trim server-workspace mutationer
   - Formål: Undgå at hver CRUD-operation henter/kloner hele workspace, så responstid og transaktionslængde ikke vokser med datamængden.
@@ -756,6 +756,74 @@ resourceAnalyticsService og API-controllerens svar.
     2) RTL-test hvor en mutation triggere invalidateQueries og sikrer at hovedlayout ikke bliver udskiftet med loader.
   - Accept: AppShell viser kun fuldskærms-spinner under initial login/bootstrap; efterfølgende fetch viser kun lokale indikatorer.
   - Afhængigheder: FE-008.
+
+- [ ] DX-012: Robust CSV-import af medarbejdere
+  - Formål: Understøtte navne/afdelinger med kommaer og citat-tegn samt stabil lokationsmatching i importen.
+  - Ændringer: Erstat manuel `split(',')` med en CSV-parser (f.eks. PapaParse) eller backend-endpoint; map lokationer gennem `locations` konstanten og giv fejlrapport pr. række.
+  - Test (TDD):
+    1) Unit-test for parser-helperen med cases med citater/kommaer.
+    2) RTL-test på EmployeePage der uploader en kompleks CSV og forventer korrekt resultat/alert.
+  - Accept: Import accepterer gyldige danske navne/afdelinger uden at springe rækker over; fejl vises med præcise beskeder.
+  - Afhængigheder: PERF-010 (valgfri hvis endpoint flyttes).
+
+- [x] DX-013: Memoiser ProjectManager-contexts
+  - Formål: Reducere unødvendige re-renders ved at stabilisere værdierne fra Auth/Workspace/Admin-context.
+  - Ændringer: Pak `authValue`, `workspaceValue`, `adminValue` og `useProjectManager` i `useMemo` baseret på specifikke afhængigheder; overvej at splitte providerne fysisk for at minimere cascading renders.
+  - Status 17/11: Provider-værdier memoiseres, auth-modulets login/logout er `useCallback`, og `useProjectManager` returnerer et memoiseret mix.
+  - Test (TDD):
+    1) Profilér (React Profiler eller vitest-snapshot) før/efter og dokumentér færre renders på Dashboard/ProjectReportsPage.
+    2) Unit-test der sikrer at memoization ikke deler stale referencer (fx ændring i `projects` opdaterer WorkspaceContext).
+  - Accept: Store sider (dashboard, rapporter) viser færre renders ved simple interaktioner; ingen regressions i context-data.
+  - Afhængigheder: FE-008.
+
+- [ ] AFK-010: Afklar behov for finere-granulerede workspace-endpoints
+  - Formål: Beslutte om vi skal bryde `/api/workspace`/`mutateWorkspace` op i mindre ruter og hvordan adgang skal styres.
+  - Aktiviteter: Workshop med backend/FE, proof-of-concept på projekt/employee scoping, estimat for migrering.
+  - Accept: Beslutningsreferat med forslag og estimeret impact.
+
+## Fase P14 - Projekt overblik & dashboards
+
+- [ ] UX-018: Projektmaal, business case og budgetfelter
+  - Formal: Berige projektkonfigurationen med "hvorfor/hvor meget"-data, så Overblik-siden kan gengive en ægte one-pager.
+  - Ændringer:
+    1) Backend-migration der tilføjer project_goal TEXT, business_case TEXT og total_budget NUMERIC(12,2) til projects + opdaterer services/controllers til at læse/skrive felterne.
+    2) Udvid ProjectConfiguration/ProjectState/API-typerne i src/types.ts og useProjectManager til at inkludere projectGoal, businessCase og totalBudget.
+    3) Tilføj tre kort i ProjectSettingsPage.tsx: RichTextInlineEditor til projektmål/business case samt et number-input (DKK) til samlet budget; mutationerne skal sende de nye felter.
+  - Test (TDD):
+    1) npm run migrate --prefix backend (up/down) + Vitest/Supertest for projektservice.
+    2) RTL-test for SettingsPage hvor felterne redigeres og gemmes optimistisk.
+    3) npm run build.
+  - Accept: Felterne kan gemmes/vises fra settings og indgår i API/typer uden at bryde eksisterende flows.
+  - Afhængigheder: PERF-010 (services), DX-013 (memoiseret context).
+
+- [ ] UX-019: Overblik-navigation og side-skelet
+  - Formal: Introducere en dedikeret "Overblik"-fane i ProjectLayout som landing page.
+  - Ændringer:
+    1) Tilføj Overblik-tab i ProjectLayout.tsx (første tab, path '' med end: true) og sørg for at default-route peger hertil.
+    2) Opret ProjectOverviewPage.tsx der henter projekt + seneste rapport eller viser en placeholder hvis ingen rapporter findes.
+    3) Layout: grid grid-cols-1 lg:grid-cols-3 gap-6 med cards/empty-states ("Berig projektet med rapporter for at se KPI'er").
+  - Test (TDD):
+    1) RTL-test der klikker på tabs og bekræfter navigation/render uden rapporter.
+    2) Snapshot/RTL for case med data.
+    3) npm run lint && npm run build.
+  - Accept: Brugere lander på Overblik; siden viser konfig/empty-states uden fejl.
+  - Afhængigheder: UX-018, FE-008.
+
+- [ ] UX-020: Overblik-widgets (KPI, milepæle, team, risici)
+  - Formal: Vise live "Hvorfor/Hvad/Hvornår/Hvem" data og give genveje til uddybningsfaner.
+  - Ændringer:
+    1) Projektmål/business case-kort (kolonne 1) med read-only RichText-render + CTA/link til settings når tekst mangler.
+    2) KPI-kort (kolonne 2) med Budget (faktiske timer * standard timesats / totalBudget), Fremdrift (closedTasks/totalTasks) og Tid (dage til projectEndDate) samt empty-state hvis data mangler.
+    3) Kommende milepæle (kolonne 2): sorter milestones + deliverables efter dato, vis næste 3-5 og link til tidslinjen.
+    4) Projektteam (kolonne 3): list project.members (navn + rolle) og link til organisationsfanen.
+    5) Top risici (kolonne 3): brug useProjectRisks til at hente listen, sorter efter score og vis 3-5 stk. med link til risikofanen.
+    6) Hvert kort har en lille action (ikon/"Se detaljer") der navigerer til den relevante fane.
+  - Test (TDD):
+    1) Helper/unit-tests der beregner KPI'er og sorterer milepæle/risici korrekt.
+    2) RTL-test for ProjectOverviewPage med mocked data + empty state.
+    3) Manuel QA: klik på kort-links og bekræft navigation.
+  - Accept: Dashboardet viser aktuelle data eller guider brugeren til at berige projektet; links fungerer.
+  - Afhængigheder: UX-019, UX-018, RISK-006, Kanban/tidslinje-modulerne.
 
 - [ ] DX-012: Robust CSV-import af medarbejdere
   - Formål: Understøtte navne/afdelinger med kommaer og citat-tegn samt stabil lokationsmatching i importen.
