@@ -111,9 +111,9 @@ export const getInitialProjectState = (): ProjectState => ({
     { id: generateId(), text: 'Evalueringsrapport & gevinstopfølgning', position: 95 },
   ],
   kanbanTasks: [
-    { id: generateId(), content: 'Afhold opstartsmøde med styregruppen', status: 'done' },
-    { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing' },
-    { id: generateId(), content: 'Planlæg brugertræning', status: 'todo' },
+    { id: generateId(), content: 'Afhold opstartsmøde med styregruppen', status: 'done', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
+    { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
+    { id: generateId(), content: 'Planlæg brugertræning', status: 'todo', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
   ],
 });
 
@@ -153,6 +153,10 @@ export const cloneStateWithNewIds = (state: ProjectState): ProjectState => ({
     id: generateId(),
     content: task.content,
     status: task.status ?? 'todo',
+    assignee: task.assignee ?? null,
+    dueDate: task.dueDate ?? null,
+    notes: task.notes ?? null,
+    createdAt: task.createdAt ?? new Date().toISOString(),
   })),
 });
 

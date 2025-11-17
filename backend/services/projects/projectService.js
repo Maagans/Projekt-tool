@@ -2,22 +2,11 @@ import { randomUUID } from "crypto";
 import { withTransaction } from "../../utils/transactions.js";
 import { createAppError } from "../../utils/errors.js";
 import { ensureEmployeeLinkForUser, syncProjectReports } from "../workspaceService.js";
+import { toDateOnly } from "../../utils/helpers.js";
 
 const allowedProjectStatus = new Set(["active", "completed", "on-hold"]);
 
-const toDateOnlyString = (value) => {
-  if (!value) {
-    return null;
-  }
-  if (typeof value === "string") {
-    return value;
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  return date.toISOString().slice(0, 10);
-};
+const toDateOnlyString = (value) => toDateOnly(value);
 
 const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
   const config = payload.config ?? {};

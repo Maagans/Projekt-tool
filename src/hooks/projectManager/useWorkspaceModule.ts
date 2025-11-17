@@ -5,6 +5,7 @@ import { DEFAULT_EMPLOYEE_CAPACITY } from '../../constants';
 import {
   Deliverable,
   Employee,
+  KanbanTask,
   Location,
   Milestone,
   Phase,
@@ -1216,7 +1217,18 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           add: (status: 'todo' | 'doing' | 'done') =>
             updateState((state) => ({
               ...state,
-              kanbanTasks: [...(state.kanbanTasks ?? []), { id: generateId(), content: 'Ny opgave', status }],
+              kanbanTasks: [
+                ...(state.kanbanTasks ?? []),
+                {
+                  id: generateId(),
+                  content: 'Ny opgave',
+                  status,
+                  assignee: null,
+                  dueDate: null,
+                  notes: null,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
             })),
           delete: (id: string) =>
             updateState((state) => ({
@@ -1232,6 +1244,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             updateState((state) => ({
               ...state,
               kanbanTasks: state.kanbanTasks.map((task) => (task.id === id ? { ...task, status } : task)),
+            })),
+          updateDetails: (id: string, details: Partial<KanbanTask>) =>
+            updateState((state) => ({
+              ...state,
+              kanbanTasks: state.kanbanTasks.map((task) => (task.id === id ? { ...task, ...details } : task)),
             })),
         },
         timelineManager: {

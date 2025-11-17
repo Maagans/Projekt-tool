@@ -76,6 +76,10 @@ export interface KanbanTask {
   id: string;
   content: string;
   status: 'todo' | 'doing' | 'done';
+  assignee?: string | null;
+  dueDate?: string | null; // YYYY-MM-DD
+  notes?: string | null;
+  createdAt: string;
 }
 
 export interface ListItem {

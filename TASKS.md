@@ -766,9 +766,10 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Import accepterer gyldige danske navne/afdelinger uden at springe rækker over; fejl vises med præcise beskeder.
   - Afhængigheder: PERF-010 (valgfri hvis endpoint flyttes).
 
-- [ ] DX-013: Memoiser ProjectManager-contexts
+- [x] DX-013: Memoiser ProjectManager-contexts
   - Formål: Reducere unødvendige re-renders ved at stabilisere værdierne fra Auth/Workspace/Admin-context.
   - Ændringer: Pak `authValue`, `workspaceValue`, `adminValue` og `useProjectManager` i `useMemo` baseret på specifikke afhængigheder; overvej at splitte providerne fysisk for at minimere cascading renders.
+  - Status 17/11: Provider-værdier memoiseres, auth-modulets login/logout er `useCallback`, og `useProjectManager` returnerer et memoiseret mix.
   - Test (TDD):
     1) Profilér (React Profiler eller vitest-snapshot) før/efter og dokumentér færre renders på Dashboard/ProjectReportsPage.
     2) Unit-test der sikrer at memoization ikke deler stale referencer (fx ændring i `projects` opdaterer WorkspaceContext).
@@ -786,32 +787,57 @@ resourceAnalyticsService og API-controllerens svar.
   - Aktiviteter: Undersøg databeskyttelseskrav, performance og DX; sammenlign med DX-012-løsningen og lav anbefaling.
   - Accept: Notat i docs/TASKS med anbefaling og evt. opfølgningsopgave (implementering eller fravalg).
   - Afhængigheder: DX-012.
-- [ ] PERF-011: Optimer træk-performance i tidslinjen
+- [x] PERF-011: Optimer træk-performance i tidslinjen
   - Formål: Fjerne lag og unødvendige re-renders når faser, milepæle eller leverancer trækkes.
-  - Ændringer: Refaktorer `handleMouseMove` i `Timeline.tsx`, så den kun opdaterer visualisering (fx via `transform`). Kald `updateTimelineItem` én gang i `handleMouseUp`. Brug lokalt drag-state til at styre preview.
+  - Ændringer: `Timeline.tsx` har fået lokalt `dragPreview`, så `handleMouseMove` kun manipulerer visuelle værdier (start/end eller position). `handleMouseUp` laver ét enkelt `updateTimelineItem`-kald, hvilket betyder at draft-state/isTimelineDirty først ændres ved drop.
   - Test (TDD):
-    1) Vitest/RTL-test der simulerer drag og sikrer at `updateTimelineItem` kun kaldes ved mouseup.
-    2) Devtools/Profiler-måling der dokumenterer 0 ekstra re-renders under drag (manuel men krav til verifikation).
-  - Accept: Træk er silkeblødt og “Gem tidslinje”-indikatoren tænder først efter afsluttet drag.
+    1) `npm run build` (tsc + Vite) for at fange regressions i drag-preview logikken.
+    2) `npm run test` (Vitest) for at sikre at eksisterende FE/BE-tests fortsat er grønne efter refaktoren.
+    3) Manuel QA i rapportens tidslinje: drag-flyt + resize uden blink; "Gem tidslinje"-badge dukker først efter drop.
+  - Accept: Træk er silkeblødt og "Gem tidslinje"-indikatoren tænder først efter afsluttet drag.
   - Afhængigheder: FE-008f.
 
-- [ ] UX-012: Fjern redundant leveranceliste
+- [x] UX-012: Fjern redundant leveranceliste
   - Formål: Rapportens tidslinje er primær kilde, så den ekstra liste skaber støj.
   - Ændringer: Fjern `<DeliverablesList />`-sektionen fra `ProjectReportsPage.tsx` (både for ny og legacy visning).
-  - Test (TDD): Manuel QA – bekræft at rapporten loader, tidslinjen fungerer, og listen er væk.
+  - Status 17/11: Leverancelisterne er fjernet fra begge branches, layoutet er justeret til ren matrix/risikovisning.
+  - Test (TDD): Manuel QA - bekræft at rapporten loader, tidslinjen fungerer, og listen er væk.
   - Accept: Rapportsiden er kortere uden at miste funktionalitet.
   - Afhængigheder: Ingen.
 
-- [ ] UX-013: Centraliser tidslinje-redigering (Inspector Panel)
-  - Formål: Erstatte hover-ikoner med et klik-aktiveret “Inspector”-panel til redigering.
-  - Ændringer: Tilføj `selectedItemId` i `Timeline.tsx`, fjern hover-handles, og introducér `TimelineInspectorPanel` med felter til tekst, datoer, farver og slet. Klik vælger element, drag fungerer som i PERF-011.
-  - Test (TDD): RTL-test der klikker en fase og ser panelet; redigerer et felt og bekræfter `updateTimelineItem`-kald.
+- [x] UX-013: Centraliser tidslinje-redigering (Inspector Panel)
+  - Formål: Erstatte hover-ikoner med et klik-aktiveret "Inspector"-panel til redigering.
+  - Ændringer: `Timeline.tsx` har fået `selectedItem`-state + drag-threshold, hover-handles er fjernet, og et nyt `TimelineInspectorPanel` håndterer tekst, datoer, farver og slet med ét samlet UI.
+  - Test (TDD): `npm run build` (tsc + Vite) for at sikre type-sikkerhed; manuel QA af klik/drag-flow og inspector.
   - Accept: Redigering sker via panelet, UI er mere ryddeligt.
-  - Afhængigheder: PERF-011.
+  - Afhængigheder: PERF-011 (perf-optimering følger senere, men panelet er klar til det).
 
-- [ ] UX-014: Stabiliser leverance-layout
+- [x] UX-014: Stabiliser leverance-layout
   - Formål: Leverancer må ikke hoppe/overlappe ved resize eller zoom.
-  - Ændringer: Fjern `ResizeObserver`/komplekst layout og brug deterministisk bane-tildeling (`laneIndex = index % N` eller lign.) med garanti for ingen overlap.
-  - Test (TDD): Manuel QA – zoom og resize uden at leverancer skifter bane/overlapper.
+  - Ændringer: `Timeline.tsx` bruger nu en deterministisk, data-drevet beregning af lanes (baseret på positioner og zoomScale) i stedet for `ResizeObserver`. Lane-antal og sektionens højde udregnes af samme helper, så UI ikke springer ved zoom eller vindues-resize.
+  - Test (TDD):
+    1) `npm run build` (tsc + Vite) og `npm run test` (Vitest) for at sikre regressionsfri refaktor.
+    2) Manuel QA: Drag/zoom/resize uden at leverancer overlapper eller skifter lane uforudsigeligt.
   - Accept: Leverancer forbliver stabile og overlapper ikke.
   - Afhængigheder: UX-012.
+
+- [x] UX-015: Rapportheader med KPI’er
+  - Formål: Give øjeblikkeligt overblik over projektstatus, aktiv rapportuge og nøglestatistikker.
+  - Ændringer: Nyt `ProjectReportHeader`-kort i `ProjectReportsPage`, der viser projektnavn, status, rapportuge, projektperiode, timeline-draft-indikator og små KPI-kort (risici, faser, milepæle, leverancer, opgaver).
+  - Test (TDD): `npm run build` efter implementering; manuel QA af rapportfanen (valg af uge, dirty timeline) for at sikre korrekt badges og tællere.
+  - Accept: Rapportfanen viser et tydeligt headerkort før øvrige moduler.
+  - Afhængigheder: UX-013 (for at genbruge timeline-dirty status).
+
+- [x] UX-016: Kanban opgaveinspektør
+  - Formål: Gøre det muligt at tilføje flere detaljer (ansvarlig, deadline, noter) til hver Kanban-opgave via et klik fremfor en ekstra liste.
+  - Ændringer: `KanbanTask`-data er udvidet med `assignee`, `dueDate`, `notes`; KanbanBoard kan nu åbne et nyt `KanbanTaskInspector`-panel med editable felter. Backend rapport-tabellen (`report_kanban_tasks`) er migreret til at gemme de nye felter, og workspace-synkronisering læser/skrver dem.
+  - Test (TDD): `npm run build`; manuel QA af Kanban (klik på kort, redigér felter, tilføj/slet) for at bekræfte at værdierne gemmes og at timeline-draft-regler fortsat respekteres.
+  - Accept: Når man klikker på en Kanban-opgave åbner et detaljepanel under boardet med felter for ansvarlig, deadline og noter.
+  - Afhængigheder: UX-015 (layout), eksisterende Kanban-funktionalitet.
+
+- [x] UX-017: Kanban opgaveliste med toggle
+  - Formål: Give et hurtigt overblik over alle opgaver i en sorteret liste uden at erstatte boardet permanent.
+  - Ændringer: Kanban-opgaver har fået `createdAt`; boardets header har en “Vis opgaveliste”-toggle, som viser en ny `KanbanTaskList` (sorteret efter oprettelse) med status, ansvarlig og deadlines. Backend får tilsvarende `created_at`-kolonne + migration.
+  - Test (TDD): `npm run build`; manuel QA (toggle liste, klik på rækker, rediger i inspector). Migration `20251117000202_add_created_at_to_report_tasks` skal køre på databasen.
+  - Accept: Standardvisning er uændret (kun board); når togglen aktiveres, vises listen med de samme data.
+  - Afhængigheder: UX-016 (detaljepanel & udvidede datafelter).

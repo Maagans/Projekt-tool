@@ -180,6 +180,21 @@ export const useAuthModule = (store: ProjectManagerStore) => {
 
   const completeSetup = useCallback(() => setNeedsSetup(false), [setNeedsSetup]);
 
+  const loginHandler = useCallback(
+    async (email: string, password: string) => {
+      try {
+        return await loginMutation.mutateAsync({ email, password });
+      } catch (error: unknown) {
+        console.error('Login mutation failed:', error);
+        setApiError('Der opstod en fejl under login.');
+        return { success: false, message: getErrorMessage(error) };
+      }
+    },
+    [loginMutation, setApiError],
+  );
+
+  const logoutHandler = useCallback(() => logoutMutation.mutateAsync(), [logoutMutation]);
+
   return {
     isAuthenticated: store.isAuthenticated,
     currentUser: store.currentUser,
@@ -190,16 +205,8 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     needsSetup: store.needsSetup,
     shouldRedirectToLogin: store.logoutRedirect,
     acknowledgeLogoutRedirect,
-    login: async (email: string, password: string) => {
-      try {
-        return await loginMutation.mutateAsync({ email, password });
-      } catch (error: unknown) {
-        console.error('Login mutation failed:', error);
-        setApiError('Der opstod en fejl under login.');
-        return { success: false, message: getErrorMessage(error) };
-      }
-    },
-    logout: () => logoutMutation.mutateAsync(),
+    login: loginHandler,
+    logout: logoutHandler,
     register,
     completeSetup,
   };

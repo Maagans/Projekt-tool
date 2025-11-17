@@ -752,12 +752,13 @@ const seedReports = async (client, projectIds) => {
 
     if (report.kanban) {
       for (const task of report.kanban) {
+        const createdAt = task.createdAt ?? new Date().toISOString();
         await client.query(
           `
-            INSERT INTO report_kanban_tasks (report_id, content, status)
-            VALUES ($1, $2, $3)
+            INSERT INTO report_kanban_tasks (report_id, content, status, assignee, due_date, notes, created_at)
+            VALUES ($1, $2, $3, $4, $5::date, $6, $7::timestamptz)
           `,
-          [reportId, task.content, task.status],
+          [reportId, task.content, task.status, task.assignee ?? null, task.dueDate ?? null, task.notes ?? null, createdAt],
         );
       }
     }

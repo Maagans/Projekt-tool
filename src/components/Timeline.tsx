@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Phase, Milestone, Deliverable } from '../types';
 import { EditableField } from './EditableField';
-import { CalendarIcon } from './Icons';
+import { TimelineInspectorPanel, TimelineInspectorSelection } from './TimelineInspectorPanel';
 
 interface TimelineProps {
   projectStartDate: string;
@@ -54,6 +54,16 @@ const phaseColors: Record<string, { bg: string; border: string }> = {
     red: { bg: 'bg-red-200', border: 'border-red-500' },
 };
 
+const DELIVERABLE_CARD_PERCENT_AT_BASE_ZOOM = 18;
+const DELIVERABLE_BUFFER_PERCENT = 1;
+const TIMELINE_BASE_HEIGHT_REM = 22;
+const MIN_TIMELINE_HEIGHT_REM = 32;
+
+type TimelineSelection = { type: 'phase' | 'milestone' | 'deliverable'; id: string };
+type DragPreviewState =
+  | { type: 'phase'; id: string; start: number; end: number }
+  | { type: 'milestone' | 'deliverable'; id: string; position: number };
+
 export const Timeline: React.FC<TimelineProps> = (props) => {
   const {
     projectStartDate, projectEndDate,
@@ -65,25 +75,54 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   const pendingScrollRatioRef = useRef<number | null>(null);
   const [zoomLevel, setZoomLevel] = useState<TimelineZoom>('quarter');
   const zoomScale = ZOOM_LEVELS[zoomLevel].scale;
-  const deliverableRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [deliverableLayouts, setDeliverableLayouts] = useState<Record<string, { lane: number }>>({});
-  const [editingItem, setEditingItem] = useState<{ type: 'phase' | 'milestone' | 'deliverable'; id: string } | null>(null);
+  const { layout: deliverableLayouts, laneCount: deliverableLaneCount } = useMemo(() => {
+    if (deliverables.length === 0) {
+      return { layout: {}, laneCount: 0 };
+    }
+    const sorted = [...deliverables].sort((a, b) => a.position - b.position);
+    const layout: Record<string, { lane: number }> = {};
+    const laneEndPositions: number[] = [];
+    const minCardWidthPercent = 8;
+    const estimatedCardWidth = Math.max(minCardWidthPercent, DELIVERABLE_CARD_PERCENT_AT_BASE_ZOOM / zoomScale);
+    const halfWidth = estimatedCardWidth / 2;
+
+    sorted.forEach((deliverable) => {
+      const start = Math.max(0, deliverable.position - halfWidth);
+      const end = Math.min(100, deliverable.position + halfWidth);
+      let laneIndex = laneEndPositions.findIndex((laneEnd) => start >= laneEnd + DELIVERABLE_BUFFER_PERCENT);
+      if (laneIndex === -1) {
+        laneIndex = laneEndPositions.length;
+        laneEndPositions.push(end);
+      } else {
+        laneEndPositions[laneIndex] = end;
+      }
+      layout[deliverable.id] = { lane: laneIndex };
+    });
+
+    return { layout, laneCount: laneEndPositions.length || (deliverables.length > 0 ? 1 : 0) };
+  }, [deliverables, zoomScale]);
+  const [selectedItem, setSelectedItem] = useState<TimelineSelection | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
+  const suppressClickRef = useRef(false);
   const [hoveredDeliverableId, setHoveredDeliverableId] = useState<string | null>(null);
   const deliverableLaneSpacingRem = 4.25;
   const deliverableTopOffsetRem = 1.25;
 
   const deliverableSectionHeightRem = useMemo(() => {
-    const laneValues = Object.values(deliverableLayouts).map((layout) => layout.lane);
-    const laneCount = laneValues.length > 0 ? Math.max(...laneValues) + 1 : (deliverables.length > 0 ? 1 : 0);
+    const laneCount = deliverableLaneCount > 0 ? deliverableLaneCount : (deliverables.length > 0 ? 1 : 0);
     if (laneCount === 0) {
       return 10;
     }
     const highestTop = deliverableTopOffsetRem + (laneCount - 1) * deliverableLaneSpacingRem;
     const cardAllowance = 9;
     return highestTop + cardAllowance;
-  }, [deliverableLayouts, deliverables]);
+  }, [deliverableLaneCount, deliverables.length]);
 
-  const [editingColorPhaseId, setEditingColorPhaseId] = useState<string | null>(null);
+  const timelineHeightRem = useMemo(
+    () => Math.max(MIN_TIMELINE_HEIGHT_REM, TIMELINE_BASE_HEIGHT_REM + deliverableSectionHeightRem),
+    [deliverableSectionHeightRem],
+  );
+
   const projectStartMs = useMemo(() => {
     const timestamp = new Date(projectStartDate).getTime();
     return Number.isFinite(timestamp) ? timestamp : null;
@@ -315,59 +354,6 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   }, []);
 
   useLayoutEffect(() => {
-    const timelineEl = timelineRef.current;
-    if (!timelineEl || deliverables.length === 0) return;
-
-    const calculateLayout = () => {
-        const timelineWidth = timelineEl.getBoundingClientRect().width;
-        if (timelineWidth === 0) return;
-
-        const measuredItems = deliverables.map(d => {
-            const el = deliverableRefs.current[d.id];
-            const width = el ? el.getBoundingClientRect().width : 120; // Default width estimate
-            return {
-                id: d.id,
-                position: d.position,
-                widthPercent: (width / timelineWidth) * 100,
-            };
-        }).sort((a, b) => a.position - b.position);
-
-        const NUM_LANES = 4;
-        const lanesEndPosition: number[] = Array(NUM_LANES).fill(-Infinity);
-        const newLayouts: Record<string, { lane: number }> = {};
-        
-        for (const item of measuredItems) {
-            const itemStartPos = item.position - (item.widthPercent / 2);
-            let placed = false;
-            for (let i = 0; i < NUM_LANES; i++) {
-                if (itemStartPos >= lanesEndPosition[i]) {
-                    newLayouts[item.id] = { lane: i };
-                    lanesEndPosition[i] = item.position + (item.widthPercent / 2) + 1; // 1% buffer
-                    placed = true;
-                    break;
-                }
-            }
-             if (!placed) {
-                const earliestLane = lanesEndPosition.reduce((minIndex, currentEnd, currentIndex, arr) => currentEnd < arr[minIndex] ? currentIndex : minIndex, 0);
-                newLayouts[item.id] = { lane: earliestLane };
-                lanesEndPosition[earliestLane] = item.position + (item.widthPercent / 2) + 1;
-            }
-        }
-
-        if (JSON.stringify(deliverableLayouts) !== JSON.stringify(newLayouts)) {
-            setDeliverableLayouts(newLayouts);
-        }
-    };
-    
-    calculateLayout();
-
-    const resizeObserver = new ResizeObserver(calculateLayout);
-    resizeObserver.observe(timelineEl);
-
-    return () => resizeObserver.disconnect();
-  }, [deliverables, deliverableLayouts, zoomScale]);
-
-  useLayoutEffect(() => {
     applyPendingScrollCenter();
   }, [zoomScale, applyPendingScrollCenter]);
 
@@ -376,11 +362,46 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     addTimelineItem(type, 45); // Add near center, easier to grab
   };
 
+  const handleSelectItem = useCallback(
+    (selection: TimelineSelection | null) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        return;
+      }
+      setSelectedItem(selection);
+    },
+    [],
+  );
+
+  const selectedInspectorItem = useMemo<TimelineInspectorSelection | null>(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    if (selectedItem.type === 'phase') {
+      const phase = phases.find((p) => p.id === selectedItem.id);
+      return phase ? { type: 'phase', item: phase } : null;
+    }
+    if (selectedItem.type === 'milestone') {
+      const milestone = milestones.find((m) => m.id === selectedItem.id);
+      return milestone ? { type: 'milestone', item: milestone } : null;
+    }
+    const deliverable = deliverables.find((d) => d.id === selectedItem.id);
+    return deliverable ? { type: 'deliverable', item: deliverable } : null;
+  }, [selectedItem, phases, milestones, deliverables]);
+
+  useEffect(() => {
+    if (selectedItem && !selectedInspectorItem) {
+      setSelectedItem(null);
+    }
+  }, [selectedItem, selectedInspectorItem]);
+
   const [draggedItem, setDraggedItem] = useState<{type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end', initialX: number, initialPos: number, initialWidth?: number} | null>(null);
 
   const handleDragStart = (e: React.MouseEvent, type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end') => {
     e.preventDefault();
     e.stopPropagation();
+    suppressClickRef.current = false;
+    setDragPreview(null);
     
     let item: Phase | Milestone | Deliverable | undefined;
     if (type === 'phase') item = phases.find(i => i.id === id);
@@ -410,24 +431,62 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     if (rect.width === 0) return;
 
     const dx = e.clientX - initialX;
+    if (!suppressClickRef.current && Math.abs(dx) > 2) {
+      suppressClickRef.current = true;
+    }
     const dPos = (dx / rect.width) * 100;
 
     if (mode === 'move') {
-        const newPos = Math.max(0, initialPos + dPos);
         if (type === 'phase' && initialWidth !== undefined) {
-            updateTimelineItem(type, id, { start: Math.min(newPos, 100 - initialWidth), end: Math.min(newPos + initialWidth, 100) });
-        } else {
-            updateTimelineItem(type, id, { position: Math.min(newPos, 100) });
+            const boundedStart = Math.max(0, Math.min(initialPos + dPos, 100 - initialWidth));
+            const boundedEnd = Math.min(boundedStart + initialWidth, 100);
+            setDragPreview({ type: 'phase', id, start: boundedStart, end: boundedEnd });
+        } else if (type === 'milestone' || type === 'deliverable') {
+            const boundedPos = Math.max(0, Math.min(initialPos + dPos, 100));
+            setDragPreview({ type, id, position: boundedPos });
         }
     } else if (mode === 'resize-end' && type === 'phase' && initialWidth !== undefined) {
-        const newWidth = Math.max(1, initialWidth + dPos);
-        updateTimelineItem(type, id, { end: Math.min(initialPos + newWidth, 100) });
+        const nextWidth = Math.max(1, initialWidth + dPos);
+        const boundedEnd = Math.min(initialPos + nextWidth, 100);
+        setDragPreview({ type: 'phase', id, start: initialPos, end: boundedEnd });
     }
-  }, [draggedItem, updateTimelineItem]);
+  }, [draggedItem]);
 
   const handleMouseUp = useCallback(() => {
+    if (draggedItem) {
+      const preview = dragPreview;
+      if (draggedItem.type === 'phase') {
+        const originalStart = draggedItem.initialPos;
+        const originalEnd = draggedItem.initialWidth !== undefined ? draggedItem.initialPos + draggedItem.initialWidth : originalStart;
+        if (draggedItem.mode === 'move') {
+          const nextStart = preview && preview.type === 'phase' && preview.id === draggedItem.id ? preview.start : originalStart;
+          const nextEnd = preview && preview.type === 'phase' && preview.id === draggedItem.id ? preview.end : originalEnd;
+          if (nextStart !== originalStart || nextEnd !== originalEnd) {
+            updateTimelineItem('phase', draggedItem.id, { start: nextStart, end: nextEnd });
+          }
+        } else if (draggedItem.mode === 'resize-end') {
+          const nextEnd = preview && preview.type === 'phase' && preview.id === draggedItem.id ? preview.end : originalEnd;
+          if (nextEnd !== originalEnd) {
+            updateTimelineItem('phase', draggedItem.id, { end: nextEnd });
+          }
+        }
+      } else {
+        const nextPosition = preview && preview.type === draggedItem.type && preview.id === draggedItem.id
+          ? preview.position
+          : draggedItem.initialPos;
+        if (nextPosition !== draggedItem.initialPos) {
+          updateTimelineItem(draggedItem.type, draggedItem.id, { position: nextPosition });
+        }
+      }
+    }
     setDraggedItem(null);
-  }, []);
+    setDragPreview(null);
+    if (suppressClickRef.current) {
+      setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    }
+  }, [draggedItem, dragPreview, updateTimelineItem]);
 
   useEffect(() => {
     if (draggedItem) {
@@ -440,106 +499,8 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     };
   }, [draggedItem, handleMouseMove, handleMouseUp]);
   
-  const DateEditor = ({ item, type }: { item: Phase | Milestone | Deliverable; type: 'phase' | 'milestone' | 'deliverable' }) => {
-    const isPhase = type === 'phase' && 'start' in item;
-
-    const toInputValue = (position?: number) => {
-      if (position === undefined) {
-        return '';
-      }
-      const isoDate = calculateDateFromPosition(position);
-      if (!isoDate) {
-        return '';
-      }
-      return isoDate.slice(0, 10);
-    };
-
-    const closeEditor = () => {
-      setEditingItem(null);
-      setEditingColorPhaseId(null);
-    };
-
-    const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>, field: 'start' | 'end' | 'position') => {
-      const nextPosition = calculatePositionFromDate(event.target.value);
-      if (field === 'start' && 'end' in item) {
-        const phase = item as Phase;
-        updateTimelineItem(type, item.id, { [field]: nextPosition, end: Math.max(nextPosition, phase.end) });
-      } else if (field === 'end' && 'start' in item) {
-        const phase = item as Phase;
-        updateTimelineItem(type, item.id, { [field]: nextPosition, start: Math.min(nextPosition, phase.start) });
-      } else {
-        updateTimelineItem(type, item.id, { [field]: nextPosition });
-      }
-    };
-
-    const startValue = isPhase
-      ? toInputValue((item as Phase).start)
-      : toInputValue((item as Milestone | Deliverable).position);
-    const endValue = isPhase ? toInputValue((item as Phase).end) : '';
-
-    return (
-      <div
-        className="absolute top-full left-1/2 z-40 mt-2 w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-          <span>{type === 'phase' ? 'Opdater periode' : 'Opdater dato'}</span>
-          <button
-            type="button"
-            onClick={closeEditor}
-            className="text-slate-400 transition hover:text-slate-600"
-            aria-label="Luk dato editor"
-          >
-            X
-          </button>
-        </div>
-        <div className="flex flex-col gap-3 text-sm text-slate-600">
-          {isPhase ? (
-            <>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">Startdato</span>
-                <input
-                  type="date"
-                  value={startValue}
-                  onChange={(event) => handleDateChange(event, 'start')}
-                  className="rounded border border-slate-300 px-2 py-1 focus:border-slate-500 focus:outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-slate-500">Slutdato</span>
-                <input
-                  type="date"
-                  value={endValue}
-                  onChange={(event) => handleDateChange(event, 'end')}
-                  className="rounded border border-slate-300 px-2 py-1 focus:border-slate-500 focus:outline-none"
-                />
-              </label>
-            </>
-          ) : (
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-slate-500">Dato</span>
-              <input
-                type="date"
-                value={startValue}
-                onChange={(event) => handleDateChange(event, 'position')}
-                className="rounded border border-slate-300 px-2 py-1 focus:border-slate-500 focus:outline-none"
-              />
-            </label>
-          )}
-          <button
-            type="button"
-            onClick={closeEditor}
-            className="mt-1 self-end rounded bg-slate-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-700"
-          >
-            Luk
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   return (
-  <div className="bg-white p-4 rounded-lg shadow-sm" onClick={() => { setEditingItem(null); setEditingColorPhaseId(null); }}>
+  <div className="bg-white p-4 rounded-lg shadow-sm">
     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h3 className="text-lg font-bold text-slate-700">Tidslinje</h3>
       <div className="flex items-center gap-2 text-sm export-hide">
@@ -577,11 +538,16 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     </div>
 
     <div className="relative w-full overflow-hidden" onWheel={handleTimelineWheel}>
-      <div className="overflow-x-auto overflow-y-visible" ref={scrollContainerRef}>
+      <div
+        className="overflow-x-auto overflow-y-hidden"
+        ref={scrollContainerRef}
+        style={{ minHeight: `${timelineHeightRem}rem` }}
+      >
         <div
-          className="relative h-[32rem] min-w-full select-none pt-12"
-          style={{ width: `${Math.max(zoomScale * 100, 100)}%` }}
+          className="relative min-w-full select-none pt-12"
+          style={{ width: `${Math.max(zoomScale * 100, 100)}%`, minHeight: `${timelineHeightRem}rem` }}
           ref={timelineRef}
+          onClick={() => handleSelectItem(null)}
         >
           {/* Background grid and markers */}
           <div className="absolute inset-0 border-y border-slate-200">
@@ -615,75 +581,64 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           <div className="absolute w-full h-full pt-16">
             {/* Milestones */}
             <div className="relative h-20">
-              {milestones.map((m) => (
-                <div
-                  key={m.id}
-                  className="absolute group cursor-move z-10"
-                  style={{ left: `${m.position}%`, bottom: "0.5rem" }}
-                  onMouseDown={(e) => handleDragStart(e, "milestone", m.id, "move")}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex flex-col items-center -translate-x-1/2 timeline-item-centered">
-                      <div className="bg-white px-2 py-1 rounded-md shadow text-xs whitespace-nowrap mb-2">
-                          <EditableField initialValue={m.text} onSave={(text) => updateTimelineItem("milestone", m.id, { text })} className="!p-0" />
+              {milestones.map((m) => {
+                const isSelected = selectedItem?.type === 'milestone' && selectedItem.id === m.id;
+                const milestonePreview = dragPreview?.type === 'milestone' && dragPreview.id === m.id ? dragPreview.position : null;
+                const milestonePosition = milestonePreview ?? m.position;
+                return (
+                  <div
+                    key={m.id}
+                    className={`absolute cursor-move ${isSelected ? 'z-20' : 'z-10'}`}
+                    style={{ left: `${milestonePosition}%`, bottom: '0.5rem' }}
+                    onMouseDown={(e) => handleDragStart(e, 'milestone', m.id, 'move')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSelectItem({ type: 'milestone', id: m.id });
+                    }}
+                  >
+                    <div className="flex flex-col items-center -translate-x-1/2 timeline-item-centered">
+                      <div className={`bg-white px-2 py-1 rounded-md shadow text-xs whitespace-nowrap mb-2 ${isSelected ? 'ring-2 ring-purple-300' : ''}`}>
+                        <EditableField initialValue={m.text} onSave={(text) => updateTimelineItem('milestone', m.id, { text })} className="!p-0" />
                       </div>
-                      <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[9px] border-b-purple-500" title={calculateDateFromPosition(m.position)}></div>
-                      <div className="w-px h-6 bg-purple-500"></div>
+                      <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[9px] ${isSelected ? 'border-b-purple-600' : 'border-b-purple-500'}`} title={calculateDateFromPosition(milestonePosition)}></div>
+                      <div className={`w-px h-6 ${isSelected ? 'bg-purple-600' : 'bg-purple-500'}`}></div>
+                    </div>
                   </div>
-                   <div className="absolute bottom-6 left-full ml-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity export-hide">
-                      <button onClick={() => setEditingItem({ type: "milestone", id: m.id })} className="z-20 w-5 h-5 bg-white text-slate-600 rounded-full grid place-items-center shadow hover:bg-slate-100"><CalendarIcon /></button>
-                      <button onClick={() => deleteTimelineItem("milestone", m.id)} className="z-20 w-5 h-5 bg-red-500 text-white rounded-full grid place-items-center shadow text-xs hover:bg-red-600">X</button>
-                  </div>
-                  {editingItem?.type === "milestone" && editingItem.id === m.id && <DateEditor item={m} type="milestone" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Phases */}
             <div className="relative h-12 my-2">
               {phases.map((phase) => {
                 const color = phaseColors[phase.highlight] || phaseColors.blue;
+                const isSelected = selectedItem?.type === 'phase' && selectedItem.id === phase.id;
+                const phasePreview = dragPreview?.type === 'phase' && dragPreview.id === phase.id ? dragPreview : null;
+                const phaseStart = phasePreview ? phasePreview.start : phase.start;
+                const phaseEnd = phasePreview ? phasePreview.end : phase.end;
                 return (
                   <div
                     key={phase.id}
                     className="relative"
-                    style={{ position: "absolute", left: `${phase.start}%`, width: `${phase.end - phase.start}%`, height: "100%" }}
-                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', left: `${phaseStart}%`, width: `${phaseEnd - phaseStart}%`, height: '100%' }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSelectItem({ type: 'phase', id: phase.id });
+                    }}
                   >
-                      <div
-                        className={`h-8 rounded ${color.bg} border-l-4 ${color.border} flex items-center px-2 group cursor-move z-10 absolute top-1/2 -translate-y-1/2 w-full timeline-phase-bar`}
-                        onMouseDown={(e) => handleDragStart(e, "phase", phase.id, "move")}
-                        title={`${phase.text} (${calculateDateFromPosition(phase.start)} - ${calculateDateFromPosition(phase.end)})`}
-                      >
-                        <div className="flex-grow w-full overflow-hidden whitespace-nowrap">
-                          <EditableField initialValue={phase.text} onSave={(text) => updateTimelineItem("phase", phase.id, { text })} className="text-sm font-semibold !p-0 bg-transparent truncate" />
-                        </div>
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity export-hide">
-                          <button onClick={() => setEditingColorPhaseId(phase.id)} className={`z-20 w-5 h-5 rounded-full grid place-items-center shadow hover:opacity-80 ${color.bg} border-2 border-white`}></button>
-                          <button onClick={() => setEditingItem({ type: "phase", id: phase.id })} className="z-20 w-5 h-5 bg-white text-slate-600 rounded-full grid place-items-center shadow hover:bg-slate-100"><CalendarIcon /></button>
-                          <button onClick={() => deleteTimelineItem("phase", phase.id)} className="z-20 w-5 h-5 bg-red-500 text-white rounded-full grid place-items-center shadow hover:bg-red-600 text-xs">X</button>
-                        </div>
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-20 export-hide"
-                          onMouseDown={(e) => handleDragStart(e, "phase", phase.id, "resize-end")}
-                        />
+                    <div
+                      className={`h-8 rounded ${color.bg} border-l-4 ${color.border} flex items-center px-2 cursor-move z-10 absolute top-1/2 -translate-y-1/2 w-full timeline-phase-bar ${isSelected ? 'ring-2 ring-offset-1 ring-slate-600' : ''}`}
+                      onMouseDown={(e) => handleDragStart(e, 'phase', phase.id, 'move')}
+                      title={`${phase.text} (${calculateDateFromPosition(phaseStart)} - ${calculateDateFromPosition(phaseEnd)})`}
+                    >
+                      <div className="flex-grow w-full overflow-hidden whitespace-nowrap">
+                        <EditableField initialValue={phase.text} onSave={(text) => updateTimelineItem('phase', phase.id, { text })} className="text-sm font-semibold !p-0 bg-transparent truncate" />
                       </div>
-                      {editingColorPhaseId === phase.id && (
-                          <div className="absolute z-30 bg-white p-2 rounded-lg shadow-lg top-full mt-2 left-1/2 -translate-x-1/2 flex gap-2" onClick={(e) => e.stopPropagation()}>
-                              {Object.entries(phaseColors).map(([key, value]) => (
-                                  <button
-                                      key={key}
-                                      onClick={() => {
-                                          updateTimelineItem("phase", phase.id, { highlight: key });
-                                          setEditingColorPhaseId(null);
-                                      }}
-                                      className={`w-6 h-6 rounded-full ${value.bg} border-2 ${phase.highlight === key ? value.border : 'border-transparent'} hover:scale-110 transition-transform`}
-                                      title={key}
-                                  />
-                              ))}
-                          </div>
-                      )}
-                      {editingItem?.type === "phase" && editingItem.id === phase.id && <DateEditor item={phase} type="phase" />}
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-20 export-hide"
+                        onMouseDown={(e) => handleDragStart(e, 'phase', phase.id, 'resize-end')}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -693,11 +648,14 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
             <div className="relative" style={{ height: `${deliverableSectionHeightRem}rem` }}>
                 {deliverables.map((d, index) => {
                     const layout = deliverableLayouts[d.id];
-                    const laneIndex = layout ? layout.lane : index % 2;
+                    const laneIndex = layout ? layout.lane : 0;
                     const topRem = deliverableTopOffsetRem + laneIndex * deliverableLaneSpacingRem;
                     const lineHeightRem = topRem + 3;
                     const isHovered = hoveredDeliverableId === d.id;
-                    const deliverableDateIso = calculateDateFromPosition(d.position);
+                    const isSelected = selectedItem?.type === 'deliverable' && selectedItem.id === d.id;
+                    const deliverablePreview = dragPreview?.type === 'deliverable' && dragPreview.id === d.id ? dragPreview.position : null;
+                    const deliverablePosition = deliverablePreview ?? d.position;
+                    const deliverableDateIso = calculateDateFromPosition(deliverablePosition);
                     const deliverableDate = (() => {
                         const parsed = new Date(deliverableDateIso);
                         return Number.isNaN(parsed.getTime())
@@ -708,13 +666,15 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                     return (
                         <div
                             key={d.id}
-                            ref={(el) => { deliverableRefs.current[d.id] = el; }}
-                            className={`absolute group cursor-move transition-all duration-300 ${isHovered ? 'z-30 scale-[1.02]' : 'z-10'}`}
-                            style={{ left: `${d.position}%`, top: `${topRem}rem` }}
-                            onMouseDown={(e) => handleDragStart(e, "deliverable", d.id, "move")}
+                            className={`absolute cursor-move transition-all duration-300 ${isHovered || isSelected ? 'z-30 scale-[1.02]' : 'z-10'}`}
+                            style={{ left: `${deliverablePosition}%`, top: `${topRem}rem` }}
+                            onMouseDown={(e) => handleDragStart(e, 'deliverable', d.id, 'move')}
                             onMouseEnter={() => setHoveredDeliverableId(d.id)}
                             onMouseLeave={() => setHoveredDeliverableId((current) => (current === d.id ? null : current))}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleSelectItem({ type: 'deliverable', id: d.id });
+                            }}
                             title={deliverableDate}
                         >
                             <div className="flex flex-col items-center -translate-x-1/2 timeline-item-centered">
@@ -722,46 +682,22 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                                     className="absolute bottom-full w-px bg-teal-400 border-l border-dashed border-teal-400 -z-10"
                                     style={{ height: `${lineHeightRem}rem` }}
                                 ></div>
-                                <div className={`w-3 h-3 rounded-full ring-4 ${isHovered ? 'bg-teal-600 ring-teal-200' : 'bg-teal-500 ring-white'}`}></div>
+                                <div className={`w-3 h-3 rounded-full ring-4 ${isHovered || isSelected ? 'bg-teal-600 ring-teal-200' : 'bg-teal-500 ring-white'}`}></div>
                                 <div
-                                    className={`bg-white px-3 py-2 rounded-md shadow text-xs leading-snug mt-2 max-w-[14rem] min-h-[3rem] text-center whitespace-normal break-words flex flex-col items-center gap-1 ${isHovered ? 'ring-2 ring-teal-200 shadow-lg' : ''}`}
+                                    className={`bg-white px-3 py-2 rounded-md shadow text-xs leading-snug mt-2 max-w-[14rem] min-h-[3rem] text-center whitespace-normal break-words flex flex-col items-center gap-1 ${isHovered || isSelected ? 'ring-2 ring-teal-200 shadow-lg' : ''}`}
                                 >
                                     <EditableField
                                         initialValue={d.text}
-                                        onSave={(textValue) => updateTimelineItem("deliverable", d.id, { text: textValue })}
+                                        onSave={(textValue) => updateTimelineItem('deliverable', d.id, { text: textValue })}
                                         className="!p-0 w-full"
                                         wrapDisplay
                                     />
-                                    <div
-                                        className={`flex items-center justify-between w-full text-[10px] text-slate-500 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                                    >
+                                    <div className="flex items-center justify-between w-full text-[10px] text-slate-500">
                                         <span className="text-left">{deliverableDate}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setEditingItem({ type: "deliverable", id: d.id });
-                                                }}
-                                                className="w-5 h-5 rounded-full bg-white text-slate-600 shadow hover:bg-slate-100 flex items-center justify-center"
-                                            >
-                                                <CalendarIcon />
-                                            </button>
-                                            <button
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    deleteTimelineItem("deliverable", d.id);
-                                                }}
-                                                className="w-5 h-5 rounded-full bg-red-500 text-white shadow hover:bg-red-600 text-xs flex items-center justify-center"
-                                            >
-                                                X
-                                            </button>
-                                        </div>
+                                        <span className="text-slate-400">{isSelected ? 'Valgt' : ''}</span>
                                     </div>
                                 </div>
                             </div>
-                            {editingItem?.type === "deliverable" && editingItem.id === d.id && (
-                                <DateEditor item={d} type="deliverable" />
-                            )}
                         </div>
                     );
                 })}
@@ -769,10 +705,20 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           </div>
 
         </div>
-      </div>
     </div>
-    
-    <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-center gap-4 export-hide">
+  </div>
+
+  <TimelineInspectorPanel
+    selection={selectedInspectorItem}
+    calculateDateFromPosition={calculateDateFromPosition}
+    calculatePositionFromDate={calculatePositionFromDate}
+    updateTimelineItem={updateTimelineItem}
+    deleteTimelineItem={deleteTimelineItem}
+    onClearSelection={() => setSelectedItem(null)}
+    phaseColors={phaseColors}
+  />
+
+  <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-center gap-4 export-hide">
       <span className="text-sm font-semibold text-slate-600">Tilføj til tidslinje:</span>
       <button onClick={() => handleAddItem("phase")} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full hover:bg-blue-200">Fase</button>
       <button onClick={() => handleAddItem("milestone")} className="text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full hover:bg-purple-200">Milepæl</button>

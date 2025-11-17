@@ -3,7 +3,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
-_Nothing yet._
+
+## [1.6.0] - 2025-11-17
+### Changed
+- `ProjectManagerProvider` memoiserer nu Auth/Workspace/Admin-contexts + de aggregerede hooks, s� nedstr�ms komponenter ikke re-rendrer n�r deres data ikke �ndrer sig (DX-013).
+- ProjectReportsPage viser ikke l�ngere en duplikeret leveranceliste; tidslinjen er eneste kilde til deliverables (UX-012).
+- Timeline-panelet har f�et klik-baseret inspector med tekst-, dato-, farve- og slet-kontroller, s� alle redigeringer samles �t sted og hover-ikoner er fjernet (UX-013).
+- Timeline-drag bruger nu lokalt preview og kalder kun `updateTimelineItem` ved mouseup, hvilket g�r tr�koplevelsen glattere og undg�r un�dvendige re-renders (PERF-011).
+- Deliverable-lanes beregnes deterministisk uden `ResizeObserver`, s� kortene ikke hopper eller overlapper ved zoom/resize (UX-014).
+- Rapportfanen har f�et et nyt headerkort med projektstatus, rapportuge og hurtige KPI'er for risici/faser/milep�le/leverancer/opgaver (UX-015).
+- Kanban-opgaver kan nu �bnes i et detaljepanel med ansvarlig, deadline og noter; data gemmes i backend og erstatter den tidligere opf�lgningsliste (UX-016).
+- Kanban-boardet har f�et en "Vis opgaveliste"-toggle, der �bner en sorteret task-liste baseret p� nye `createdAt`-felter i backend (UX-017).
+- Opdatering af rapporter/kanban-opgaver �ndrer ikke l�ngere projektets start-/slutdato i backend - leverancedatoer forbliver stabile ved hver synkronisering (bugfix).
 
 ## [1.5.1] - 2025-11-17
 ### Changed

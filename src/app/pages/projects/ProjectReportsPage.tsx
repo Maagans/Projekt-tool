@@ -4,11 +4,13 @@ import { KanbanBoard } from '../../../components/KanbanBoard';
 import { Timeline } from '../../../components/Timeline';
 import { EditableList } from '../../../components/RichTextEditor';
 import { MainStatusTable } from '../../../components/MainStatusTable';
-import { DeliverablesList } from '../../../components/DeliverablesList';
 import { RiskMatrix } from '../../../components/RiskMatrix';
 import { ProjectRiskMatrix, PROJECT_RISK_CATEGORY_META } from '../../../components/ProjectRiskMatrix';
 import { CalendarIcon, PlusIcon, StepForwardIcon, TrashIcon } from '../../../components/Icons';
 import { SyncStatusPill } from '../../../components/SyncStatusPill';
+import { ProjectReportHeader } from '../../../components/ProjectReportHeader';
+import { KanbanTaskInspector } from '../../../components/KanbanTaskInspector';
+import { KanbanTaskList } from '../../../components/KanbanTaskList';
 import type {
   Deliverable,
   Milestone,
@@ -454,6 +456,38 @@ export const ProjectReportsPage = () => {
     { allowWhileTimelineDraft: true },
   );
 
+  const kanbanTasks = useMemo(
+    () =>
+      (activeReport.state.kanbanTasks ?? []).map((task) => ({
+        ...task,
+        createdAt: task.createdAt ?? new Date().toISOString(),
+      })),
+    [activeReport.state.kanbanTasks],
+  );
+  const reportStats = {
+    risks: activeReport.state.risks?.length ?? 0,
+    phases: activeReport.state.phases?.length ?? 0,
+    milestones: activeReport.state.milestones?.length ?? 0,
+    deliverables: activeReport.state.deliverables?.length ?? 0,
+    tasks: kanbanTasks.length,
+  };
+  const addTask = guardManage(kanbanManager.add);
+  const updateTask = guardManage(kanbanManager.updateContent);
+  const deleteTask = guardManage(kanbanManager.delete);
+  const moveTask = guardManage(kanbanManager.updateStatus);
+  const updateTaskDetails = guardManage(kanbanManager.updateDetails);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showTaskList, setShowTaskList] = useState(false);
+  const selectedTask = useMemo(
+    () => kanbanTasks.find((task) => task.id === selectedTaskId) ?? null,
+    [kanbanTasks, selectedTaskId],
+  );
+  useEffect(() => {
+    if (selectedTaskId && !selectedTask) {
+      setSelectedTaskId(null);
+    }
+  }, [selectedTaskId, selectedTask]);
+
   return (
     <>
       {isBusy && <SyncStatusPill message="Synkroniserer rapportændringer..." className={floatingSyncClass} />}
@@ -523,12 +557,39 @@ export const ProjectReportsPage = () => {
       </aside>
       <main id="report-content" className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 w-full">
         <div className="lg:col-span-2">
-          <KanbanBoard
-            tasks={activeReport.state.kanbanTasks || []}
-            onAddTask={guardManage(kanbanManager.add)}
-            onUpdateTask={guardManage(kanbanManager.updateContent)}
-            onDeleteTask={guardManage(kanbanManager.delete)}
-            onMoveTask={guardManage(kanbanManager.updateStatus)}
+          <ProjectReportHeader
+            projectName={project.config.projectName}
+            projectStatus={project.status}
+            projectStartDate={project.config.projectStartDate}
+            projectEndDate={project.config.projectEndDate}
+            reportWeekKey={activeReport.weekKey}
+            isTimelineDirty={isTimelineDraftActive}
+            stats={reportStats}
+          />
+        </div>
+        <div className="lg:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <EditableList
+            title="Status (Resumé)"
+            items={activeReport.state.statusItems}
+            onAddItem={guardManage(statusListManager.addItem)}
+            onDeleteItem={guardManage(statusListManager.deleteItem)}
+            onUpdateItem={guardManage(statusListManager.updateItem)}
+            onReorderItems={guardManage(statusListManager.reorderItems)}
+          />
+          <EditableList
+            title="Udfordringer"
+            items={activeReport.state.challengeItems}
+            onAddItem={guardManage(challengeListManager.addItem)}
+            onDeleteItem={guardManage(challengeListManager.deleteItem)}
+            onUpdateItem={guardManage(challengeListManager.updateItem)}
+            onReorderItems={guardManage(challengeListManager.reorderItems)}
+          />
+        </div>
+        <div className="lg:col-span-2">
+          <MainStatusTable
+            rows={activeReport.state.mainTableRows}
+            cycleStatus={guardManage(restActions.cycleStatus)}
+            updateNote={guardManage(restActions.updateMainTableRowNote)}
           />
         </div>
         <div className="lg:col-span-2">
@@ -604,39 +665,40 @@ export const ProjectReportsPage = () => {
             />
           </div>
         </div>
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <EditableList
-            title="Status"
-            items={activeReport.state.statusItems}
-            onAddItem={guardManage(statusListManager.addItem)}
-            onDeleteItem={guardManage(statusListManager.deleteItem)}
-            onUpdateItem={guardManage(statusListManager.updateItem)}
-            onReorderItems={guardManage(statusListManager.reorderItems)}
-          />
-          <EditableList
-            title="Udfordringer"
-            items={activeReport.state.challengeItems}
-            onAddItem={guardManage(challengeListManager.addItem)}
-            onDeleteItem={guardManage(challengeListManager.deleteItem)}
-            onUpdateItem={guardManage(challengeListManager.updateItem)}
-            onReorderItems={guardManage(challengeListManager.reorderItems)}
+        <div className="lg:col-span-2">
+          <KanbanBoard
+            tasks={kanbanTasks}
+            onAddTask={addTask}
+            onUpdateTask={updateTask}
+            onDeleteTask={deleteTask}
+            onMoveTask={moveTask}
+            onSelectTask={(task) => setSelectedTaskId(task.id)}
+            headerActions={
+              <button
+                type="button"
+                onClick={() => setShowTaskList((prev) => !prev)}
+                className="self-start rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                {showTaskList ? 'Skjul opgaveliste' : 'Vis opgaveliste'}
+              </button>
+            }
           />
         </div>
+        {showTaskList && (
+          <div className="lg:col-span-2">
+            <KanbanTaskList tasks={kanbanTasks} onSelectTask={(task) => setSelectedTaskId(task.id)} />
+          </div>
+        )}
         <div className="lg:col-span-2">
-          <MainStatusTable
-            rows={activeReport.state.mainTableRows}
-            cycleStatus={guardManage(restActions.cycleStatus)}
-            updateNote={guardManage(restActions.updateMainTableRowNote)}
+          <KanbanTaskInspector
+            task={selectedTask}
+            disabled={!canEdit}
+            onClose={() => setSelectedTaskId(null)}
+            onUpdate={(id, updates) => updateTaskDetails(id, updates)}
           />
         </div>
         {PROJECT_RISK_ANALYSIS_ENABLED ? (
           <>
-            <div className="lg:col-span-2">
-              <DeliverablesList
-                deliverables={activeReport.state.deliverables}
-                calculateDateFromPosition={timelineManager.calculateDateFromPosition}
-              />
-            </div>
             <div className="lg:col-span-2">
               {canManage && (
                 <div className="mb-3 flex justify-end">
@@ -673,22 +735,14 @@ export const ProjectReportsPage = () => {
             </div>
           </>
         ) : (
-          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
-              <DeliverablesList
-                deliverables={activeReport.state.deliverables}
-                calculateDateFromPosition={timelineManager.calculateDateFromPosition}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <RiskMatrix
-                risks={activeReport.state.risks}
-                updateRiskPosition={guardManage(riskManager.updatePosition)}
-                addRisk={guardManage(riskManager.add)}
-                updateRiskName={guardManage(riskManager.updateName)}
-                deleteRisk={guardManage(riskManager.delete)}
-              />
-            </div>
+          <div className="lg:col-span-2">
+            <RiskMatrix
+              risks={activeReport.state.risks}
+              updateRiskPosition={guardManage(riskManager.updatePosition)}
+              addRisk={guardManage(riskManager.add)}
+              updateRiskName={guardManage(riskManager.updateName)}
+              deleteRisk={guardManage(riskManager.delete)}
+            />
           </div>
         )}
       </main>

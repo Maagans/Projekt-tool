@@ -382,7 +382,7 @@ export const loadFullWorkspace = async (clientOverride) => {
         });
 
         const tasks = await fetchReportItems(`
-            SELECT id::text, report_id::text, content, status
+            SELECT id::text, report_id::text, content, status, assignee, due_date, notes, created_at
             FROM report_kanban_tasks
             WHERE report_id::text = ANY($1::text[])
             ORDER BY id::uuid ASC
@@ -394,6 +394,10 @@ export const loadFullWorkspace = async (clientOverride) => {
                     id: row.id,
                     content: row.content,
                     status: row.status,
+                    assignee: row.assignee ?? null,
+                    dueDate: toDateOnly(row.due_date),
+                    notes: row.notes ?? null,
+                    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
                 });
             }
         });
@@ -925,33 +929,44 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         }
     }
 
-    const tasks = Array.isArray(safeState.kanbanTasks) ? safeState.kanbanTasks : [];
-    for (const task of tasks) {
-        if (!task) continue;
-        let taskId = ensureStableId(task.id, taskUsedIds);
-        task.id = taskId;
-        const status = ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo';
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-            try {
-                await client.query(
-                    `
-            INSERT INTO report_kanban_tasks (id, report_id, content, status)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4)
+        const tasks = Array.isArray(safeState.kanbanTasks) ? safeState.kanbanTasks : [];
+        for (const task of tasks) {
+            if (!task) continue;
+            let taskId = ensureStableId(task.id, taskUsedIds);
+            task.id = taskId;
+            const status = ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo';
+            const dueDate = toDateOnly(task.dueDate);
+            const createdAt = task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString();
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                    await client.query(
+                        `
+            INSERT INTO report_kanban_tasks (id, report_id, content, status, assignee, due_date, notes, created_at)
+            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6::date, $7, $8::timestamptz)
         `,
-                    [taskId, reportIdValue, task.content ?? '', status],
-                );
-                break;
-            } catch (error) {
-                if (error.code === '23505' && attempt < 2) {
-                    taskUsedIds.delete(taskId);
-                    taskId = ensureStableId(null, taskUsedIds);
-                    task.id = taskId;
-                    continue;
+                        [
+                            taskId,
+                            reportIdValue,
+                            task.content ?? '',
+                            status,
+                            task.assignee ?? null,
+                            dueDate,
+                            task.notes ?? null,
+                            createdAt,
+                        ],
+                    );
+                    break;
+                } catch (error) {
+                    if (error.code === '23505' && attempt < 2) {
+                        taskUsedIds.delete(taskId);
+                        taskId = ensureStableId(null, taskUsedIds);
+                        task.id = taskId;
+                        continue;
+                    }
+                    throw error;
                 }
-                throw error;
             }
         }
-    }
 };
 
 const syncProjectMembers = async (client, projectId, membersPayload, existingProject = null) => {

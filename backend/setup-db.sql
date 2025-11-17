@@ -266,6 +266,10 @@ CREATE TABLE report_kanban_tasks (
     report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     status TEXT NOT NULL,
+    assignee TEXT,
+    due_date DATE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_kanban_status CHECK (status IN ('todo', 'doing', 'done'))
 );
 

@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, ReactNode } from 'react';
+﻿import { createContext, useContext, useMemo, ReactNode } from 'react';
 import { useProjectManagerInternal } from './useProjectManagerInternal';
 
 type ProjectManagerValue = ReturnType<typeof useProjectManagerInternal>;
@@ -53,48 +53,90 @@ const AdminContext = createContext<AdminContextValue | undefined>(undefined);
 export const ProjectManagerProvider = ({ children }: { children: ReactNode }) => {
   const value = useProjectManagerInternal();
 
-  const authValue: AuthContextValue = {
-    isAuthenticated: value.isAuthenticated,
-    currentUser: value.currentUser,
-    isLoading: value.isLoading,
-    isSaving: value.isSaving,
-    isBootstrapping: value.isBootstrapping,
-    apiError: value.apiError,
-    login: value.login,
-    logout: value.logout,
-    register: value.register,
-    needsSetup: value.needsSetup,
-    completeSetup: value.completeSetup,
-    isAdministrator: value.isAdministrator,
-    canManage: value.canManage,
-    shouldRedirectToLogin: value.shouldRedirectToLogin,
-    acknowledgeLogoutRedirect: value.acknowledgeLogoutRedirect,
-  };
+  const authValue = useMemo<AuthContextValue>(
+    () => ({
+      isAuthenticated: value.isAuthenticated,
+      currentUser: value.currentUser,
+      isLoading: value.isLoading,
+      isSaving: value.isSaving,
+      isBootstrapping: value.isBootstrapping,
+      apiError: value.apiError,
+      login: value.login,
+      logout: value.logout,
+      register: value.register,
+      needsSetup: value.needsSetup,
+      completeSetup: value.completeSetup,
+      isAdministrator: value.isAdministrator,
+      canManage: value.canManage,
+      shouldRedirectToLogin: value.shouldRedirectToLogin,
+      acknowledgeLogoutRedirect: value.acknowledgeLogoutRedirect,
+    }),
+    [
+      value.isAuthenticated,
+      value.currentUser,
+      value.isLoading,
+      value.isSaving,
+      value.isBootstrapping,
+      value.apiError,
+      value.login,
+      value.logout,
+      value.register,
+      value.needsSetup,
+      value.completeSetup,
+      value.isAdministrator,
+      value.canManage,
+      value.shouldRedirectToLogin,
+      value.acknowledgeLogoutRedirect,
+    ],
+  );
 
-  const workspaceValue: WorkspaceContextValue = {
-    projects: value.projects,
-    employees: value.employees,
-    workspaceSettings: value.workspaceSettings,
-    isWorkspaceFetching: value.isWorkspaceFetching,
-    updatePmoBaselineHoursWeek: value.updatePmoBaselineHoursWeek,
-    createNewProject: value.createNewProject,
-    deleteProject: value.deleteProject,
-    updateProjectConfig: value.updateProjectConfig,
-    updateProjectStatus: value.updateProjectStatus,
-    getProjectById: value.getProjectById,
-    getWeekKey: value.getWeekKey,
-    projectActions: value.projectActions,
-    addEmployee: value.addEmployee,
-    updateEmployee: value.updateEmployee,
-    deleteEmployee: value.deleteEmployee,
-    importEmployeesFromCsv: value.importEmployeesFromCsv,
-  };
+  const workspaceValue = useMemo<WorkspaceContextValue>(
+    () => ({
+      projects: value.projects,
+      employees: value.employees,
+      workspaceSettings: value.workspaceSettings,
+      isWorkspaceFetching: value.isWorkspaceFetching,
+      updatePmoBaselineHoursWeek: value.updatePmoBaselineHoursWeek,
+      createNewProject: value.createNewProject,
+      deleteProject: value.deleteProject,
+      updateProjectConfig: value.updateProjectConfig,
+      updateProjectStatus: value.updateProjectStatus,
+      getProjectById: value.getProjectById,
+      getWeekKey: value.getWeekKey,
+      projectActions: value.projectActions,
+      addEmployee: value.addEmployee,
+      updateEmployee: value.updateEmployee,
+      deleteEmployee: value.deleteEmployee,
+      importEmployeesFromCsv: value.importEmployeesFromCsv,
+    }),
+    [
+      value.projects,
+      value.employees,
+      value.workspaceSettings,
+      value.isWorkspaceFetching,
+      value.updatePmoBaselineHoursWeek,
+      value.createNewProject,
+      value.deleteProject,
+      value.updateProjectConfig,
+      value.updateProjectStatus,
+      value.getProjectById,
+      value.getWeekKey,
+      value.projectActions,
+      value.addEmployee,
+      value.updateEmployee,
+      value.deleteEmployee,
+      value.importEmployeesFromCsv,
+    ],
+  );
 
-  const adminValue: AdminContextValue = {
-    allUsers: value.allUsers,
-    fetchAllUsers: value.fetchAllUsers,
-    updateUserRole: value.updateUserRole,
-  };
+  const adminValue = useMemo<AdminContextValue>(
+    () => ({
+      allUsers: value.allUsers,
+      fetchAllUsers: value.fetchAllUsers,
+      updateUserRole: value.updateUserRole,
+    }),
+    [value.allUsers, value.fetchAllUsers, value.updateUserRole],
+  );
 
   return (
     <AuthContext.Provider value={authValue}>
@@ -133,9 +175,9 @@ export const useProjectManager = () => {
   const auth = useAuthManager();
   const workspace = useWorkspaceManager();
   const admin = useAdminManager();
-  return {
+  return useMemo(() => ({
     ...auth,
     ...workspace,
     ...admin,
-  };
+  }), [auth, workspace, admin]);
 };

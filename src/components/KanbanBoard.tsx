@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KanbanTask } from '../types';
+import type { KanbanTask } from '../types';
 import { PlusIcon, TrashIcon } from './Icons';
 import { EditableField } from './EditableField';
 
@@ -8,13 +8,7 @@ type KanbanStatus = 'todo' | 'doing' | 'done';
 const columnTitles: Record<KanbanStatus, string> = {
   todo: 'To Do',
   doing: 'I gang',
-  done: 'Gennemført'
-};
-
-const columnStyles: Record<KanbanStatus, string> = {
-  todo: 'bg-blue-50 border-blue-200',
-  doing: 'bg-purple-50 border-purple-200',
-  done: 'bg-green-50 border-green-200'
+  done: 'Gennemført',
 };
 
 interface KanbanBoardProps {
@@ -23,30 +17,71 @@ interface KanbanBoardProps {
   onUpdateTask: (id: string, content: string) => void;
   onDeleteTask: (id: string) => void;
   onMoveTask: (id: string, newStatus: KanbanStatus) => void;
+  onSelectTask?: (task: KanbanTask) => void;
+  headerActions?: React.ReactNode;
 }
 
-const KanbanCard: React.FC<{
+type KanbanCardProps = {
   task: KanbanTask;
   onUpdate: (id: string, content: string) => void;
   onDelete: (id: string) => void;
-}> = ({ task, onUpdate, onDelete }) => {
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/task-id', task.id);
+  onSelect?: ((task: KanbanTask) => void) | undefined;
+  onDragStart?: ((taskId: string) => void) | undefined;
+  onDragEnd?: (() => void) | undefined;
+  isDragging: boolean;
+};
+
+const KanbanCard: React.FC<KanbanCardProps> = ({
+  task,
+  onUpdate,
+  onDelete,
+  onSelect,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+}) => {
+  const handleDragStart = (event: React.DragEvent) => {
+    event.dataTransfer.setData('application/task-id', task.id);
+    onDragStart?.(task.id);
+  };
+
+  const handleDragEnd = () => {
+    onDragEnd?.();
   };
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
-      className="bg-white p-2 rounded-md shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing"
+      onDragEnd={handleDragEnd}
+      onClick={() => onSelect?.(task)}
+      className={`group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition
+        cursor-grab active:cursor-grabbing hover:shadow-md hover:border-slate-300
+        ${isDragging ? 'scale-[1.03] border-blue-300 shadow-lg rotate-[0.6deg]' : ''}`}
     >
-      <div className="flex justify-between items-start gap-2">
-        <div className="flex-grow text-sm kanban-card-content">
-          <EditableField initialValue={task.content} onSave={(newContent) => onUpdate(task.id, newContent)} isTextArea />
+      <div className="flex items-start gap-2">
+        <div className="flex-1 text-sm">
+          <EditableField
+            initialValue={task.content}
+            onSave={(value) => onUpdate(task.id, value)}
+            isTextArea
+            className="!p-0 font-semibold text-slate-800 leading-5"
+          />
+          {(task.assignee || task.dueDate) && (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+              {task.assignee && <span className="rounded-full bg-slate-100 px-2 py-0.5">{task.assignee}</span>}
+              {task.dueDate && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                  {new Date(task.dueDate).toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <button
+          type="button"
+          className="rounded-full p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500 export-hide"
           onClick={() => onDelete(task.id)}
-          className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-red-500 export-hide"
         >
           <TrashIcon />
         </button>
@@ -55,40 +90,79 @@ const KanbanCard: React.FC<{
   );
 };
 
-const KanbanColumn: React.FC<{
+type KanbanColumnProps = {
   status: KanbanStatus;
   tasks: KanbanTask[];
   onAddTask: (status: KanbanStatus) => void;
   onUpdateTask: (id: string, content: string) => void;
   onDeleteTask: (id: string) => void;
-  onDrop: (e: React.DragEvent, status: KanbanStatus) => void;
+  onDrop: (event: React.DragEvent, status: KanbanStatus) => void;
   isDraggedOver: boolean;
   onDragEnter: () => void;
   onDragLeave: () => void;
-}> = (props) => {
-  const { status, tasks, onAddTask, onUpdateTask, onDeleteTask, onDrop, isDraggedOver, onDragEnter, onDragLeave } = props;
+  onSelectTask?: ((task: KanbanTask) => void) | undefined;
+  onDragStartCard?: ((taskId: string) => void) | undefined;
+  onDragEndCard?: (() => void) | undefined;
+  draggedTaskId: string | null;
+};
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+const columnBackgrounds: Record<KanbanStatus, string> = {
+  todo: 'from-blue-50/70 via-white to-white',
+  doing: 'from-indigo-50/70 via-white to-white',
+  done: 'from-emerald-50/70 via-white to-white',
+};
+
+const KanbanColumn: React.FC<KanbanColumnProps> = ({
+  status,
+  tasks,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+  onDrop,
+  isDraggedOver,
+  onDragEnter,
+  onDragLeave,
+  onSelectTask,
+  onDragStartCard,
+  onDragEndCard,
+  draggedTaskId,
+}) => {
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
   };
-  
+
   return (
     <div
       onDragOver={handleDragOver}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
-      onDrop={(e) => onDrop(e, status)}
-      className={`flex-1 p-3 rounded-lg border-2 border-dashed ${columnStyles[status]} transition-colors ${isDraggedOver ? 'bg-opacity-50 border-blue-500' : ''}`}
+      onDrop={(event) => onDrop(event, status)}
+      className={`flex-1 rounded-2xl border bg-gradient-to-b ${columnBackgrounds[status]} p-4 transition ${
+        isDraggedOver ? 'border-blue-400 border-dashed shadow-inner' : 'border-slate-200'
+      }`}
     >
-      <h4 className="font-bold text-slate-700 mb-3">{columnTitles[status]}</h4>
-      <div className="space-y-3 min-h-[100px]">
-        {tasks.map(task => (
-          <KanbanCard key={task.id} task={task} onUpdate={onUpdateTask} onDelete={onDeleteTask} />
+      <div className="mb-4 flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-slate-700">{columnTitles[status]}</h4>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">{tasks.length}</span>
+      </div>
+      <div className="space-y-3 min-h-[120px]">
+        {tasks.map((task) => (
+          <KanbanCard
+            key={task.id}
+            task={task}
+            onUpdate={onUpdateTask}
+            onDelete={onDeleteTask}
+            onSelect={onSelectTask}
+            onDragStart={onDragStartCard}
+            onDragEnd={onDragEndCard}
+            isDragging={draggedTaskId === task.id}
+          />
         ))}
       </div>
       <button
+        type="button"
         onClick={() => onAddTask(status)}
-        className="mt-4 w-full flex items-center justify-center gap-1 text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-100 p-2 rounded-md transition-colors export-hide"
+        className="mt-4 w-full rounded-xl border border-dashed border-slate-300 py-2 text-sm font-medium text-slate-500 transition hover:border-slate-400 hover:text-slate-700 export-hide"
       >
         <PlusIcon /> Tilføj opgave
       </button>
@@ -98,28 +172,33 @@ const KanbanColumn: React.FC<{
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
   const [draggedOverColumn, setDraggedOverColumn] = useState<KanbanStatus | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
-  const handleDrop = (e: React.DragEvent, status: KanbanStatus) => {
-      e.preventDefault();
-      const taskId = e.dataTransfer.getData('application/task-id');
-      if (taskId) {
-        const currentTask = props.tasks.find((t) => t.id === taskId);
-        if (currentTask && currentTask.status !== status) {
-          props.onMoveTask(taskId, status);
-        }
+  const handleDrop = (event: React.DragEvent, status: KanbanStatus) => {
+    event.preventDefault();
+    const taskId = event.dataTransfer.getData('application/task-id');
+    if (taskId) {
+      const currentTask = props.tasks.find((task) => task.id === taskId);
+      if (currentTask && currentTask.status !== status) {
+        props.onMoveTask(taskId, status);
       }
-      setDraggedOverColumn(null);
-  }
+    }
+    setDraggedOverColumn(null);
+    setDraggedTaskId(null);
+  };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm">
-      <h3 className="text-lg font-bold mb-4 text-slate-700">Opgavestyring</h3>
-      <div className="flex flex-col lg:flex-row gap-4">
-        {(['todo', 'doing', 'done'] as KanbanStatus[]).map(status => (
+    <div className="rounded-3xl bg-gradient-to-r from-slate-50 to-white p-6 shadow-sm">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-semibold text-slate-800">Opgavestyring</h3>
+        {props.headerActions}
+      </div>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        {(['todo', 'doing', 'done'] as KanbanStatus[]).map((status) => (
           <KanbanColumn
             key={status}
             status={status}
-            tasks={props.tasks.filter(t => t.status === status)}
+            tasks={props.tasks.filter((task) => task.status === status)}
             onAddTask={props.onAddTask}
             onUpdateTask={props.onUpdateTask}
             onDeleteTask={props.onDeleteTask}
@@ -127,6 +206,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
             isDraggedOver={draggedOverColumn === status}
             onDragEnter={() => setDraggedOverColumn(status)}
             onDragLeave={() => setDraggedOverColumn(null)}
+            onSelectTask={props.onSelectTask}
+            onDragStartCard={(taskId) => setDraggedTaskId(taskId)}
+            onDragEndCard={() => setDraggedTaskId(null)}
+            draggedTaskId={draggedTaskId}
           />
         ))}
       </div>
@@ -134,3 +217,4 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
   );
 };
 
+export default KanbanBoard;
