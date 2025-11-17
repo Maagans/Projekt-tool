@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { api } from '../api';
 import { useProjectRisks, projectRiskKeys } from './useProjectRisks';
-import type { ProjectRisk } from '../types';
+import type { ProjectRisk, ProjectRiskFilters } from '../types';
 
 vi.mock('../app/constants', () => ({
   PROJECT_RISK_ANALYSIS_ENABLED: true,
@@ -67,7 +67,7 @@ describe('useProjectRisks', () => {
     getProjectRisksSpy.mockResolvedValue([baseRisk]);
 
     const { wrapper, queryClient } = createWrapper();
-    const filters = { status: 'open', includeArchived: true };
+    const filters: ProjectRiskFilters = { status: 'open', includeArchived: true };
     const expectedFilters = {
       status: 'open' as const,
       includeArchived: true,

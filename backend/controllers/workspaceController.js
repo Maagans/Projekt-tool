@@ -1,5 +1,5 @@
-import { mutateWorkspace } from "../services/workspaceMutator.js";
 import { buildWorkspaceForUser } from "../services/workspaceService.js";
+import { updateWorkspaceSettingsEntry } from "../services/workspaceSettingsService.js";
 
 export const getWorkspace = async (req, res, next) => {
     try {
@@ -13,14 +13,8 @@ export const getWorkspace = async (req, res, next) => {
 export const updateWorkspaceSettings = async (req, res, next) => {
     try {
         const settings = req.validatedBody ?? {};
-        const { workspace } = await mutateWorkspace(req.user, (draft) => {
-            draft.settings = {
-                ...(draft.settings ?? {}),
-                ...settings,
-            };
-        });
-
-        res.json({ success: true, settings: workspace.settings });
+        const updated = await updateWorkspaceSettingsEntry(settings, req.user);
+        res.json({ success: true, settings: updated });
     } catch (error) {
         next(error);
     }

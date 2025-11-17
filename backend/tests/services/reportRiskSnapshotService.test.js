@@ -75,6 +75,8 @@ describe("reportRiskSnapshotService", () => {
       title: "Vendor delay",
       probability: 3,
       impact: 4,
+      ownerName: "Alice",
+      ownerEmail: "alice@example.com",
     });
     expect(withTransaction).toHaveBeenCalled();
     expect(mockClient.query).toHaveBeenCalled();

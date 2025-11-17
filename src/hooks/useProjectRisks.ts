@@ -19,9 +19,9 @@ export const projectRiskKeys = {
 };
 
 const normalizeFilters = (filters: ProjectRiskFilters = {}): ProjectRiskFilters => ({
-  status: filters.status,
-  ownerId: filters.ownerId || undefined,
-  category: filters.category || undefined,
+  status: filters.status ?? undefined,
+  ownerId: filters.ownerId ?? undefined,
+  category: filters.category ?? undefined,
   includeArchived: Boolean(filters.includeArchived),
   overdue: Boolean(filters.overdue),
 });

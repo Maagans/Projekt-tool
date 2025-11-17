@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useMemo, useState } from 'react';
 import type { ProjectRisk, ProjectRiskCategoryKey, ProjectRiskStatus } from '../types';
 
 const PROBABILITY_SCALE = [1, 2, 3, 4, 5];

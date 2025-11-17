@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 _Nothing yet._
 
+## [1.5.0] - 2025-11-14
+### Added
+- Nye dedikerede backend-services for projekter, projektmedlemmer, medarbejdere og workspace-indstillinger, så alle mutationer kører via granulære repos uden `mutateWorkspace` (PERF-010).
+- Frontend/Backend helper-tests for `snapshotToProjectRisk`/`projectRiskToReportState`, som sikrer at ejernavn/e-mail følger rapport-snapshots (RISK-008).
+- Vitest-konfiguration i backend (`backend/vitest.config.js`), så server-tests kører i Node-miljø uden Vite-støj.
+### Changed
+- `PATCH /api/projects/:id` og `POST /api/projects` returnerer igen komplette projekter (inkl. config, members og reports) hvilket stabiliserer ProjectLayout og lokale caches.
+- Rapport-snapshots skriver igen owner-info til databasen, og ProjectReportsPage viser ejernavn/e-mail efter synkronisering.
+- `workspaceController` bruger nu målrettede services i stedet for `mutateWorkspace`, og `workspaceMutator.js` er fjernet.
+### Fixed
+- Projektopdateringer kan ikke længere skrive `NULL` i `start_date`/`end_date`; datoer normaliseres med fallback til eksisterende værdier.
+- Tidslinje-/rapportsynkronisering overlever alle felter (bl.a. report tasks) fordi `syncProjectReports` kaldes eksplicit ved create/update.
+
 ## [1.4.0] - 2025-11-12
 ### Added
 - Ny project_risks + project_risk_history schema inkl. standardkategorier og helper-moduler til risikoskalaer (RISK-001).

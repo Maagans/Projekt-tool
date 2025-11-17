@@ -3,7 +3,7 @@ import pool from '../db.js';
 import logger from '../logger.js';
 import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity, classifyReportIdentifier } from '../utils/helpers.js';
 
-const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
+export const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
 const logDebug = (category, ...args) => {
     if (config.debug.workspace === true) {
@@ -1005,7 +1005,7 @@ const syncProjectMembers = async (client, projectId, membersPayload, existingPro
     }
 };
 
-const syncProjectReports = async (client, projectId, reportsPayload, existingProject = null) => {
+export const syncProjectReports = async (client, projectId, reportsPayload, existingProject = null) => {
     const reportsArray = Array.isArray(reportsPayload) ? reportsPayload : [];
     const existingResult = await client.query('SELECT id::text, week_key FROM reports WHERE project_id = $1::uuid', [projectId]);
     const existingByWeek = new Map(existingResult.rows.map((row) => [row.week_key, row.id]));

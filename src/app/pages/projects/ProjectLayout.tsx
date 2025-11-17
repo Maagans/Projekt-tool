@@ -43,7 +43,7 @@ export const ProjectLayout = () => {
     if (canManage) {
       baseTabs.push({ key: 'settings', label: 'Indstillinger', path: 'settings' });
     }
-    return baseTabs as const;
+    return baseTabs;
   }, [canManage]);
 
   const isReportsRoute = location.pathname.endsWith('/reports') || location.pathname.endsWith(projectId ?? '');

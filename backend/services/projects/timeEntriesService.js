@@ -1,7 +1,7 @@
-import logger from "../logger.js";
-import { createAppError } from "../utils/errors.js";
-import { ensureEmployeeLinkForUser } from "./workspaceService.js";
-import { withTransaction } from "../utils/transactions.js";
+import logger from "../../logger.js";
+import { createAppError } from "../../utils/errors.js";
+import { ensureEmployeeLinkForUser } from "../workspaceService.js";
+import { withTransaction } from "../../utils/transactions.js";
 
 export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, plannedHours, actualHours }, user) => {
     try {

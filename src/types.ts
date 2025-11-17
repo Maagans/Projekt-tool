@@ -118,6 +118,7 @@ export interface ProjectConfig {
 export type ProjectStatus = 'active' | 'completed' | 'on-hold';
 
 export interface Report {
+  id?: string;
   weekKey: string; // e.g., "2024-W23"
   state: ProjectState;
 }
@@ -217,6 +218,7 @@ export interface ProjectRiskCategoryMeta {
   key: ProjectRiskCategoryKey;
   label: string;
   badge: string;
+  description?: string;
 }
 
 export interface ProjectRiskOwner {
@@ -273,9 +275,9 @@ export type ProjectRiskUpdateInput = Partial<ProjectRiskInput> & {
 };
 
 export interface ProjectRiskFilters {
-  status?: ProjectRiskStatus;
-  ownerId?: string;
-  category?: ProjectRiskCategoryKey;
-  includeArchived?: boolean;
-  overdue?: boolean;
+  status?: ProjectRiskStatus | undefined;
+  ownerId?: string | undefined;
+  category?: ProjectRiskCategoryKey | undefined;
+  includeArchived?: boolean | undefined;
+  overdue?: boolean | undefined;
 }

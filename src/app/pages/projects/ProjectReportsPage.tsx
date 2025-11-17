@@ -15,6 +15,7 @@ import type {
   Phase,
   ProjectRisk,
   ProjectRiskCategoryKey,
+  ProjectRiskCategoryMeta,
   ProjectRiskStatus,
   ProjectState,
   Report,
@@ -28,10 +29,25 @@ import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 
 const DEFAULT_PHASE_WIDTH = 10;
 
-const getCategoryMeta = (key: ProjectRiskCategoryKey | string | undefined) =>
-  PROJECT_RISK_CATEGORY_META[key as ProjectRiskCategoryKey] ?? PROJECT_RISK_CATEGORY_META.other;
+const normalizeCategoryKey = (key: ProjectRiskCategoryKey | string | undefined): ProjectRiskCategoryKey => {
+  if (typeof key === 'string' && key in PROJECT_RISK_CATEGORY_META) {
+    return key as ProjectRiskCategoryKey;
+  }
+  return 'other';
+};
 
-const snapshotToProjectRisk = (risk: Risk, projectId: string): ProjectRisk => {
+const getCategoryMeta = (key: ProjectRiskCategoryKey | string | undefined): ProjectRiskCategoryMeta => {
+  const normalized = normalizeCategoryKey(key);
+  const definition = PROJECT_RISK_CATEGORY_META[normalized] ?? PROJECT_RISK_CATEGORY_META.other;
+  return {
+    key: normalized,
+    label: definition.label,
+    badge: definition.badge,
+    description: definition.description,
+  };
+};
+
+export const snapshotToProjectRisk = (risk: Risk, projectId: string): ProjectRisk => {
   const meta = getCategoryMeta(risk.categoryKey);
   return {
     id: risk.id,
@@ -55,10 +71,14 @@ const snapshotToProjectRisk = (risk: Risk, projectId: string): ProjectRisk => {
     lastFollowUpAt: risk.lastFollowUpAt ?? null,
     isArchived: Boolean(risk.projectRiskArchived),
     projectRiskUpdatedAt: risk.projectRiskUpdatedAt ?? null,
+    createdBy: null,
+    updatedBy: null,
+    createdAt: risk.lastFollowUpAt ?? new Date().toISOString(),
+    updatedAt: risk.projectRiskUpdatedAt ?? new Date().toISOString(),
   };
 };
 
-const projectRiskToReportState = (risk: ProjectRisk): Risk => ({
+export const projectRiskToReportState = (risk: ProjectRisk): Risk => ({
   id: risk.id,
   name: risk.title,
   s: risk.probability,
@@ -207,7 +227,7 @@ export const ProjectReportsPage = () => {
   }, []);
   const { canManage } = projectManager;
   const curatedRisksQuery = useCuratedProjectRisks(PROJECT_RISK_ANALYSIS_ENABLED ? project.id : null);
-  const curatedRisks = curatedRisksQuery.risks ?? [];
+  const curatedRisks: ProjectRisk[] = curatedRisksQuery.risks ?? [];
   const curatedRisksQueryState = curatedRisksQuery.query;
   const floatingSyncClass = 'fixed bottom-6 right-4 sm:right-6 pointer-events-none z-40 drop-shadow-lg';
   const isTimelineDraftActive = isTimelineDirty && dirtyWeekKeyRef.current === activeWeekKey;
@@ -307,12 +327,11 @@ export const ProjectReportsPage = () => {
         return;
       }
       const normalizedSnapshots = snapshots.map(
-        (snapshot) =>
-          ({
-            ...snapshot,
-            projectId: project.id,
-            category: getCategoryMeta(snapshot.category as ProjectRiskCategoryKey),
-          }) as ProjectRisk,
+        (snapshot): ProjectRisk => ({
+          ...snapshot,
+          projectId: project.id,
+          category: getCategoryMeta(snapshot.category?.key),
+        }),
       );
       reportsManager.replaceState({
         ...activeReport.state,
@@ -348,14 +367,14 @@ export const ProjectReportsPage = () => {
   });
 
   const handleCreateNext = () => {
-    if (isBusy) return;
+    if (isBusy || !reportsManager) return;
     if (!confirmDiscardTimelineChanges()) return;
     const newKey = reportsManager.createNext();
     if (newKey) setActiveWeekKey(newKey);
   };
 
   const handleDeleteReport = (weekKey: string) => {
-    if (isBusy) return;
+    if (isBusy || !reportsManager) return;
     if (!confirmDiscardTimelineChanges()) return;
     reportsManager.delete(weekKey);
     const remainingReports = project.reports.filter((report) => report.weekKey !== weekKey);
@@ -710,7 +729,7 @@ export const ProjectReportsPage = () => {
               ) : (
                 <div className="space-y-3">
                   {curatedRisks.map((risk) => {
-                    const meta = risk.category ?? PROJECT_RISK_CATEGORY_META[risk.category?.key ?? 'other'];
+                    const meta = risk.category ?? getCategoryMeta('other');
                     const isChecked = selectedReportRiskIds.includes(risk.id);
                     return (
                       <label

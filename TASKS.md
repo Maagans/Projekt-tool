@@ -717,9 +717,71 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Rapportens matrix bruger snapshot-data og viser "Arkiveret siden uge X" når relevant.
   - Afhængigheder: RISK-002, RISK-005.
 
-- [ ] RISK-007: QA, UAT & Dokumentation
+- [x] RISK-007: QA, UAT & Dokumentation
   - Formål: Sikre end-to-end kvalitet, UAT og release-noter.
   - Ændringer: Cypress/Playwright smoke-scenarie, README + CHANGELOG, UAT-script.
   - Test (TDD): E2E-flow (create risk → drag i matrix → tilføj til rapport), evt. jest-axe sanity, dokumentationsreview.
   - Accept: PMO/Projektleder tester accepteret; release-notes klar.
   - Afhængigheder: Alle foregående RISK-ops.
+## Fase P13 – Kode-review fund (november 2025)
+
+- [x] PERF-010: Trim server-workspace mutationer
+  - Formål: Undgå at hver CRUD-operation henter/kloner hele workspace, så responstid og transaktionslængde ikke vokser med datamængden.
+  - Ændringer:
+    1) Skriv målrettede repository-funktioner i backend (employees/projects/settings mv.), der kun læser/skriver relevante tabeller.
+    2) Opdatér controllers til at kalde de nye funktioner i stedet for `mutateWorkspace`.
+    3) Indfør query-scopes der begrænser hvilke projekter/medarbejdere der hentes for ikke-admins.
+    - Status 14/11: Employees-controller er refaktoreret til ny `employeesService`, PATCH `/workspace/settings` bruger nu `workspaceSettingsService`, og projekt-CRUD/medlems-CRUD/time entries bruger `projects/*Service` uden `mutateWorkspace`. Næste trin: kvarstående projekt-relaterede flows (reports/drag actions) + oprydning af `mutateWorkspace`.
+  - Test (TDD):
+    1) Vitest/Supertest, der dækker de nye repository-funktioner og sikrer at en projektleder kun ser/ændrer egne projekter.
+    2) Belastningstest (f.eks. kør 200 opdateringer i parallel) og dokumentér forbedret latency.
+  - Accept: Enkeltmutationer kører uden at serialisere hele workspace; ikke-admins får ikke længere fuldt datasæt fra backend.
+  - Afhængigheder: FE-008, BE-007.
+
+- [ ] RISK-008: Medtag owner-info i rapport-snapshots
+  - Formål: Sørge for at ProjectReportsPage viser navn/e-mail på risiko-ejer efter snapshots er knyttet til en rapport.
+  - Ændringer: Udvid `snapshotToProjectRisk` til at bygge `owner` objekt fra `owner_name`/`owner_email`, og vær sikker på at backend inkluderer felterne i API-svaret (JSON casing).
+  - Test (TDD):
+    1) RTL-test der tilføjer en risiko til rapporten og bekræfter at owner-badge renderes.
+    2) Vitest for helperen der mapper snapshot -> ProjectRisk.
+  - Accept: Risikotab og rapportmatrix viser igen hvem der ejer risikoen efter snapshot-synkronisering.
+  - Afhængigheder: RISK-006.
+
+- [ ] UX-011: Differentier bootstrap-loading og baggrundsfetch
+  - Formål: Forhindre at hele appen viser spinner hver gang workspace-query refetcher i baggrunden.
+  - Ændringer: Introducer `isBootstrapping` i useAuthModule/useWorkspaceModule, brug `workspaceQuery.isFetching` lokalt i komponenter i stedet for global `isLoading`.
+  - Test (TDD):
+    1) Enhedstest af hook der verificerer at `isBootstrapping` kun er sand første gang.
+    2) RTL-test hvor en mutation triggere invalidateQueries og sikrer at hovedlayout ikke bliver udskiftet med loader.
+  - Accept: AppShell viser kun fuldskærms-spinner under initial login/bootstrap; efterfølgende fetch viser kun lokale indikatorer.
+  - Afhængigheder: FE-008.
+
+- [ ] DX-012: Robust CSV-import af medarbejdere
+  - Formål: Understøtte navne/afdelinger med kommaer og citat-tegn samt stabil lokationsmatching i importen.
+  - Ændringer: Erstat manuel `split(',')` med en CSV-parser (f.eks. PapaParse) eller backend-endpoint; map lokationer gennem `locations` konstanten og giv fejlrapport pr. række.
+  - Test (TDD):
+    1) Unit-test for parser-helperen med cases med citater/kommaer.
+    2) RTL-test på EmployeePage der uploader en kompleks CSV og forventer korrekt resultat/alert.
+  - Accept: Import accepterer gyldige danske navne/afdelinger uden at springe rækker over; fejl vises med præcise beskeder.
+  - Afhængigheder: PERF-010 (valgfri hvis endpoint flyttes).
+
+- [ ] DX-013: Memoiser ProjectManager-contexts
+  - Formål: Reducere unødvendige re-renders ved at stabilisere værdierne fra Auth/Workspace/Admin-context.
+  - Ændringer: Pak `authValue`, `workspaceValue`, `adminValue` og `useProjectManager` i `useMemo` baseret på specifikke afhængigheder; overvej at splitte providerne fysisk for at minimere cascading renders.
+  - Test (TDD):
+    1) Profilér (React Profiler eller vitest-snapshot) før/efter og dokumentér færre renders på Dashboard/ProjectReportsPage.
+    2) Unit-test der sikrer at memoization ikke deler stale referencer (fx ændring i `projects` opdaterer WorkspaceContext).
+  - Accept: Store sider (dashboard, rapporter) viser færre renders ved simple interaktioner; ingen regressions i context-data.
+  - Afhængigheder: FE-008.
+
+- [ ] AFK-010: Afklar behov for finere-granulerede workspace-endpoints
+  - Formål: Beslutte om vi skal bryde `/api/workspace`/`mutateWorkspace` op i mindre ruter og hvordan adgang skal styres.
+  - Aktiviteter: Workshop med backend/FE, proof-of-concept på projekt/employee scoping, estimat for migrering.
+  - Accept: Beslutningsreferat + plan (eller fravalg) inkl. estimeret scope for PERF-010.
+  - Afhængigheder: PERF-010 (input).
+
+- [ ] AFK-011: Vurdér server-side CSV-import
+  - Formål: Afklare om CSV-import skal flyttes til backend for bedre validering/logning/audit.
+  - Aktiviteter: Undersøg databeskyttelseskrav, performance og DX; sammenlign med DX-012-løsningen og lav anbefaling.
+  - Accept: Notat i docs/TASKS med anbefaling og evt. opfølgningsopgave (implementering eller fravalg).
+  - Afhængigheder: DX-012.

@@ -262,12 +262,18 @@ export const ProjectRisksPage = () => {
               <select
                 className="mt-1 rounded-md border border-slate-200 px-3 py-2 text-sm"
                 value={filters.status ?? ''}
-                onChange={(event) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    status: event.target.value ? (event.target.value as ProjectRiskStatus) : undefined,
-                  }))
-                }
+                onChange={(event) => {
+                  const value = event.target.value as ProjectRiskStatus | '';
+                  setFilters((prev) => {
+                    const next = { ...prev };
+                    if (!value) {
+                      delete next.status;
+                    } else {
+                      next.status = value;
+                    }
+                    return next;
+                  });
+                }}
               >
                 <option value="">Alle statuser</option>
                 {STATUS_OPTIONS.map((option) => (
@@ -283,9 +289,18 @@ export const ProjectRisksPage = () => {
               <select
                 className="mt-1 rounded-md border border-slate-200 px-3 py-2 text-sm"
                 value={filters.ownerId ?? ''}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, ownerId: event.target.value || undefined }))
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setFilters((prev) => {
+                    const next = { ...prev };
+                    if (!value) {
+                      delete next.ownerId;
+                    } else {
+                      next.ownerId = value;
+                    }
+                    return next;
+                  });
+                }}
               >
                 <option value="">Alle ansvarlige</option>
                 {ownerOptions.map((option) => (
@@ -301,12 +316,18 @@ export const ProjectRisksPage = () => {
               <select
                 className="mt-1 rounded-md border border-slate-200 px-3 py-2 text-sm"
                 value={filters.category ?? ''}
-                onChange={(event) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    category: event.target.value ? (event.target.value as ProjectRiskCategoryKey) : undefined,
-                  }))
-                }
+                onChange={(event) => {
+                  const value = event.target.value as ProjectRiskCategoryKey | '';
+                  setFilters((prev) => {
+                    const next = { ...prev };
+                    if (!value) {
+                      delete next.category;
+                    } else {
+                      next.category = value;
+                    }
+                    return next;
+                  });
+                }}
               >
                 <option value="">Alle kategorier</option>
                 {CATEGORY_OPTIONS.map((option) => (
