@@ -1191,6 +1191,30 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               return { ...state, challengeItems: list };
             }),
         },
+        nextStepListManager: {
+          addItem: () =>
+            updateState((state) => ({
+              ...state,
+              nextStepItems: [...state.nextStepItems, { id: generateId(), content: 'Nyt punkt' }],
+            })),
+          deleteItem: (id: string) =>
+            updateState((state) => ({
+              ...state,
+              nextStepItems: state.nextStepItems.filter((item) => item.id !== id),
+            })),
+          updateItem: (id: string, content: string) =>
+            updateState((state) => ({
+              ...state,
+              nextStepItems: state.nextStepItems.map((item) => (item.id === id ? { ...item, content } : item)),
+            })),
+          reorderItems: (sourceIndex: number, destinationIndex: number) =>
+            updateState((state) => {
+              const list = [...state.nextStepItems];
+              const [removed] = list.splice(sourceIndex, 1);
+              list.splice(destinationIndex, 0, removed);
+              return { ...state, nextStepItems: list };
+            }),
+        },
         riskManager: {
           add: () =>
             updateState((state) => ({

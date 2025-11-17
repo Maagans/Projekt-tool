@@ -29,6 +29,7 @@ const createMockClient = (...responses) => {
 const emptyReportState = {
   statusItems: [],
   challengeItems: [],
+  nextStepItems: [],
   mainTableRows: [],
   risks: [],
   phases: [],

@@ -53,6 +53,7 @@ DROP TABLE IF EXISTS report_risks CASCADE;
 DROP TABLE IF EXISTS report_main_table_rows CASCADE;
 DROP TABLE IF EXISTS report_challenge_items CASCADE;
 DROP TABLE IF EXISTS report_status_items CASCADE;
+DROP TABLE IF EXISTS report_next_step_items CASCADE;
 DROP TABLE IF EXISTS project_member_time_entries CASCADE;
 DROP TABLE IF EXISTS project_members CASCADE;
 DROP TABLE IF EXISTS reports CASCADE;
@@ -194,6 +195,13 @@ CREATE INDEX idx_report_risk_snapshots_report ON report_risk_snapshots(report_id
 CREATE INDEX idx_report_risk_snapshots_project_risk ON report_risk_snapshots(project_risk_id);
 
 CREATE TABLE report_status_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    content TEXT NOT NULL
+);
+
+CREATE TABLE report_next_step_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
     position INTEGER NOT NULL DEFAULT 0,

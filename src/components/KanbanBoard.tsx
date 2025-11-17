@@ -137,35 +137,37 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
       onDrop={(event) => onDrop(event, status)}
-      className={`flex-1 rounded-2xl border bg-gradient-to-b ${columnBackgrounds[status]} p-4 transition ${
+      className={`flex flex-1 flex-col rounded-2xl border bg-gradient-to-b ${columnBackgrounds[status]} p-4 transition ${
         isDraggedOver ? 'border-blue-400 border-dashed shadow-inner' : 'border-slate-200'
       }`}
     >
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between pb-1">
         <h4 className="text-sm font-semibold text-slate-700">{columnTitles[status]}</h4>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">{tasks.length}</span>
       </div>
-      <div className="space-y-3 min-h-[120px]">
-        {tasks.map((task) => (
-          <KanbanCard
-            key={task.id}
-            task={task}
-            onUpdate={onUpdateTask}
-            onDelete={onDeleteTask}
-            onSelect={onSelectTask}
-            onDragStart={onDragStartCard}
-            onDragEnd={onDragEndCard}
-            isDragging={draggedTaskId === task.id}
-          />
-        ))}
+      <div className="flex flex-1 flex-col">
+        <div className="space-y-3 min-h-[120px] flex-1">
+          {tasks.map((task) => (
+            <KanbanCard
+              key={task.id}
+              task={task}
+              onUpdate={onUpdateTask}
+              onDelete={onDeleteTask}
+              onSelect={onSelectTask}
+              onDragStart={onDragStartCard}
+              onDragEnd={onDragEndCard}
+              isDragging={draggedTaskId === task.id}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => onAddTask(status)}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-400 hover:text-slate-800 export-hide"
+        >
+          <PlusIcon /> Tilføj opgave
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => onAddTask(status)}
-        className="mt-4 w-full rounded-xl border border-dashed border-slate-300 py-2 text-sm font-medium text-slate-500 transition hover:border-slate-400 hover:text-slate-700 export-hide"
-      >
-        <PlusIcon /> Tilføj opgave
-      </button>
     </div>
   );
 };
@@ -218,3 +220,4 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
 };
 
 export default KanbanBoard;
+

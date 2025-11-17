@@ -345,6 +345,10 @@ const reportTemplates = [
       'Integration til lon-system afventer opdateret API kontrakt.',
       'HR supportteam mangler accepteret overgangsplan.',
     ],
+    nextStepItems: [
+      'Forbered demo for HR-ledelsen i uge 6.',
+      'Planlæg hypercare-setup til pilotafdelingerne.',
+    ],
     mainTableRows: [
       { title: 'Leverancer', status: 'yellow', note: 'Integrationer forsinket en uge.' },
       { title: 'Ressourcer', status: 'green', note: 'Teamet er fuldt bemandet.' },
@@ -382,6 +386,10 @@ const reportTemplates = [
     ],
     challengeItems: [
       'Data governance council er forsinket med godkendelse af kataloget.',
+    ],
+    nextStepItems: [
+      'Fasthold plan for data steward backfill.',
+      'Planlæg onboarding af supportteamet i marts.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Sprint 9 leverede alle features.' },
@@ -421,6 +429,10 @@ const reportTemplates = [
     challengeItems: [
       'Push notifikationer skal haandtere samtykke korrekt inden produktion.',
       'Supportorganisationen er ikke fuldt bemandet endnu.',
+    ],
+    nextStepItems: [
+      'Gennemfør sikkerhedsgennemgang med IT-sikkerhed.',
+      'Planlæg kommunikationskampagne til eksterne brugere.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Beta indeholder alle kernefunktioner.' },
@@ -628,6 +640,7 @@ const upsertTimeEntries = async (client, memberIds) => {
 const REPORT_CHILD_TABLES = [
   'report_status_items',
   'report_challenge_items',
+  'report_next_step_items',
   'report_main_table_rows',
   'report_risks',
   'report_phases',
@@ -682,6 +695,19 @@ const seedReports = async (client, projectIds) => {
         await client.query(
           `
             INSERT INTO report_challenge_items (report_id, position, content)
+            VALUES ($1, $2, $3)
+          `,
+          [reportId, index, content],
+        );
+      }
+    }
+
+    if (report.nextStepItems) {
+      for (let index = 0; index < report.nextStepItems.length; index += 1) {
+        const content = report.nextStepItems[index];
+        await client.query(
+          `
+            INSERT INTO report_next_step_items (report_id, position, content)
             VALUES ($1, $2, $3)
           `,
           [reportId, index, content],

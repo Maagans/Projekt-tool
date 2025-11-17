@@ -170,6 +170,7 @@ export const loadFullWorkspace = async (clientOverride) => {
                 state: {
                     statusItems: [],
                     challengeItems: [],
+                    nextStepItems: [],
                     mainTableRows: [],
                     risks: [],
                     phases: [],
@@ -215,6 +216,18 @@ export const loadFullWorkspace = async (clientOverride) => {
             const report = reportMap.get(row.report_id);
             if (report) {
                 report.state.challengeItems.push({ id: row.id, content: row.content });
+            }
+        });
+        const nextStepItems = await fetchReportItems(`
+            SELECT id::text, report_id::text, position, content
+            FROM report_next_step_items
+            WHERE report_id::text = ANY($1::text[])
+            ORDER BY position ASC, id::uuid ASC
+        `);
+        nextStepItems.forEach((row) => {
+            const report = reportMap.get(row.report_id);
+            if (report) {
+                report.state.nextStepItems.push({ id: row.id, content: row.content });
             }
         });
 
@@ -710,6 +723,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const resetTables = [
         'report_status_items',
         'report_challenge_items',
+        'report_next_step_items',
         'report_main_table_rows',
         'report_phases',
         'report_milestones',
@@ -727,6 +741,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
 
     const statusUsedIds = new Set((previousState.statusItems ?? []).map((item) => item?.id).filter(Boolean));
     const challengeUsedIds = new Set((previousState.challengeItems ?? []).map((item) => item?.id).filter(Boolean));
+    const nextStepUsedIds = new Set((previousState.nextStepItems ?? []).map((item) => item?.id).filter(Boolean));
     const mainRowUsedIds = new Set((previousState.mainTableRows ?? []).map((item) => item?.id).filter(Boolean));
     const riskUsedIds = new Set((previousState.risks ?? []).map((item) => item?.id).filter(Boolean));
     const phaseUsedIds = new Set((previousState.phases ?? []).map((item) => item?.id).filter(Boolean));
@@ -782,6 +797,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
 
     await insertListItems(safeState.statusItems, 'report_status_items', statusUsedIds);
     await insertListItems(safeState.challengeItems, 'report_challenge_items', challengeUsedIds);
+    await insertListItems(safeState.nextStepItems, 'report_next_step_items', nextStepUsedIds);
 
     const mainRows = Array.isArray(safeState.mainTableRows) ? safeState.mainTableRows : [];
     for (let index = 0; index < mainRows.length; index += 1) {

@@ -34,6 +34,10 @@ export const getInitialProjectState = (): ProjectState => ({
     { id: generateId(), content: 'Hold øje med afhængigheder til eksterne leverandører i fase 3.' },
     { id: generateId(), content: 'Planlæg overlevering til drift tidligt for at undgå forsinkelser.' },
   ],
+  nextStepItems: [
+    { id: generateId(), content: 'Finalisér materialer til styregruppemøde i næste uge.' },
+    { id: generateId(), content: 'Planlæg demo for nøglebrugere og indsamle feedback.' },
+  ],
   mainTableRows: [
     {
       id: generateId(),
@@ -120,6 +124,7 @@ export const getInitialProjectState = (): ProjectState => ({
 export const cloneStateWithNewIds = (state: ProjectState): ProjectState => ({
   statusItems: (state.statusItems ?? []).map((item) => ({ id: generateId(), content: item.content })),
   challengeItems: (state.challengeItems ?? []).map((item) => ({ id: generateId(), content: item.content })),
+  nextStepItems: (state.nextStepItems ?? []).map((item) => ({ id: generateId(), content: item.content })),
   mainTableRows: (state.mainTableRows ?? []).map((row) => ({
     id: generateId(),
     title: row.title,

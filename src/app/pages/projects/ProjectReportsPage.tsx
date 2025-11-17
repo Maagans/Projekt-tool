@@ -6,7 +6,7 @@ import { EditableList } from '../../../components/RichTextEditor';
 import { MainStatusTable } from '../../../components/MainStatusTable';
 import { RiskMatrix } from '../../../components/RiskMatrix';
 import { ProjectRiskMatrix, PROJECT_RISK_CATEGORY_META } from '../../../components/ProjectRiskMatrix';
-import { CalendarIcon, PlusIcon, StepForwardIcon, TrashIcon } from '../../../components/Icons';
+import { CalendarIcon, ChevronDownIcon, PlusIcon, StepForwardIcon, TrashIcon } from '../../../components/Icons';
 import { SyncStatusPill } from '../../../components/SyncStatusPill';
 import { ProjectReportHeader } from '../../../components/ProjectReportHeader';
 import { KanbanTaskInspector } from '../../../components/KanbanTaskInspector';
@@ -30,6 +30,16 @@ import { useProjectRouteContext } from './ProjectLayout';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 
 const DEFAULT_PHASE_WIDTH = 10;
+
+const formatWeekLabel = (weekKey: string, variant: 'full' | 'short' = 'full'): string => {
+  const match = weekKey.match(/W(\d{1,2})$/);
+  if (!match) return weekKey;
+  const week = match[1].padStart(2, '0');
+  if (variant === 'short') {
+    return `U${week}`;
+  }
+  return `Uge ${week}`;
+};
 
 const normalizeCategoryKey = (key: ProjectRiskCategoryKey | string | undefined): ProjectRiskCategoryKey => {
   if (typeof key === 'string' && key in PROJECT_RISK_CATEGORY_META) {
@@ -412,7 +422,8 @@ export const ProjectReportsPage = () => {
     );
   }
 
-  const { timelineManager, statusListManager, challengeListManager, kanbanManager, riskManager } = restActions;
+  const { timelineManager, statusListManager, challengeListManager, nextStepListManager, kanbanManager, riskManager } =
+    restActions;
   const legacyRiskMove = guardManage(riskManager.updatePosition);
   const handleSnapshotMove = guardManage(
     (riskId: string, probability: number, impact: number) => {
@@ -478,6 +489,11 @@ export const ProjectReportsPage = () => {
   const updateTaskDetails = guardManage(kanbanManager.updateDetails);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showTaskList, setShowTaskList] = useState(false);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+  const currentWeekLabel = useMemo(() => {
+    if (!activeWeekKey) return null;
+    return formatWeekLabel(activeWeekKey);
+  }, [activeWeekKey]);
   const selectedTask = useMemo(
     () => kanbanTasks.find((task) => task.id === selectedTaskId) ?? null,
     [kanbanTasks, selectedTaskId],
@@ -493,68 +509,130 @@ export const ProjectReportsPage = () => {
       {isBusy && <SyncStatusPill message="Synkroniserer rapportændringer..." className={floatingSyncClass} />}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          <aside className="w-full lg:w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm flex flex-col export-hide self-stretch">
-        <h3 className="text-lg font-bold mb-3 text-slate-700">Rapporter</h3>
-        {canManage && (
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={() => setIsNewReportModalOpen(true)}
-              disabled={isBusy}
-              className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold p-2 rounded-md transition-colors ${
-                isBusy ? 'text-slate-400 bg-slate-100 cursor-not-allowed' : 'text-blue-600 bg-blue-100 hover:bg-blue-200'
-              }`}
-              title="Opret ny specifik ugerapport"
+          <aside
+            className={`w-full flex-shrink-0 rounded-lg bg-white shadow-sm flex flex-col export-hide self-stretch transition-all duration-200 ${
+              isHistoryCollapsed ? 'lg:w-20 items-center p-3' : 'lg:w-64 p-4'
+            }`}
+          >
+            <div
+              className={`flex w-full items-center ${
+                isHistoryCollapsed ? 'justify-center' : 'justify-between'
+              } ${isHistoryCollapsed ? 'mb-0' : 'mb-3'}`}
             >
-              <PlusIcon /> Ny
-            </button>
-            <button
-              onClick={handleCreateNext}
-              disabled={isBusy}
-              className={`flex-1 flex items-center justify-center gap-2 text-sm font-semibold p-2 rounded-md transition-colors ${
-                isBusy ? 'text-slate-400 bg-slate-100 cursor-not-allowed' : 'text-green-600 bg-green-100 hover:bg-green-200'
-              }`}
-              title="Opret rapport for næste uge"
-            >
-              <StepForwardIcon /> Næste
-            </button>
-          </div>
-        )}
-        <div className="flex-grow overflow-y-auto -mr-2 pr-2">
-          <ul className="space-y-1">
-            {project.reports.map((report) => (
-              <li key={report.weekKey} className="group relative">
-                <button
-                  onClick={() => {
-                    if (!confirmDiscardTimelineChanges()) return;
-                    setActiveWeekKey(report.weekKey);
-                  }}
-                  className={`w-full text-left p-2 rounded-md text-sm font-medium flex items-center gap-3 ${
-                    report.weekKey === activeWeekKey ? 'bg-blue-500 text-white' : 'hover:bg-slate-100'
-                  }`}
-                >
+              {!isHistoryCollapsed && <h3 className="text-lg font-bold text-slate-700">Rapporter</h3>}
+              <button
+                type="button"
+                onClick={() => setIsHistoryCollapsed((prev) => !prev)}
+                className="rounded-full border border-slate-200 p-1 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                aria-expanded={!isHistoryCollapsed}
+                aria-label={isHistoryCollapsed ? 'Udvid rapporthistorik' : 'Skjul rapporthistorik'}
+              >
+                <span className={`inline-flex transition-transform ${isHistoryCollapsed ? 'rotate-90' : '-rotate-90'}`}>
+                  <ChevronDownIcon />
+                </span>
+              </button>
+            </div>
+            {isHistoryCollapsed ? (
+              <div className="mt-2 flex w-full flex-col items-center gap-3 text-center">
+                <div className="rounded-full border border-slate-200 p-2 text-slate-500">
                   <CalendarIcon />
-                  {report.weekKey}
-                </button>
-                {canManage && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (window.confirm(`Slet rapport for ${report.weekKey}?`)) handleDeleteReport(report.weekKey);
-                    }}
-                    disabled={isBusy}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 ${
-                      isBusy ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500'
-                    } opacity-0 group-hover:opacity-100 transition-opacity`}
-                    title="Slet rapport"
-                  >
-                    <TrashIcon />
-                  </button>
+                </div>
+                {currentWeekLabel && (
+                  <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
+                    {currentWeekLabel}
+                  </span>
                 )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+                <div className="flex-1 w-full overflow-y-auto pt-1">
+                  <ul className="flex flex-col items-center gap-2">
+                    {project.reports.map((report) => (
+                      <li key={report.weekKey}>
+                        <button
+                          onClick={() => {
+                            if (!confirmDiscardTimelineChanges()) return;
+                            setActiveWeekKey(report.weekKey);
+                          }}
+                          className={`flex h-10 w-12 items-center justify-center rounded-xl border text-xs font-semibold ${
+                            report.weekKey === activeWeekKey
+                              ? 'border-blue-500 bg-blue-500 text-white'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                          }`}
+                          title={`Åbn rapport for ${formatWeekLabel(report.weekKey)}`}
+                        >
+                          {formatWeekLabel(report.weekKey, 'short')}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <>
+                {canManage && (
+                  <div className="mb-4 flex items-center gap-2">
+                    <button
+                      onClick={() => setIsNewReportModalOpen(true)}
+                      disabled={isBusy}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${
+                        isBusy
+                          ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                      }`}
+                      title="Opret ny specifik ugerapport"
+                    >
+                      <PlusIcon /> Ny
+                    </button>
+                    <button
+                      onClick={handleCreateNext}
+                      disabled={isBusy}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${
+                        isBusy
+                          ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                          : 'bg-green-100 text-green-600 hover:bg-green-200'
+                      }`}
+                      title="Opret rapport for næste uge"
+                    >
+                      <StepForwardIcon /> Næste
+                    </button>
+                  </div>
+                )}
+                <div className="flex-grow overflow-y-auto -mr-2 pr-2">
+                  <ul className="space-y-1">
+                    {project.reports.map((report) => (
+                      <li key={report.weekKey} className="group relative">
+                        <button
+                          onClick={() => {
+                            if (!confirmDiscardTimelineChanges()) return;
+                            setActiveWeekKey(report.weekKey);
+                          }}
+                          className={`flex items-center gap-3 rounded-md p-2 text-left text-sm font-medium ${
+                            report.weekKey === activeWeekKey ? 'bg-blue-500 text-white' : 'hover:bg-slate-100'
+                          }`}
+                        >
+                          <CalendarIcon />
+                          {report.weekKey}
+                        </button>
+                        {canManage && (
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (window.confirm(`Slet rapport for ${report.weekKey}?`)) handleDeleteReport(report.weekKey);
+                            }}
+                            disabled={isBusy}
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 ${
+                              isBusy ? 'cursor-not-allowed text-slate-300' : 'text-slate-400 hover:text-red-500'
+                            } opacity-0 transition-opacity group-hover:opacity-100`}
+                            title="Slet rapport"
+                          >
+                            <TrashIcon />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+          </aside>
       <main id="report-content" className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 w-full">
         <div className="lg:col-span-2">
           <ProjectReportHeader
@@ -567,10 +645,11 @@ export const ProjectReportsPage = () => {
             stats={reportStats}
           />
         </div>
-        <div className="lg:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="lg:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-3">
           <EditableList
             title="Status (Resumé)"
             items={activeReport.state.statusItems}
+            colorScheme="green"
             onAddItem={guardManage(statusListManager.addItem)}
             onDeleteItem={guardManage(statusListManager.deleteItem)}
             onUpdateItem={guardManage(statusListManager.updateItem)}
@@ -579,10 +658,20 @@ export const ProjectReportsPage = () => {
           <EditableList
             title="Udfordringer"
             items={activeReport.state.challengeItems}
+            colorScheme="red"
             onAddItem={guardManage(challengeListManager.addItem)}
             onDeleteItem={guardManage(challengeListManager.deleteItem)}
             onUpdateItem={guardManage(challengeListManager.updateItem)}
             onReorderItems={guardManage(challengeListManager.reorderItems)}
+          />
+          <EditableList
+            title="Næste skridt"
+            items={activeReport.state.nextStepItems ?? []}
+            colorScheme="blue"
+            onAddItem={guardManage(nextStepListManager.addItem)}
+            onDeleteItem={guardManage(nextStepListManager.deleteItem)}
+            onUpdateItem={guardManage(nextStepListManager.updateItem)}
+            onReorderItems={guardManage(nextStepListManager.reorderItems)}
           />
         </div>
         <div className="lg:col-span-2">

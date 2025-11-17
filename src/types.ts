@@ -105,6 +105,7 @@ export interface ProjectMember {
 export interface ProjectState {
   statusItems: ListItem[];
   challengeItems: ListItem[];
+  nextStepItems: ListItem[];
   mainTableRows: MainTableRow[];
   risks: Risk[];
   phases: Phase[];

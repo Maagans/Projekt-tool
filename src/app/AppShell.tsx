@@ -158,7 +158,7 @@ export const AppShell = () => {
           />
         )}
       >
-        <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto min-h-screen">
+        <div className="p-4 sm:p-6 min-h-screen">
           <Suspense fallback={<RouteLoader />}>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
