@@ -646,7 +646,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
 
             {/* Deliverables */}
             <div className="relative" style={{ height: `${deliverableSectionHeightRem}rem` }}>
-                {deliverables.map((d, index) => {
+                {deliverables.map((d) => {
                     const layout = deliverableLayouts[d.id];
                     const laneIndex = layout ? layout.lane : 0;
                     const topRem = deliverableTopOffsetRem + laneIndex * deliverableLaneSpacingRem;
