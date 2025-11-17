@@ -17,14 +17,14 @@ const ProjectLayout = lazy(() => import('./pages/projects/ProjectLayout'));
 const ProjectReportsPage = lazy(
   () => import('./pages/projects/ProjectReportsPage').then((module) => ({ default: module.ProjectReportsPage })),
 );
+const ProjectOverviewPage = lazy(
+  () => import('./pages/projects/ProjectOverviewPage').then((module) => ({ default: module.ProjectOverviewPage })),
+);
 const ProjectOrganizationPage = lazy(
   () => import('./pages/projects/ProjectOrganizationPage').then((module) => ({ default: module.ProjectOrganizationPage })),
 );
 const ProjectSettingsPage = lazy(
   () => import('./pages/projects/ProjectSettingsPage').then((module) => ({ default: module.ProjectSettingsPage })),
-);
-const ProjectIndexRedirect = lazy(
-  () => import('./pages/projects/ProjectLayout').then((module) => ({ default: module.ProjectIndexRedirect })),
 );
 const ProjectRisksPage = lazy(
   () => import('./pages/projects/ProjectRisksPage').then((module) => ({ default: module.ProjectRisksPage })),
@@ -167,7 +167,7 @@ export const AppShell = () => {
               <Route path="/resources" element={<Navigate to="/pmo?view=resources" replace />} />
               <Route path="/admin" element={isAdministrator ? <AdminPage /> : <Navigate to="/" replace />} />
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
-                <Route index element={<ProjectIndexRedirect />} />
+                <Route index element={<ProjectOverviewPage />} />
                 <Route path="reports" element={<ProjectReportsPage />} />
                 <Route path="organization" element={<ProjectOrganizationPage />} />
                 {PROJECT_RISK_ANALYSIS_ENABLED && <Route path="risks" element={<ProjectRisksPage />} />}

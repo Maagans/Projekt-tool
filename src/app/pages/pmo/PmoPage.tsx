@@ -470,7 +470,7 @@ export const PmoPage = () => {
                                             <tr key={detail.id} className="border-b border-slate-100">
                                               <td
                                                 className="p-2 text-sm cursor-pointer text-blue-600 hover:underline"
-                                                onClick={() => navigate(`/projects/${detail.id}/reports`)}
+                                                onClick={() => navigate(`/projects/${detail.id}`)}
                                               >
                                                 {detail.name}
                                               </td>

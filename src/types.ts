@@ -118,6 +118,9 @@ export interface ProjectConfig {
   projectName: string;
   projectStartDate: string; // YYY-MM-DD
   projectEndDate: string;   // YYY-MM-DD
+  projectGoal?: string;
+  businessCase?: string;
+  totalBudget?: number | null;
 }
 
 export type ProjectStatus = 'active' | 'completed' | 'on-hold';

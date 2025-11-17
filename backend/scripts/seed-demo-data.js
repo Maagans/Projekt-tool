@@ -539,6 +539,13 @@ const upsertProjects = async (client) => {
   const ids = new Map();
 
   for (const project of projects) {
+    const projectGoal = typeof project.projectGoal === 'string' ? project.projectGoal : null;
+    const businessCase = typeof project.businessCase === 'string' ? project.businessCase : null;
+    let totalBudget = null;
+    if (typeof project.totalBudget === 'number' && Number.isFinite(project.totalBudget)) {
+      totalBudget = Math.round(project.totalBudget * 100) / 100;
+    }
+
     const existing = await client.query(
       `
         SELECT id::text
@@ -558,20 +565,23 @@ const upsertProjects = async (client) => {
               end_date = $3,
               status = $4,
               description = $5,
+              project_goal = $6,
+              business_case = $7,
+              total_budget = $8,
               updated_at = NOW()
           WHERE id = $1::uuid
         `,
-        [projectId, project.startDate, project.endDate, project.status, project.description],
+        [projectId, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget],
       );
       ids.set(project.key, projectId);
     } else {
       const created = await client.query(
         `
-          INSERT INTO projects (name, start_date, end_date, status, description)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO projects (name, start_date, end_date, status, description, project_goal, business_case, total_budget)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING id::text
         `,
-        [project.name, project.startDate, project.endDate, project.status, project.description],
+        [project.name, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget],
       );
       ids.set(project.key, created.rows[0].id);
     }

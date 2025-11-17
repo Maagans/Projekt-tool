@@ -1,18 +1,26 @@
-# Changelog
+ï»¿# Changelog
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+## [1.7.0] - 2025-11-17
+### Added
+- Projektindstillinger har fÃ¥et felterne projektmÃ¥l, business case og samlet budget inkl. backend-migration, API-typer og RichText/nummerfelter i UI'et (UX-018).
+- Dedikeret Overblik-side som standardlanding i ProjectLayout med grid-skelet, tom-states og CTA'er til rapporter/indstillinger (UX-019).
+### Changed
+- ProjectLayout-tabs starter nu pÃ¥ Overblik og eksportknappen vises kun pÃ¥ rapportfanen; navigation fra dashboard og PMO fÃ¸rer til den nye landing.
+- Dashboard- og PMO-listerne guider brugere til overblikket, sÃ¥ rapportfanen kun vÃ¦lges nÃ¥r man aktivt klikker videre.
+
 ## [1.6.1] - 2025-11-17
 ### Added
-- Bubble-menu rich text editor til status-/udfordrings-/næste skridt-kortene med TipTap og inline toolbar.
+- Bubble-menu rich text editor til status-/udfordrings-/nÃ¦ste skridt-kortene med TipTap og inline toolbar.
 - Nyt 
 extStepItems-felt i rapporter inkl. backend-migration, seed-data og CRUD-manager i projektmodulet.
 ### Changed
-- Rapportsidekortene har fået Notion-lignende layout, farvekodede ikoner og dynamisk historiksidebar.
-- Kanban kolonner og "Tilføj opgave"-knapper har ensartet spacing/bredde og respekterer fuld bredde layoutet.
+- Rapportsidekortene har fÃ¥et Notion-lignende layout, farvekodede ikoner og dynamisk historiksidebar.
+- Kanban kolonner og "TilfÃ¸j opgave"-knapper har ensartet spacing/bredde og respekterer fuld bredde layoutet.
 - AppShell og ProjectLayout opdateret til fuldbredde og kompakt historik med collapsible navigation.
-- Tekstfelter/knapper gennemgået for korrekt dansk encoding (æ/ø/å) efter editor-rework.
+- Tekstfelter/knapper gennemgÃ¥et for korrekt dansk encoding (Ã¦/Ã¸/Ã¥) efter editor-rework.
 
 ## [1.6.0] - 2025-11-17
 ### Changed
@@ -28,21 +36,21 @@ extStepItems-felt i rapporter inkl. backend-migration, seed-data og CRUD-manager
 
 ## [1.5.1] - 2025-11-17
 ### Changed
-- AppShell skelner mellem bootstrap og baggrundsopdateringer; AppHeader viser nu når workspace-data refetches uden at afbryde brugeren (UX-011).
-- ProjectRiskMatrix har ikke længere et separat højre-detalje panel, så rapportens snapshot-sektion er eneste kilde til risikodetaljer; risikoknapperne angiver arkiverede datoer i deres tooltip.
-- Risikomatrixens aksemærker er opdateret, så Sandsynlighed-pegen viser opad og Konsekvens er centreret under heatmap’et; de tidligere score-legender er fjernet for et renere layout.
+- AppShell skelner mellem bootstrap og baggrundsopdateringer; AppHeader viser nu nÃ¥r workspace-data refetches uden at afbryde brugeren (UX-011).
+- ProjectRiskMatrix har ikke lÃ¦ngere et separat hÃ¸jre-detalje panel, sÃ¥ rapportens snapshot-sektion er eneste kilde til risikodetaljer; risikoknapperne angiver arkiverede datoer i deres tooltip.
+- Risikomatrixens aksemÃ¦rker er opdateret, sÃ¥ Sandsynlighed-pegen viser opad og Konsekvens er centreret under heatmapâ€™et; de tidligere score-legender er fjernet for et renere layout.
 
 ## [1.5.0] - 2025-11-14
 ### Added
-- Nye dedikerede backend-services for projekter, projektmedlemmer, medarbejdere og workspace-indstillinger, så alle mutationer kører via granulære repos uden `mutateWorkspace` (PERF-010).
-- Frontend/Backend helper-tests for `snapshotToProjectRisk`/`projectRiskToReportState`, som sikrer at ejernavn/e-mail følger rapport-snapshots (RISK-008).
-- Vitest-konfiguration i backend (`backend/vitest.config.js`), så server-tests kører i Node-miljø uden Vite-støj.
+- Nye dedikerede backend-services for projekter, projektmedlemmer, medarbejdere og workspace-indstillinger, sÃ¥ alle mutationer kÃ¸rer via granulÃ¦re repos uden `mutateWorkspace` (PERF-010).
+- Frontend/Backend helper-tests for `snapshotToProjectRisk`/`projectRiskToReportState`, som sikrer at ejernavn/e-mail fÃ¸lger rapport-snapshots (RISK-008).
+- Vitest-konfiguration i backend (`backend/vitest.config.js`), sÃ¥ server-tests kÃ¸rer i Node-miljÃ¸ uden Vite-stÃ¸j.
 ### Changed
 - `PATCH /api/projects/:id` og `POST /api/projects` returnerer igen komplette projekter (inkl. config, members og reports) hvilket stabiliserer ProjectLayout og lokale caches.
 - Rapport-snapshots skriver igen owner-info til databasen, og ProjectReportsPage viser ejernavn/e-mail efter synkronisering.
-- `workspaceController` bruger nu målrettede services i stedet for `mutateWorkspace`, og `workspaceMutator.js` er fjernet.
+- `workspaceController` bruger nu mÃ¥lrettede services i stedet for `mutateWorkspace`, og `workspaceMutator.js` er fjernet.
 ### Fixed
-- Projektopdateringer kan ikke længere skrive `NULL` i `start_date`/`end_date`; datoer normaliseres med fallback til eksisterende værdier.
+- Projektopdateringer kan ikke lÃ¦ngere skrive `NULL` i `start_date`/`end_date`; datoer normaliseres med fallback til eksisterende vÃ¦rdier.
 - Tidslinje-/rapportsynkronisering overlever alle felter (bl.a. report tasks) fordi `syncProjectReports` kaldes eksplicit ved create/update.
 
 ## [1.4.0] - 2025-11-12
@@ -50,38 +58,38 @@ extStepItems-felt i rapporter inkl. backend-migration, seed-data og CRUD-manager
 - Ny project_risks + project_risk_history schema inkl. standardkategorier og helper-moduler til risikoskalaer (RISK-001).
 - Backend CRUD-service, validators og REST-endpoints for projekt-risici inkl. tests og Supertest-suiter (RISK-002).
 - Feature-flag `PROJECT_RISK_ANALYSIS_ENABLED` der styrer eksponering af risk routes + dokumentation i .env (RISK-003).
-- Frontend Risikovurderingstab med liste, filtre, oprettelses-drawer og React Query-integration til de granulære mutationer (RISK-004).
+- Frontend Risikovurderingstab med liste, filtre, oprettelses-drawer og React Query-integration til de granulÃ¦re mutationer (RISK-004).
 - Moderniseret risikomatrix med varmefarver, drag/drop og tastaturnavigation, koblet til de nye backend-mutationer (RISK-005).
 - Rapportmodulet synkroniserer nu kuraterede risici som snapshots; matrixen viser arkiveringsbadges og kan opdateres direkte via PATCH `/api/reports/:id/risks/:snapshotId` (RISK-006).
 - QA/UAT playbook (`docs/risk-analysis-qa.md`), permanente risk-flags og dokumenterede smoke-scripts til regressionskontrol (RISK-007).
 ### Removed
-- Fjernet den gamle /api/workspace POST-route, tilhørende validator og Supertest-suite, så backend nu kun understøtter de granulære mutationer fra FE-008.
+- Fjernet den gamle /api/workspace POST-route, tilhÃ¸rende validator og Supertest-suite, sÃ¥ backend nu kun understÃ¸tter de granulÃ¦re mutationer fra FE-008.
 
 ## [1.3.0] - 2025-11-11
 ### Added
 - Employee-databasen viser nu kapacitet (timer/uge) med validering og fornuftige defaults.
-- Nye Vitest-suiter dækker kapacitetsflowet i EmployeePage og useProjectManager.
-- PMO workspace settings gemmer baseline (timer/uge) og bruger den i stacked chart med reference og overload-markører.
-- Resource Analytics har en sticky filter-sidebar med time-horizon-toggle, så PMO kan inspicere op til 52 uger uden at scrolle til toppen.
-- Backend eksponerer granulære employees-/projects-ruter med `workspaceMutator`, validators og seed-script, så FE-008 kan sende præcise payloads.
-- Frontenden har dedikerede React Query mutationer + `SyncStatusPill` og "Gem tidslinje"-CTA, der holder ændringer lokalt indtil brugeren gemmer.
-- ResourceAnalyticsPage har fået udbrudte komponenter + utils og tilhørende smoke-tests for nøglevyer (DX-004).
+- Nye Vitest-suiter dÃ¦kker kapacitetsflowet i EmployeePage og useProjectManager.
+- PMO workspace settings gemmer baseline (timer/uge) og bruger den i stacked chart med reference og overload-markÃ¸rer.
+- Resource Analytics har en sticky filter-sidebar med time-horizon-toggle, sÃ¥ PMO kan inspicere op til 52 uger uden at scrolle til toppen.
+- Backend eksponerer granulÃ¦re employees-/projects-ruter med `workspaceMutator`, validators og seed-script, sÃ¥ FE-008 kan sende prÃ¦cise payloads.
+- Frontenden har dedikerede React Query mutationer + `SyncStatusPill` og "Gem tidslinje"-CTA, der holder Ã¦ndringer lokalt indtil brugeren gemmer.
+- ResourceAnalyticsPage har fÃ¥et udbrudte komponenter + utils og tilhÃ¸rende smoke-tests for nÃ¸glevyer (DX-004).
 ### Changed
-- CSV-import accepterer en valgfri kapacitetskolonne og normaliserer værdier under autosave.
-- README og screenshot-guide forklarer nu baseline-konceptet og hvordan det støtter PMO stacked chart.
-- PMO baseline-kortet i dashboardet har fået en poleret gradient med inline-hjælp til admins og seere.
-- Hele workspace-flowet er migreret væk fra `api.saveWorkspace` til granulære mutationer med targeted cache-invalidation, så siderne ikke hopper ved drag/drop (FE-008).
+- CSV-import accepterer en valgfri kapacitetskolonne og normaliserer vÃ¦rdier under autosave.
+- README og screenshot-guide forklarer nu baseline-konceptet og hvordan det stÃ¸tter PMO stacked chart.
+- PMO baseline-kortet i dashboardet har fÃ¥et en poleret gradient med inline-hjÃ¦lp til admins og seere.
+- Hele workspace-flowet er migreret vÃ¦k fra `api.saveWorkspace` til granulÃ¦re mutationer med targeted cache-invalidation, sÃ¥ siderne ikke hopper ved drag/drop (FE-008).
 - ResourceAnalyticsPage er reduceret til <300 linjer og orkestrerer de nye komponenter i `src/app/pages/resources/components/` (DX-004).
 ### Fixed
-- Risikomatrixen bruger nu en dedikeret `position`-kolonne + migration, så risici ikke bytter pladser efter redigering.
-- Leverance- og timeline-ændringer respekterer lokale drafts og udløser ikke længere utilsigtede dato-justeringer eller store scroll-jumps.
+- Risikomatrixen bruger nu en dedikeret `position`-kolonne + migration, sÃ¥ risici ikke bytter pladser efter redigering.
+- Leverance- og timeline-Ã¦ndringer respekterer lokale drafts og udlÃ¸ser ikke lÃ¦ngere utilsigtede dato-justeringer eller store scroll-jumps.
 
 
 ## [1.2.8] - 2025-11-04
 ### Added
 - Ressource Analytics er nu indlejret som en fane i PMO med delt komponent og Vitest-daekning for tab-navigation og adgangsregler (PMO-010).
 ### Changed
-- Direkte rute til `/resources` redirecter til PMO med korrekt fane, og dashboardet viser ikke længere det gamle Ressource Analytics-link.
+- Direkte rute til `/resources` redirecter til PMO med korrekt fane, og dashboardet viser ikke lÃ¦ngere det gamle Ressource Analytics-link.
 
 ## [1.2.7] - 2025-10-28
 ### Added

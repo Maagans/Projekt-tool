@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+ï»¿import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KanbanBoard } from '../../../components/KanbanBoard';
 import { Timeline } from '../../../components/Timeline';
@@ -204,6 +204,7 @@ export const ProjectReportsPage = () => {
     () => draftProject.reports.find((report) => report.weekKey === activeWeekKey) ?? null,
     [draftProject, activeWeekKey],
   );
+  const activeReportState: ProjectState | null = activeReport?.state ?? null;
   const snapshotProjectRisks = useMemo<ProjectRisk[]>(
     () => {
       if (!PROJECT_RISK_ANALYSIS_ENABLED) {
@@ -335,12 +336,14 @@ export const ProjectReportsPage = () => {
     return formatWeekLabel(activeWeekKey);
   }, [activeWeekKey]);
   const kanbanTasks = useMemo(
-    () =>
-      (activeReport.state.kanbanTasks ?? []).map((task) => ({
+    () => {
+      const tasks = activeReportState?.kanbanTasks ?? [];
+      return tasks.map((task) => ({
         ...task,
         createdAt: task.createdAt ?? new Date().toISOString(),
-      })),
-    [activeReport.state.kanbanTasks],
+      }));
+    },
+    [activeReportState?.kanbanTasks],
   );
   const selectedTask = useMemo(
     () => kanbanTasks.find((task) => task.id === selectedTaskId) ?? null,
@@ -352,16 +355,16 @@ export const ProjectReportsPage = () => {
     }
   }, [selectedTaskId, selectedTask]);
   const reportStats = {
-    risks: activeReport.state.risks?.length ?? 0,
-    phases: activeReport.state.phases?.length ?? 0,
-    milestones: activeReport.state.milestones?.length ?? 0,
-    deliverables: activeReport.state.deliverables?.length ?? 0,
+    risks: activeReportState?.risks?.length ?? 0,
+    phases: activeReportState?.phases?.length ?? 0,
+    milestones: activeReportState?.milestones?.length ?? 0,
+    deliverables: activeReportState?.deliverables?.length ?? 0,
     tasks: kanbanTasks.length,
   };
   const hasNarrativeContent =
-    (activeReport.state.statusItems?.length ?? 0) > 0 ||
-    (activeReport.state.challengeItems?.length ?? 0) > 0 ||
-    (activeReport.state.nextStepItems?.length ?? 0) > 0;
+    (activeReportState?.statusItems?.length ?? 0) > 0 ||
+    (activeReportState?.challengeItems?.length ?? 0) > 0 ||
+    (activeReportState?.nextStepItems?.length ?? 0) > 0;
 
   const attachRisksMutation = useMutation({
     mutationFn: async (riskIds: string[]) => {
@@ -654,7 +657,7 @@ export const ProjectReportsPage = () => {
           {hasNarrativeContent ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <EditableList
-                title="Status (Resumé)"
+                title="Status (ResumÃ©)"
                 items={activeReport.state.statusItems}
                 colorScheme="green"
                 onAddItem={guardManage(statusListManager.addItem)}
@@ -672,7 +675,7 @@ export const ProjectReportsPage = () => {
                 onReorderItems={guardManage(challengeListManager.reorderItems)}
               />
               <EditableList
-                title="Næste skridt"
+                title="NÃ¦ste skridt"
                 items={activeReport.state.nextStepItems ?? []}
                 colorScheme="blue"
                 onAddItem={guardManage(nextStepListManager.addItem)}
@@ -683,7 +686,7 @@ export const ProjectReportsPage = () => {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center text-sm text-slate-500">
-              Rapporten er tom. Start med at tilføje en status, en udfordring eller et næste skridt.
+              Rapporten er tom. Start med at tilfÃ¸je en status, en udfordring eller et nÃ¦ste skridt.
             </div>
           )}
         </div>

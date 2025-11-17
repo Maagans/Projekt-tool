@@ -72,7 +72,7 @@ export const DashboardPage = () => {
     if (!newProjectName.trim()) return;
     const newProject = createNewProject(newProjectName.trim());
     if (newProject) {
-      navigate(`/projects/${newProject.id}/reports`);
+      navigate(`/projects/${newProject.id}`);
     }
     setNewProjectName('');
   };
@@ -259,7 +259,7 @@ export const DashboardPage = () => {
                 <button
                   key={project.id}
                   type="button"
-                  onClick={() => navigate(`/projects/${project.id}/reports`)}
+                onClick={() => navigate(`/projects/${project.id}`)}
                   className="group rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   <div className="flex items-start justify-between gap-3">

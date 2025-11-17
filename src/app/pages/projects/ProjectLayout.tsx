@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
-import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import type { Project } from '../../../types';
@@ -34,6 +34,7 @@ export const ProjectLayout = () => {
 
   const tabs = useMemo(() => {
     const baseTabs = [
+      { key: 'overview', label: 'Overblik', path: '' },
       { key: 'reports', label: 'Rapporter', path: 'reports' },
       { key: 'organization', label: 'Projektorganisation', path: 'organization' },
     ];
@@ -46,7 +47,7 @@ export const ProjectLayout = () => {
     return baseTabs;
   }, [canManage]);
 
-  const isReportsRoute = location.pathname.endsWith('/reports') || location.pathname.endsWith(projectId ?? '');
+  const isReportsRoute = location.pathname.endsWith('/reports');
 
   if (!project) {
     return (
@@ -113,7 +114,4 @@ export const ProjectLayout = () => {
     </ProjectRouteContext.Provider>
   );
 };
-
-export const ProjectIndexRedirect = () => <Navigate replace to="reports" />;
-
 export default ProjectLayout;

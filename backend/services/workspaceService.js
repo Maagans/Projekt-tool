@@ -84,7 +84,7 @@ export const loadFullWorkspace = async (clientOverride) => {
     });
 
     const projectsResult = await executor.query(`
-        SELECT id::text, name, start_date, end_date, status, description
+        SELECT id::text, name, start_date, end_date, status, description, project_goal, business_case, total_budget
         FROM projects
         ORDER BY created_at ASC
     `);
@@ -95,6 +95,9 @@ export const loadFullWorkspace = async (clientOverride) => {
             projectName: row.name,
             projectStartDate: toDateOnly(row.start_date) ?? toDateOnly(new Date()),
             projectEndDate: toDateOnly(row.end_date) ?? toDateOnly(new Date()),
+            projectGoal: row.project_goal ?? '',
+            businessCase: row.business_case ?? '',
+            totalBudget: row.total_budget !== null ? Number(row.total_budget) : null,
         },
         status: row.status,
         description: row.description ?? '',
@@ -1115,13 +1118,32 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
         const endDate = config.projectEndDate || startDate;
         const status = ['active', 'completed', 'on-hold'].includes(project.status) ? project.status : 'active';
         const description = typeof project.description === 'string' ? project.description : null;
+        const projectGoal = typeof config.projectGoal === 'string' ? config.projectGoal : null;
+        const businessCase = typeof config.businessCase === 'string' ? config.businessCase : null;
+        let totalBudget = null;
+        if (typeof config.totalBudget === 'number' && Number.isFinite(config.totalBudget)) {
+            totalBudget = Math.round(config.totalBudget * 100) / 100;
+        } else if (typeof config.totalBudget === 'string') {
+            const parsed = Number(config.totalBudget.replace(',', '.'));
+            if (Number.isFinite(parsed)) {
+                totalBudget = Math.round(parsed * 100) / 100;
+            }
+        }
 
         await client.query(`
-            INSERT INTO projects (id, name, start_date, end_date, status, description)
-            VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6)
+            INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget)
+            VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9)
             ON CONFLICT (id)
-            DO UPDATE SET name = EXCLUDED.name, start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date, status = EXCLUDED.status, description = EXCLUDED.description
-        `, [normalisedProjectId, projectName, startDate, endDate, status, description]);
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                start_date = EXCLUDED.start_date,
+                end_date = EXCLUDED.end_date,
+                status = EXCLUDED.status,
+                description = EXCLUDED.description,
+                project_goal = EXCLUDED.project_goal,
+                business_case = EXCLUDED.business_case,
+                total_budget = EXCLUDED.total_budget
+        `, [normalisedProjectId, projectName, startDate, endDate, status, description, projectGoal, businessCase, totalBudget]);
 
         await syncProjectMembers(client, normalisedProjectId, project.projectMembers, existingProject);
         await syncProjectReports(client, normalisedProjectId, project.reports, existingProject);

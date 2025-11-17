@@ -8,6 +8,69 @@ const allowedProjectStatus = new Set(["active", "completed", "on-hold"]);
 
 const toDateOnlyString = (value) => toDateOnly(value);
 
+const stripHtml = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim();
+};
+
+const toDbRichTextValue = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const stripped = stripHtml(value);
+  return stripped.length > 0 ? value : null;
+};
+
+const parseBudgetInput = (value) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    if (normalized.length === 0) {
+      return null;
+    }
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const sanitizeBudgetValue = (value, fallback = null) => {
+  if (value === null) {
+    return null;
+  }
+  if (value === undefined) {
+    const parsedFallback = parseBudgetInput(fallback);
+    return parsedFallback === null ? null : Math.round(parsedFallback * 100) / 100;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+  const parsed = parseBudgetInput(value);
+  if (parsed === null) {
+    const parsedFallback = parseBudgetInput(fallback);
+    return parsedFallback === null ? null : Math.round(parsedFallback * 100) / 100;
+  }
+  const rounded = Math.round(parsed * 100) / 100;
+  return rounded < 0 ? 0 : rounded;
+};
+
+const sanitizeRichTextField = (value, fallbackValue = "") => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null) {
+    return "";
+  }
+  if (typeof fallbackValue === "string") {
+    return fallbackValue;
+  }
+  return "";
+};
+
 const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
   const config = payload.config ?? {};
   const fallbackConfig = fallback.config ?? {};
@@ -25,6 +88,9 @@ const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
         config.projectEndDate,
         fallbackConfig.projectEndDate ?? config.projectStartDate ?? fallbackConfig.projectStartDate
       ),
+      projectGoal: sanitizeRichTextField(config.projectGoal, fallbackConfig.projectGoal),
+      businessCase: sanitizeRichTextField(config.businessCase, fallbackConfig.businessCase),
+      totalBudget: sanitizeBudgetValue(config.totalBudget, fallbackConfig.totalBudget ?? null),
     },
     status: allowedProjectStatus.has(payload.status)
       ? payload.status
@@ -68,6 +134,12 @@ export const createProjectRecord = async (payload, user) =>
   withTransaction(async (client) => {
     const effectiveUser = await assertCanManageProjects(client, user);
     const data = sanitizeProjectPayload(payload);
+    const goalValue = toDbRichTextValue(data.config.projectGoal);
+    const businessCaseValue = toDbRichTextValue(data.config.businessCase);
+    const totalBudgetValue =
+      typeof data.config.totalBudget === "number" && Number.isFinite(data.config.totalBudget)
+        ? data.config.totalBudget
+        : null;
 
     const existing = await client.query(`SELECT 1 FROM projects WHERE id = $1::uuid`, [data.id]);
     if (existing.rowCount > 0) {
@@ -76,8 +148,8 @@ export const createProjectRecord = async (payload, user) =>
 
     const insertResult = await client.query(
       `
-        INSERT INTO projects (id, name, start_date, end_date, status, description)
-        VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6)
+        INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget)
+        VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9)
         RETURNING id::text
       `,
       [
@@ -87,6 +159,9 @@ export const createProjectRecord = async (payload, user) =>
         data.config.projectEndDate,
         data.status,
         data.description,
+        goalValue,
+        businessCaseValue,
+        totalBudgetValue,
       ],
     );
 
@@ -125,7 +200,7 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
 
     const currentResult = await client.query(
       `
-        SELECT name, start_date, end_date, status, description
+        SELECT name, start_date, end_date, status, description, project_goal, business_case, total_budget
         FROM projects
         WHERE id = $1::uuid
         LIMIT 1
@@ -144,16 +219,32 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
           projectName: currentRow.name,
           projectStartDate: toDateOnlyString(currentRow.start_date),
           projectEndDate: toDateOnlyString(currentRow.end_date),
+          projectGoal: currentRow.project_goal ?? "",
+          businessCase: currentRow.business_case ?? "",
+          totalBudget: currentRow.total_budget !== null ? Number(currentRow.total_budget) : null,
         },
         status: currentRow.status,
         description: currentRow.description ?? "",
       },
     );
+    const goalValue = toDbRichTextValue(sanitized.config.projectGoal);
+    const businessCaseValue = toDbRichTextValue(sanitized.config.businessCase);
+    const totalBudgetValue =
+      typeof sanitized.config.totalBudget === "number" && Number.isFinite(sanitized.config.totalBudget)
+        ? sanitized.config.totalBudget
+        : null;
     const result = await client.query(
       `
         UPDATE projects
-        SET name = $1, start_date = $2::date, end_date = $3::date, status = $4, description = $5
-        WHERE id = $6::uuid
+        SET name = $1,
+            start_date = $2::date,
+            end_date = $3::date,
+            status = $4,
+            description = $5,
+            project_goal = $6,
+            business_case = $7,
+            total_budget = $8
+        WHERE id = $9::uuid
         RETURNING id::text
       `,
       [
@@ -162,6 +253,9 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
         sanitized.config.projectEndDate,
         sanitized.status,
         sanitized.description,
+        goalValue,
+        businessCaseValue,
+        totalBudgetValue,
         projectId,
       ],
     );

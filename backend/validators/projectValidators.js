@@ -4,11 +4,31 @@ import { respondValidationError } from '../utils/errors.js';
 const statusOptions = ['active', 'completed', 'on-hold'];
 const projectMemberGroupOptions = ['styregruppe', 'projektgruppe', 'partnere', 'referencegruppe', 'unassigned'];
 
+const budgetValueSchema = z
+  .preprocess((value) => {
+    if (value === '' || value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.replace(',', '.').trim();
+      if (normalized.length === 0) {
+        return null;
+      }
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : value;
+    }
+    return value;
+  }, z.number({ invalid_type_error: 'totalBudget must be a number.' }).nonnegative('totalBudget must be non-negative.').nullable())
+  .optional();
+
 const projectConfigSchema = z
   .object({
     projectName: z.string().trim().min(1, 'projectName is required.'),
     projectStartDate: z.string().trim().min(1, 'projectStartDate is required.'),
     projectEndDate: z.string().trim().min(1, 'projectEndDate is required.'),
+    projectGoal: z.string().optional().nullable(),
+    businessCase: z.string().optional().nullable(),
+    totalBudget: budgetValueSchema,
   })
   .passthrough();
 
