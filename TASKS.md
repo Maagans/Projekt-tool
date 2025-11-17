@@ -738,7 +738,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Enkeltmutationer kører uden at serialisere hele workspace; ikke-admins får ikke længere fuldt datasæt fra backend.
   - Afhængigheder: FE-008, BE-007.
 
-- [ ] RISK-008: Medtag owner-info i rapport-snapshots
+- [X] RISK-008: Medtag owner-info i rapport-snapshots
   - Formål: Sørge for at ProjectReportsPage viser navn/e-mail på risiko-ejer efter snapshots er knyttet til en rapport.
   - Ændringer: Udvid `snapshotToProjectRisk` til at bygge `owner` objekt fra `owner_name`/`owner_email`, og vær sikker på at backend inkluderer felterne i API-svaret (JSON casing).
   - Test (TDD):
@@ -747,9 +747,10 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Risikotab og rapportmatrix viser igen hvem der ejer risikoen efter snapshot-synkronisering.
   - Afhængigheder: RISK-006.
 
-- [ ] UX-011: Differentier bootstrap-loading og baggrundsfetch
+- [x] UX-011: Differentier bootstrap-loading og baggrundsfetch
   - Formål: Forhindre at hele appen viser spinner hver gang workspace-query refetcher i baggrunden.
   - Ændringer: Introducer `isBootstrapping` i useAuthModule/useWorkspaceModule, brug `workspaceQuery.isFetching` lokalt i komponenter i stedet for global `isLoading`.
+  - Status 15/11: AppShell viser kun loader når brugeren bootstrapper eller logger ind, mens AppHeader nu markerer baggrundsopdateringer via `isWorkspaceFetching`.
   - Test (TDD):
     1) Enhedstest af hook der verificerer at `isBootstrapping` kun er sand første gang.
     2) RTL-test hvor en mutation triggere invalidateQueries og sikrer at hovedlayout ikke bliver udskiftet med loader.
@@ -785,3 +786,32 @@ resourceAnalyticsService og API-controllerens svar.
   - Aktiviteter: Undersøg databeskyttelseskrav, performance og DX; sammenlign med DX-012-løsningen og lav anbefaling.
   - Accept: Notat i docs/TASKS med anbefaling og evt. opfølgningsopgave (implementering eller fravalg).
   - Afhængigheder: DX-012.
+- [ ] PERF-011: Optimer træk-performance i tidslinjen
+  - Formål: Fjerne lag og unødvendige re-renders når faser, milepæle eller leverancer trækkes.
+  - Ændringer: Refaktorer `handleMouseMove` i `Timeline.tsx`, så den kun opdaterer visualisering (fx via `transform`). Kald `updateTimelineItem` én gang i `handleMouseUp`. Brug lokalt drag-state til at styre preview.
+  - Test (TDD):
+    1) Vitest/RTL-test der simulerer drag og sikrer at `updateTimelineItem` kun kaldes ved mouseup.
+    2) Devtools/Profiler-måling der dokumenterer 0 ekstra re-renders under drag (manuel men krav til verifikation).
+  - Accept: Træk er silkeblødt og “Gem tidslinje”-indikatoren tænder først efter afsluttet drag.
+  - Afhængigheder: FE-008f.
+
+- [ ] UX-012: Fjern redundant leveranceliste
+  - Formål: Rapportens tidslinje er primær kilde, så den ekstra liste skaber støj.
+  - Ændringer: Fjern `<DeliverablesList />`-sektionen fra `ProjectReportsPage.tsx` (både for ny og legacy visning).
+  - Test (TDD): Manuel QA – bekræft at rapporten loader, tidslinjen fungerer, og listen er væk.
+  - Accept: Rapportsiden er kortere uden at miste funktionalitet.
+  - Afhængigheder: Ingen.
+
+- [ ] UX-013: Centraliser tidslinje-redigering (Inspector Panel)
+  - Formål: Erstatte hover-ikoner med et klik-aktiveret “Inspector”-panel til redigering.
+  - Ændringer: Tilføj `selectedItemId` i `Timeline.tsx`, fjern hover-handles, og introducér `TimelineInspectorPanel` med felter til tekst, datoer, farver og slet. Klik vælger element, drag fungerer som i PERF-011.
+  - Test (TDD): RTL-test der klikker en fase og ser panelet; redigerer et felt og bekræfter `updateTimelineItem`-kald.
+  - Accept: Redigering sker via panelet, UI er mere ryddeligt.
+  - Afhængigheder: PERF-011.
+
+- [ ] UX-014: Stabiliser leverance-layout
+  - Formål: Leverancer må ikke hoppe/overlappe ved resize eller zoom.
+  - Ændringer: Fjern `ResizeObserver`/komplekst layout og brug deterministisk bane-tildeling (`laneIndex = index % N` eller lign.) med garanti for ingen overlap.
+  - Test (TDD): Manuel QA – zoom og resize uden at leverancer skifter bane/overlapper.
+  - Accept: Leverancer forbliver stabile og overlapper ikke.
+  - Afhængigheder: UX-012.

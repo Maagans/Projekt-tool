@@ -91,9 +91,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     setProjects,
     setEmployees,
     isAuthenticated,
-    setIsLoading,
     setIsSaving,
     setApiError,
+    isBootstrapping,
+    setIsBootstrapping,
   } = store;
 
   const setWorkspaceSettingsState = store.setWorkspaceSettings;
@@ -446,15 +447,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   const workspaceData = workspaceQuery.data;
   const workspaceStatus = workspaceQuery.status;
   const workspaceError = workspaceQuery.error;
-  const workspaceFetchStatus = workspaceQuery.fetchStatus;
+  const isWorkspaceFetching = workspaceQuery.isFetching && !isBootstrapping;
 
   useEffect(() => {
     if (!isAuthenticated) {
+      setIsBootstrapping(false);
       return;
-    }
-
-    if (workspaceFetchStatus === 'fetching') {
-      setIsLoading(true);
     }
 
     if (workspaceStatus === 'success' && workspaceData) {
@@ -465,29 +463,24 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         setWorkspaceSettingsState(nextSettings);
       }
       setApiError(null);
-      if (workspaceFetchStatus !== 'fetching') {
-        setIsLoading(false);
-      }
+      setIsBootstrapping(false);
       return;
     }
 
     if (workspaceStatus === 'error' && workspaceError) {
       console.error('Kunne ikke hente workspace-data:', workspaceError);
       setApiError(getErrorMessage(workspaceError));
-      if (workspaceFetchStatus !== 'fetching') {
-        setIsLoading(false);
-      }
+      setIsBootstrapping(false);
     }
   }, [
     isAuthenticated,
     setApiError,
     setEmployees,
-    setIsLoading,
+    setIsBootstrapping,
     setProjects,
     setWorkspaceSettingsState,
     workspaceData,
     workspaceError,
-    workspaceFetchStatus,
     workspaceStatus,
   ]);
 
@@ -1523,6 +1516,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     projects,
     employees: store.employees,
     workspaceSettings: store.workspaceSettings,
+    isWorkspaceFetching,
     updatePmoBaselineHoursWeek,
     addEmployee,
     updateEmployee,

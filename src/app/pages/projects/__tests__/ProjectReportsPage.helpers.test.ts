@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { snapshotToProjectRisk, projectRiskToReportState } from '../ProjectReportsPage';
-import type { ProjectRisk, Risk } from '../../../types';
+import type { ProjectRisk, Risk } from '../../../../types';
 
 const baseRisk: Risk = {
   id: 'snapshot-1',

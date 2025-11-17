@@ -18,6 +18,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     setIsSaving,
     setWorkspaceSettings,
     setLogoutRedirect,
+    setIsBootstrapping,
   } = store;
 
   const queryClient = useQueryClient();
@@ -33,6 +34,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
       setIsLoading(false);
       setNeedsSetup(false);
       setWorkspaceSettings({ pmoBaselineHoursWeek: 0 });
+      setIsBootstrapping(false);
       if (typeof message !== 'undefined') {
         setApiError(message);
       }
@@ -51,6 +53,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
       setNeedsSetup,
       setProjects,
       setWorkspaceSettings,
+      setIsBootstrapping,
     ],
   );
 
@@ -77,6 +80,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     let isMounted = true;
 
     const bootstrap = async () => {
+      setIsBootstrapping(true);
       setIsLoading(true);
       setApiError(null);
       try {
@@ -84,6 +88,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
         if (!isMounted) return;
         if (setupStatus.needsSetup) {
           setNeedsSetup(true);
+          setIsBootstrapping(false);
           return;
         }
 
@@ -101,6 +106,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
         if (isMounted) {
           console.error('Failed to load session:', error);
           setApiError('Kunne ikke hente data. Prøv at genindlæse siden.');
+          setIsBootstrapping(false);
         }
       } finally {
         if (isMounted) {
@@ -123,6 +129,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     setIsAuthenticated,
     setIsLoading,
     setNeedsSetup,
+    setIsBootstrapping,
   ]);
 
   const loginMutation = useMutation({
@@ -136,14 +143,17 @@ export const useAuthModule = (store: ProjectManagerStore) => {
         setCurrentUser(result.user);
         setIsAuthenticated(true);
         acknowledgeLogoutRedirect();
+        setIsBootstrapping(true);
         await queryClient.invalidateQueries({ queryKey: ['workspace'] });
       } else {
         setApiError(result.message ?? 'Der opstod en fejl under login.');
+        setIsBootstrapping(false);
       }
     },
     onError: (error: unknown) => {
       console.error('Login failed:', error);
       setApiError('Der opstod en fejl under login.');
+      setIsBootstrapping(false);
     },
     onSettled: () => {
       setIsLoading(false);
@@ -175,6 +185,7 @@ export const useAuthModule = (store: ProjectManagerStore) => {
     currentUser: store.currentUser,
     isLoading: store.isLoading,
     isSaving: store.isSaving,
+    isBootstrapping: store.isBootstrapping,
     apiError: store.apiError,
     needsSetup: store.needsSetup,
     shouldRedirectToLogin: store.logoutRedirect,

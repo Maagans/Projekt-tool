@@ -59,7 +59,7 @@ const deriveRange = (weeks: number, mode: RangeMode): AnalyticsRange => {
 
 const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) => {
   const projectManager = useProjectManager();
-  const { logout, currentUser, isSaving, apiError, isAdministrator, employees } = projectManager;
+  const { logout, currentUser, isSaving, isWorkspaceFetching, apiError, isAdministrator, employees } = projectManager;
   const canAccessAnalytics = RESOURCES_ANALYTICS_ENABLED && isAdministrator;
 
   const departments = useMemo(() => {
@@ -235,7 +235,14 @@ const ResourceAnalyticsBase = ({ variant }: { variant: 'page' | 'embedded' }) =>
   return (
     <div className="space-y-6">
       {variant === 'page' ? (
-        <AppHeader title="Ressourcer" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+        <AppHeader
+          title="Ressourcer"
+          user={currentUser}
+          isSaving={isSaving}
+          isRefreshing={isWorkspaceFetching}
+          apiError={apiError}
+          onLogout={logout}
+        >
           <button
             onClick={() => refetch()}
             className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-600"

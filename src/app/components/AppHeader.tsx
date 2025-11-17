@@ -6,20 +6,28 @@ type AppHeaderProps = {
   title: string;
   user: User | null;
   isSaving: boolean;
+  isRefreshing?: boolean;
   apiError: string | null;
   onLogout: () => void;
   children?: ReactNode;
 };
 
-export const AppHeader = ({ title, user, isSaving, apiError, onLogout, children }: AppHeaderProps) => {
-  const statusLabel = apiError ? 'Forbindelse mistet' : isSaving ? 'Synkroniserer...' : 'Synkroniseret';
+export const AppHeader = ({ title, user, isSaving, isRefreshing = false, apiError, onLogout, children }: AppHeaderProps) => {
+  const hasSyncActivity = isSaving || isRefreshing;
+  const statusLabel = apiError
+    ? 'Forbindelse mistet'
+    : isSaving
+      ? 'Synkroniserer...'
+      : isRefreshing
+        ? 'Opdaterer data...'
+        : 'Synkroniseret';
   const statusCircleClasses = apiError
     ? 'border-red-300 text-red-600 bg-red-100'
-    : isSaving
+    : hasSyncActivity
       ? 'border-amber-300 text-amber-600 bg-amber-100'
       : 'border-green-300 text-green-600 bg-green-100';
-  const statusLabelClasses = apiError ? 'text-red-600' : isSaving ? 'text-amber-600' : 'text-green-600';
-  const haloClasses = apiError ? 'bg-red-400/60 animate-ping' : isSaving ? 'bg-amber-300/60 animate-pulse' : '';
+  const statusLabelClasses = apiError ? 'text-red-600' : hasSyncActivity ? 'text-amber-600' : 'text-green-600';
+  const haloClasses = apiError ? 'bg-red-400/60 animate-ping' : hasSyncActivity ? 'bg-amber-300/60 animate-pulse' : '';
   const showHalo = Boolean(haloClasses);
 
   return (
@@ -60,4 +68,3 @@ export const AppHeader = ({ title, user, isSaving, apiError, onLogout, children 
     </header>
   );
 };
-

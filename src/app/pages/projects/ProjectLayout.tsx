@@ -25,7 +25,7 @@ export const ProjectLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const projectManager = useProjectManager();
-  const { getProjectById, logout, currentUser, isSaving, apiError, canManage } = projectManager;
+  const { getProjectById, logout, currentUser, isSaving, isWorkspaceFetching, apiError, canManage } = projectManager;
 
   const project = useMemo(
     () => (projectId ? getProjectById(projectId) : null),
@@ -70,7 +70,14 @@ export const ProjectLayout = () => {
   return (
     <ProjectRouteContext.Provider value={{ project, projectManager }}>
       <div className="flex flex-col gap-6">
-        <AppHeader title={project.config.projectName} user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+        <AppHeader
+          title={project.config.projectName}
+          user={currentUser}
+          isSaving={isSaving}
+          isRefreshing={isWorkspaceFetching}
+          apiError={apiError}
+          onLogout={logout}
+        >
           <button onClick={() => navigate('/')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
             Tilbage til Dashboard
           </button>

@@ -24,6 +24,8 @@ export interface ProjectManagerStore {
   setNeedsSetup: React.Dispatch<React.SetStateAction<boolean>>;
   logoutRedirect: boolean;
   setLogoutRedirect: React.Dispatch<React.SetStateAction<boolean>>;
+  isBootstrapping: boolean;
+  setIsBootstrapping: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const useProjectManagerStore = (): ProjectManagerStore => {
@@ -38,6 +40,7 @@ export const useProjectManagerStore = (): ProjectManagerStore => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [logoutRedirect, setLogoutRedirect] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   return {
     projects,
@@ -62,5 +65,7 @@ export const useProjectManagerStore = (): ProjectManagerStore => {
     setNeedsSetup,
     logoutRedirect,
     setLogoutRedirect,
+    isBootstrapping,
+    setIsBootstrapping,
   };
 };

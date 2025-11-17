@@ -8,6 +8,7 @@ type AuthContextValue = Pick<ProjectManagerValue,
   | 'currentUser'
   | 'isLoading'
   | 'isSaving'
+  | 'isBootstrapping'
   | 'apiError'
   | 'login'
   | 'logout'
@@ -24,6 +25,7 @@ type WorkspaceContextValue = Pick<ProjectManagerValue,
   | 'projects'
   | 'employees'
   | 'workspaceSettings'
+  | 'isWorkspaceFetching'
   | 'updatePmoBaselineHoursWeek'
   | 'createNewProject'
   | 'deleteProject'
@@ -56,6 +58,7 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
     currentUser: value.currentUser,
     isLoading: value.isLoading,
     isSaving: value.isSaving,
+    isBootstrapping: value.isBootstrapping,
     apiError: value.apiError,
     login: value.login,
     logout: value.logout,
@@ -72,6 +75,7 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
     projects: value.projects,
     employees: value.employees,
     workspaceSettings: value.workspaceSettings,
+    isWorkspaceFetching: value.isWorkspaceFetching,
     updatePmoBaselineHoursWeek: value.updatePmoBaselineHoursWeek,
     createNewProject: value.createNewProject,
     deleteProject: value.deleteProject,

@@ -122,7 +122,7 @@ describe('useProjectManager capacity handling', () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     act(() => {
@@ -144,7 +144,7 @@ describe('useProjectManager capacity handling', () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     const csvContent = [
@@ -170,3 +170,4 @@ describe('useProjectManager capacity handling', () => {
     alertSpy.mockRestore();
   });
 });
+

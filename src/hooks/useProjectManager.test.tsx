@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { InvalidateOptions, InvalidateQueryFilters } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
@@ -129,7 +129,7 @@ describe('useProjectManager', () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     expect(result.current.isAdministrator).toBe(true);
@@ -140,7 +140,7 @@ describe('useProjectManager', () => {
   it('creates a new project with default configuration', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     const name = 'Nyt Projekt';
@@ -159,7 +159,7 @@ describe('useProjectManager', () => {
   it('deletes a project and removes it from the workspace', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     let createdProjectId: string | undefined;
@@ -183,7 +183,7 @@ describe('useProjectManager', () => {
   it('updates PMO baseline via mutation', async () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     act(() => {
@@ -198,7 +198,7 @@ describe('useProjectManager', () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.employees.length).toBeGreaterThan(0));
 
     await act(async () => {
@@ -218,7 +218,7 @@ describe('useProjectManager', () => {
     const { result } = renderHook(() => useProjectManager(), { wrapper });
 
     await waitFor(() => expect(mockApi.getWorkspace).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
     await waitFor(() => expect(result.current.projects.length).toBeGreaterThan(0));
 
     const newName = 'Projekt Beta';
@@ -235,3 +235,4 @@ describe('useProjectManager', () => {
     );
   });
 });
+

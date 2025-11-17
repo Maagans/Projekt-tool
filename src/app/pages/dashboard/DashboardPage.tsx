@@ -8,8 +8,18 @@ import { PlusIcon, TrashIcon, UsersIcon, UserIcon, OrganizationIcon } from '../.
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const projectManager = useProjectManager();
-  const { projects, createNewProject, deleteProject, logout, currentUser, isSaving, apiError, canManage, isAdministrator } =
-    projectManager;
+  const {
+    projects,
+    createNewProject,
+    deleteProject,
+    logout,
+    currentUser,
+    isSaving,
+    isWorkspaceFetching,
+    apiError,
+    canManage,
+    isAdministrator,
+  } = projectManager;
   const [newProjectName, setNewProjectName] = useState('');
 
   const metrics = useMemo(() => {
@@ -79,7 +89,14 @@ export const DashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <AppHeader title="Dashboard" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+      <AppHeader
+        title="Dashboard"
+        user={currentUser}
+        isSaving={isSaving}
+        isRefreshing={isWorkspaceFetching}
+        apiError={apiError}
+        onLogout={logout}
+      >
         <button
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white/80 shadow-sm transition hover:bg-white/20"

@@ -79,6 +79,6 @@ describe('ProjectRiskMatrix', () => {
       />,
     );
 
-    expect(screen.getByText(/Arkiveret siden/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Arkiveret siden/i })).toBeInTheDocument();
   });
 });

@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ## [Unreleased]
 _Nothing yet._
 
+## [1.5.1] - 2025-11-17
+### Changed
+- AppShell skelner mellem bootstrap og baggrundsopdateringer; AppHeader viser nu når workspace-data refetches uden at afbryde brugeren (UX-011).
+- ProjectRiskMatrix har ikke længere et separat højre-detalje panel, så rapportens snapshot-sektion er eneste kilde til risikodetaljer; risikoknapperne angiver arkiverede datoer i deres tooltip.
+- Risikomatrixens aksemærker er opdateret, så Sandsynlighed-pegen viser opad og Konsekvens er centreret under heatmap’et; de tidligere score-legender er fjernet for et renere layout.
+
 ## [1.5.0] - 2025-11-14
 ### Added
 - Nye dedikerede backend-services for projekter, projektmedlemmer, medarbejdere og workspace-indstillinger, så alle mutationer kører via granulære repos uden `mutateWorkspace` (PERF-010).

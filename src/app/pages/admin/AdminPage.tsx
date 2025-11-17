@@ -7,7 +7,16 @@ import type { UserRole } from '../../../types';
 export const AdminPage = () => {
   const navigate = useNavigate();
   const projectManager = useProjectManager();
-  const { allUsers, fetchAllUsers, updateUserRole, currentUser, logout, isSaving, apiError } = projectManager;
+  const {
+    allUsers,
+    fetchAllUsers,
+    updateUserRole,
+    currentUser,
+    logout,
+    isSaving,
+    isWorkspaceFetching,
+    apiError,
+  } = projectManager;
   const roles: UserRole[] = ['Administrator', 'Projektleder', 'Teammedlem'];
 
   useEffect(() => {
@@ -16,7 +25,14 @@ export const AdminPage = () => {
 
   return (
     <div>
-      <AppHeader title="Brugeradministration" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+      <AppHeader
+        title="Brugeradministration"
+        user={currentUser}
+        isSaving={isSaving}
+        isRefreshing={isWorkspaceFetching}
+        apiError={apiError}
+        onLogout={logout}
+      >
         <button onClick={() => navigate('/')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
           Tilbage til Dashboard
         </button>
@@ -63,4 +79,3 @@ export const AdminPage = () => {
 };
 
 export default AdminPage;
-

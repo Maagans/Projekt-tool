@@ -46,6 +46,7 @@ export const PmoPage = () => {
     logout,
     currentUser,
     isSaving,
+    isWorkspaceFetching,
     apiError,
     canManage,
     isAdministrator,
@@ -272,7 +273,14 @@ export const PmoPage = () => {
 
   return (
     <div>
-      <AppHeader title="PMO Ressourceoverblik" user={currentUser} isSaving={isSaving} apiError={apiError} onLogout={logout}>
+      <AppHeader
+        title="PMO Ressourceoverblik"
+        user={currentUser}
+        isSaving={isSaving}
+        isRefreshing={isWorkspaceFetching}
+        apiError={apiError}
+        onLogout={logout}
+      >
         <button onClick={() => navigate('/')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
           Tilbage til Dashboard
         </button>
