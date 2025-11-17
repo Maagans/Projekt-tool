@@ -70,6 +70,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     phases, milestones, deliverables, calculateDateFromPosition, calculatePositionFromDate, monthMarkers, todayPosition,
     addTimelineItem, updateTimelineItem, deleteTimelineItem
   } = props;
+  const isTimelineEmpty = phases.length === 0 && milestones.length === 0 && deliverables.length === 0;
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pendingScrollRatioRef = useRef<number | null>(null);
@@ -549,6 +550,13 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           ref={timelineRef}
           onClick={() => handleSelectItem(null)}
         >
+          {isTimelineEmpty && (
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white/90 px-6 py-8 text-center text-sm text-slate-500">
+                Tidslinjen er tom. Brug knapperne for at tilføje din første fase, milepæl eller leverance.
+              </div>
+            </div>
+          )}
           {/* Background grid and markers */}
           <div className="absolute inset-0 border-y border-slate-200">
             {detailMarkers.map((marker, index) => (

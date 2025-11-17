@@ -175,6 +175,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
   const [draggedOverColumn, setDraggedOverColumn] = useState<KanbanStatus | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const isEmpty = props.tasks.length === 0;
 
   const handleDrop = (event: React.DragEvent, status: KanbanStatus) => {
     event.preventDefault();
@@ -195,26 +196,41 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = (props) => {
         <h3 className="text-lg font-semibold text-slate-800">Opgavestyring</h3>
         {props.headerActions}
       </div>
-      <div className="flex flex-col gap-4 lg:flex-row">
-        {(['todo', 'doing', 'done'] as KanbanStatus[]).map((status) => (
-          <KanbanColumn
-            key={status}
-            status={status}
-            tasks={props.tasks.filter((task) => task.status === status)}
-            onAddTask={props.onAddTask}
-            onUpdateTask={props.onUpdateTask}
-            onDeleteTask={props.onDeleteTask}
-            onDrop={handleDrop}
-            isDraggedOver={draggedOverColumn === status}
-            onDragEnter={() => setDraggedOverColumn(status)}
-            onDragLeave={() => setDraggedOverColumn(null)}
-            onSelectTask={props.onSelectTask}
-            onDragStartCard={(taskId) => setDraggedTaskId(taskId)}
-            onDragEndCard={() => setDraggedTaskId(null)}
-            draggedTaskId={draggedTaskId}
-          />
-        ))}
-      </div>
+      {isEmpty ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-16 text-center text-sm text-slate-500">
+          Ingen opgaver på tavlen. Klik på “Tilføj opgave” for at starte.
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => props.onAddTask('todo')}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+            >
+              <PlusIcon /> Tilføj opgave
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 lg:flex-row">
+          {(['todo', 'doing', 'done'] as KanbanStatus[]).map((status) => (
+            <KanbanColumn
+              key={status}
+              status={status}
+              tasks={props.tasks.filter((task) => task.status === status)}
+              onAddTask={props.onAddTask}
+              onUpdateTask={props.onUpdateTask}
+              onDeleteTask={props.onDeleteTask}
+              onDrop={handleDrop}
+              isDraggedOver={draggedOverColumn === status}
+              onDragEnter={() => setDraggedOverColumn(status)}
+              onDragLeave={() => setDraggedOverColumn(null)}
+              onSelectTask={props.onSelectTask}
+              onDragStartCard={(taskId) => setDraggedTaskId(taskId)}
+              onDragEndCard={() => setDraggedTaskId(null)}
+              draggedTaskId={draggedTaskId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -504,6 +504,10 @@ export const ProjectReportsPage = () => {
       setSelectedTaskId(null);
     }
   }, [selectedTaskId, selectedTask]);
+  const hasNarrativeContent =
+    (activeReport.state.statusItems?.length ?? 0) > 0 ||
+    (activeReport.state.challengeItems?.length ?? 0) > 0 ||
+    (activeReport.state.nextStepItems?.length ?? 0) > 0;
 
   return (
     <>
@@ -646,34 +650,42 @@ export const ProjectReportsPage = () => {
             stats={reportStats}
           />
         </div>
-        <div className="lg:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <EditableList
-            title="Status (ResumÃ©)"
-            items={activeReport.state.statusItems}
-            colorScheme="green"
-            onAddItem={guardManage(statusListManager.addItem)}
-            onDeleteItem={guardManage(statusListManager.deleteItem)}
-            onUpdateItem={guardManage(statusListManager.updateItem)}
-            onReorderItems={guardManage(statusListManager.reorderItems)}
-          />
-          <EditableList
-            title="Udfordringer"
-            items={activeReport.state.challengeItems}
-            colorScheme="red"
-            onAddItem={guardManage(challengeListManager.addItem)}
-            onDeleteItem={guardManage(challengeListManager.deleteItem)}
-            onUpdateItem={guardManage(challengeListManager.updateItem)}
-            onReorderItems={guardManage(challengeListManager.reorderItems)}
-          />
-          <EditableList
-            title="NÃ¦ste skridt"
-            items={activeReport.state.nextStepItems ?? []}
-            colorScheme="blue"
-            onAddItem={guardManage(nextStepListManager.addItem)}
-            onDeleteItem={guardManage(nextStepListManager.deleteItem)}
-            onUpdateItem={guardManage(nextStepListManager.updateItem)}
-            onReorderItems={guardManage(nextStepListManager.reorderItems)}
-          />
+        <div className="lg:col-span-2">
+          {hasNarrativeContent ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <EditableList
+                title="Status (Resumé)"
+                items={activeReport.state.statusItems}
+                colorScheme="green"
+                onAddItem={guardManage(statusListManager.addItem)}
+                onDeleteItem={guardManage(statusListManager.deleteItem)}
+                onUpdateItem={guardManage(statusListManager.updateItem)}
+                onReorderItems={guardManage(statusListManager.reorderItems)}
+              />
+              <EditableList
+                title="Udfordringer"
+                items={activeReport.state.challengeItems}
+                colorScheme="red"
+                onAddItem={guardManage(challengeListManager.addItem)}
+                onDeleteItem={guardManage(challengeListManager.deleteItem)}
+                onUpdateItem={guardManage(challengeListManager.updateItem)}
+                onReorderItems={guardManage(challengeListManager.reorderItems)}
+              />
+              <EditableList
+                title="Næste skridt"
+                items={activeReport.state.nextStepItems ?? []}
+                colorScheme="blue"
+                onAddItem={guardManage(nextStepListManager.addItem)}
+                onDeleteItem={guardManage(nextStepListManager.deleteItem)}
+                onUpdateItem={guardManage(nextStepListManager.updateItem)}
+                onReorderItems={guardManage(nextStepListManager.reorderItems)}
+              />
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center text-sm text-slate-500">
+              Rapporten er tom. Start med at tilføje en status, en udfordring eller et næste skridt.
+            </div>
+          )}
         </div>
         <div className="lg:col-span-2">
           <MainStatusTable
@@ -1157,6 +1169,9 @@ const NewReportModal = ({ manager, onClose, onSelect }: NewReportModalProps) => 
 
 export default ProjectReportsPage;
 /* eslint-enable react-hooks/rules-of-hooks */
+
+
+
 
 
 
