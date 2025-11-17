@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/rules-of-hooks */
+﻿/* eslint-disable react-hooks/rules-of-hooks */
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KanbanBoard } from '../../../components/KanbanBoard';
@@ -284,7 +284,7 @@ export const ProjectReportsPage = () => {
     ((...args: Parameters<T>) => {
       if (!canEdit) return;
       if (!options?.allowWhileTimelineDraft && isTimelineDraftActive) {
-        alert('Gem eller fortryd tidslinjen, før du foretager andre ændringer.');
+        alert('Gem eller fortryd tidslinjen, fÃ¸r du foretager andre Ã¦ndringer.');
         return;
       }
       fn(...args);
@@ -294,7 +294,7 @@ export const ProjectReportsPage = () => {
     if (!isTimelineDirty) {
       return true;
     }
-    const confirmed = window.confirm('Du har ugemte ændringer i tidslinjen. Vil du kassere dem?');
+    const confirmed = window.confirm('Du har ugemte Ã¦ndringer i tidslinjen. Vil du kassere dem?');
     if (confirmed) {
       setDraftProject(project);
       resetTimelineDraft();
@@ -408,7 +408,7 @@ export const ProjectReportsPage = () => {
         <h2>Ingen rapporter</h2>
         {canManage && (
           <button onClick={handleCreateNext} className="mt-4 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600">
-            Opret første rapport
+            Opret fÃ¸rste rapport
           </button>
         )}
       </div>
@@ -418,7 +418,7 @@ export const ProjectReportsPage = () => {
   if (!activeReport) {
     return (
       <div className="text-center bg-white p-10 rounded-lg shadow-sm">
-        <h2>Vælg en rapport fra listen for at se den.</h2>
+        <h2>VÃ¦lg en rapport fra listen for at se den.</h2>
       </div>
     );
   }
@@ -435,7 +435,7 @@ export const ProjectReportsPage = () => {
         return;
       }
       if (!activeReport.id) {
-        setRiskMatrixError('Gem rapporten før du opdaterer risici.');
+        setRiskMatrixError('Gem rapporten fÃ¸r du opdaterer risici.');
         return;
       }
       const previousRisks = activeReport.state.risks ?? [];
@@ -511,7 +511,7 @@ export const ProjectReportsPage = () => {
 
   return (
     <>
-      {isBusy && <SyncStatusPill message="Synkroniserer rapportændringer..." className={floatingSyncClass} />}
+      {isBusy && <SyncStatusPill message="Synkroniserer rapportÃ¦ndringer..." className={floatingSyncClass} />}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <aside
@@ -561,7 +561,7 @@ export const ProjectReportsPage = () => {
                               ? 'border-blue-500 bg-blue-500 text-white'
                               : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                           }`}
-                          title={`Åbn rapport for ${formatWeekLabel(report.weekKey)}`}
+                          title={`Ã…bn rapport for ${formatWeekLabel(report.weekKey)}`}
                         >
                           {formatWeekLabel(report.weekKey, 'short')}
                         </button>
@@ -594,9 +594,9 @@ export const ProjectReportsPage = () => {
                           ? 'cursor-not-allowed bg-slate-100 text-slate-400'
                           : 'bg-green-100 text-green-600 hover:bg-green-200'
                       }`}
-                      title="Opret rapport for næste uge"
+                      title="Opret rapport for nÃ¦ste uge"
                     >
-                      <StepForwardIcon /> Næste
+                      <StepForwardIcon /> NÃ¦ste
                     </button>
                   </div>
                 )}
@@ -654,7 +654,7 @@ export const ProjectReportsPage = () => {
           {hasNarrativeContent ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <EditableList
-                title="Status (Resum�)"
+                title="Status (Resumé)"
                 items={activeReport.state.statusItems}
                 colorScheme="green"
                 onAddItem={guardManage(statusListManager.addItem)}
@@ -672,7 +672,7 @@ export const ProjectReportsPage = () => {
                 onReorderItems={guardManage(challengeListManager.reorderItems)}
               />
               <EditableList
-                title="N�ste skridt"
+                title="Næste skridt"
                 items={activeReport.state.nextStepItems ?? []}
                 colorScheme="blue"
                 onAddItem={guardManage(nextStepListManager.addItem)}
@@ -683,7 +683,7 @@ export const ProjectReportsPage = () => {
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center text-sm text-slate-500">
-              Rapporten er tom. Start med at tilf�je en status, en udfordring eller et n�ste skridt.
+              Rapporten er tom. Start med at tilføje en status, en udfordring eller et næste skridt.
             </div>
           )}
         </div>
@@ -740,7 +740,7 @@ export const ProjectReportsPage = () => {
                     return { ...state, phases: [...state.phases, newPhase] };
                   }
                   if (type === 'milestone') {
-                    const newMilestone: Milestone = { id: generateId(), text: 'Ny milepæl', position: Math.max(0, Math.min(100, position)) };
+                    const newMilestone: Milestone = { id: generateId(), text: 'Ny milepÃ¦l', position: Math.max(0, Math.min(100, position)) };
                     return { ...state, milestones: [...state.milestones, newMilestone] };
                   }
                   const newDeliverable: Deliverable = { id: generateId(), text: 'Ny leverance', position: Math.max(0, Math.min(100, position)) };
@@ -866,7 +866,7 @@ export const ProjectReportsPage = () => {
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Synkroniser risici</h3>
                 <p className="text-sm text-slate-600">
-                  Vælg hvilke kuraterede risici der skal vises i denne rapport.
+                  VÃ¦lg hvilke kuraterede risici der skal vises i denne rapport.
                 </p>
               </div>
               <button
@@ -879,9 +879,9 @@ export const ProjectReportsPage = () => {
             </div>
             <div className="flex-1 overflow-y-auto px-6">
               {curatedRisksQueryState.isLoading ? (
-                <p className="text-sm text-slate-500">Indlæser risici …</p>
+                <p className="text-sm text-slate-500">IndlÃ¦ser risici â€¦</p>
               ) : curatedRisks.length === 0 ? (
-                <p className="text-sm text-slate-500">Ingen kuraterede risici tilføjet endnu.</p>
+                <p className="text-sm text-slate-500">Ingen kuraterede risici tilfÃ¸jet endnu.</p>
               ) : (
                 <div className="space-y-3">
                   {curatedRisks.map((risk) => {
@@ -992,7 +992,7 @@ const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDet
   if (totalRisks === 0) {
     return (
       <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        Ingen risici er synkroniseret til rapporten endnu. Brug knappen &quot;Synkroniser risici&quot; for at vælge kuraterede
+        Ingen risici er synkroniseret til rapporten endnu. Brug knappen &quot;Synkroniser risici&quot; for at vÃ¦lge kuraterede
         risici fra fanen Risikovurdering.
       </section>
     );
@@ -1001,8 +1001,8 @@ const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDet
   if (!risk) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-        Vælg en risiko i matrixen for at se detaljer og justere point for denne rapport. Snapshotdata viser den præcise
-        beskrivelse, planer og opfølgning for ugevalget.
+        VÃ¦lg en risiko i matrixen for at se detaljer og justere point for denne rapport. Snapshotdata viser den prÃ¦cise
+        beskrivelse, planer og opfÃ¸lgning for ugevalget.
       </section>
     );
   }
@@ -1024,7 +1024,7 @@ const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDet
         <div>
           <h4 className="text-base font-semibold text-slate-900">Detaljer for valgte risiko</h4>
           <p className="text-sm text-slate-600">
-            {weekKey ? `Snapshot for ${weekKey}` : 'Snapshot baseret på denne rapport.'}
+            {weekKey ? `Snapshot for ${weekKey}` : 'Snapshot baseret pÃ¥ denne rapport.'}
           </p>
         </div>
         {archivedLabel && (
@@ -1060,7 +1060,7 @@ const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDet
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Opfølgning</dt>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">OpfÃ¸lgning</dt>
           <dd className="mt-1 text-sm text-slate-900">{textOrPlaceholder(risk.followUpFrequency)}</dd>
         </div>
         <div>
@@ -1081,7 +1081,7 @@ const SnapshotRiskDetailsPanel = ({ risk, totalRisks, weekKey }: SnapshotRiskDet
         </div>
         <div className="rounded-lg border border-slate-100 p-3">
           <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Opfølgningsnoter
+            OpfÃ¸lgningsnoter
           </h5>
           <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
             {textOrPlaceholder(risk.followUpNotes)}
@@ -1130,7 +1130,7 @@ const NewReportModal = ({ manager, onClose, onSelect }: NewReportModalProps) => 
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
         <h3 className="text-xl font-bold mb-4 text-slate-800">Opret ny ugerapport</h3>
         <label htmlFor="week-select" className="block text-sm font-medium text-slate-700 mb-2">
-          Vælg uge for rapporten (baseres på seneste)
+          VÃ¦lg uge for rapporten (baseres pÃ¥ seneste)
         </label>
         {availableWeeks.length > 0 ? (
           <select
