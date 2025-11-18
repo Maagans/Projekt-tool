@@ -95,6 +95,7 @@ CREATE TABLE projects (
     description TEXT,
     project_goal TEXT,
     business_case TEXT,
+    hero_image_url TEXT,
     total_budget NUMERIC(12,2),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

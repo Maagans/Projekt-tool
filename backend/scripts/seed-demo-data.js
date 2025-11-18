@@ -568,20 +568,21 @@ const upsertProjects = async (client) => {
               project_goal = $6,
               business_case = $7,
               total_budget = $8,
+              hero_image_url = $9,
               updated_at = NOW()
           WHERE id = $1::uuid
         `,
-        [projectId, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget],
+        [projectId, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget, project.heroImageUrl ?? null],
       );
       ids.set(project.key, projectId);
     } else {
       const created = await client.query(
         `
-          INSERT INTO projects (name, start_date, end_date, status, description, project_goal, business_case, total_budget)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO projects (name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING id::text
         `,
-        [project.name, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget],
+        [project.name, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget, project.heroImageUrl ?? null],
       );
       ids.set(project.key, created.rows[0].id);
     }

@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { EditableField } from '../../../components/EditableField';
 import { InlineRichEditor, sanitizeRichText } from '../../../components/RichTextInlineEditor';
 import { SyncStatusPill } from '../../../components/SyncStatusPill';
@@ -102,20 +102,37 @@ export const ProjectSettingsPage = () => {
     setEditingField(null);
   };
 
+  const [budgetInputValue, setBudgetInputValue] = useState<string>('');
+
+  useEffect(() => {
+    setBudgetInputValue(
+      typeof project.config.totalBudget === 'number' ? String(project.config.totalBudget) : '',
+    );
+  }, [project.config.totalBudget]);
+
   const handleBudgetChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const rawValue = event.target.value;
+    setBudgetInputValue(event.target.value);
+  };
+
+  const handleBudgetBlur = () => {
+    const rawValue = budgetInputValue.trim();
     if (rawValue === '') {
-      updateProjectConfig(project.id, { totalBudget: null });
+      if (project.config.totalBudget !== null) {
+        updateProjectConfig(project.id, { totalBudget: null });
+      }
       return;
     }
     const parsed = Number(rawValue);
     if (Number.isNaN(parsed)) {
+      setBudgetInputValue(
+        typeof project.config.totalBudget === 'number' ? String(project.config.totalBudget) : '',
+      );
       return;
     }
-    updateProjectConfig(project.id, { totalBudget: parsed });
+    if (project.config.totalBudget !== parsed) {
+      updateProjectConfig(project.id, { totalBudget: parsed });
+    }
   };
-
-  const budgetValue = typeof project.config.totalBudget === 'number' ? project.config.totalBudget : '';
 
   return (
     <>
@@ -200,34 +217,79 @@ export const ProjectSettingsPage = () => {
           />
         </div>
 
-        <div className="rounded-lg bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="rounded-lg bg-white p-4 shadow-sm space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="text-lg font-bold text-slate-700">Samlet budget</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Angiv projektets økonomiske ramme i DKK. Vises på overblikssider og bruges til kommende KPI&rsquo;er.
-              </p>
-            </div>
-            <div className="text-sm text-slate-500">
-              <span className="block text-xs uppercase tracking-wide text-slate-400">Aktuelt budget</span>
-              <span className="font-semibold text-slate-700">{budgetDisplay}</span>
-            </div>
-          </div>
-          <div className="mt-4 max-w-sm">
-            <label className="mb-1 block text-sm font-medium text-slate-600">Budget (DKK)</label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">DKK</span>
-              <input
+              <div className="flex flex-col gap-2">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-700">Samlet budget</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Angiv projektets økonomiske ramme i DKK. Vises på overblikssider og bruges til kommende KPI’er.
+                  </p>
+                </div>
+                <div className="text-sm text-slate-500">
+                  <span className="block text-xs uppercase tracking-wide text-slate-400">Aktuelt budget</span>
+                  <span className="font-semibold text-slate-700">{budgetDisplay}</span>
+                </div>
+              </div>
+              <div className="mt-4 max-w-sm">
+                <label className="mb-1 block text-sm font-medium text-slate-600">Budget (DKK)</label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">DKK</span>
+                  <input
                 type="number"
                 min={0}
                 step={100000}
-                value={budgetValue}
+                value={budgetInputValue}
                 onChange={handleBudgetChange}
+                onBlur={handleBudgetBlur}
                 disabled={isSaving}
                 className="w-full rounded-md border border-slate-300 bg-white py-2 pl-14 pr-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
               />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Efterlad feltet tomt, hvis projektet ikke har et fastlagt budget.</p>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Efterlad feltet tomt, hvis projektet ikke har et fastlagt budget.</p>
+
+            <div>
+              <h3 className="text-lg font-bold text-slate-700">Hero-billede</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Indsæt et billede (URL) der visualiserer projektets formål. Vises i hero-sektionen på overblikket.
+              </p>
+              <div className="mt-4 space-y-4">
+                <input
+                  type="url"
+                  value={project.config.heroImageUrl ?? ''}
+                  onChange={(event) => updateProjectConfig(project.id, { heroImageUrl: event.target.value || null })}
+                  placeholder="https://..."
+                  disabled={isSaving}
+                  className="w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                />
+                {project.config.heroImageUrl ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-center">
+                    <img
+                      src={project.config.heroImageUrl}
+                      alt="Hero preview"
+                      className="mx-auto h-32 w-full rounded-lg object-cover"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateProjectConfig(project.id, { heroImageUrl: null })}
+                      className="mt-2 text-sm font-semibold text-red-600 hover:underline"
+                    >
+                      Fjern billede
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Tip: brug fx et web-hostet billede eller en intern CDN-URL. Efterlad feltet tomt for at vise en placeholder.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

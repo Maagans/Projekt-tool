@@ -84,7 +84,7 @@ export const loadFullWorkspace = async (clientOverride) => {
     });
 
     const projectsResult = await executor.query(`
-        SELECT id::text, name, start_date, end_date, status, description, project_goal, business_case, total_budget
+        SELECT id::text, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url
         FROM projects
         ORDER BY created_at ASC
     `);
@@ -98,6 +98,7 @@ export const loadFullWorkspace = async (clientOverride) => {
             projectGoal: row.project_goal ?? '',
             businessCase: row.business_case ?? '',
             totalBudget: row.total_budget !== null ? Number(row.total_budget) : null,
+            heroImageUrl: row.hero_image_url ?? null,
         },
         status: row.status,
         description: row.description ?? '',
@@ -1120,6 +1121,7 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
         const description = typeof project.description === 'string' ? project.description : null;
         const projectGoal = typeof config.projectGoal === 'string' ? config.projectGoal : null;
         const businessCase = typeof config.businessCase === 'string' ? config.businessCase : null;
+        const heroImageUrl = typeof config.heroImageUrl === 'string' ? config.heroImageUrl.trim() || null : null;
         let totalBudget = null;
         if (typeof config.totalBudget === 'number' && Number.isFinite(config.totalBudget)) {
             totalBudget = Math.round(config.totalBudget * 100) / 100;
@@ -1131,8 +1133,8 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
         }
 
         await client.query(`
-            INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget)
-            VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9)
+            INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
+            VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (id)
             DO UPDATE SET
                 name = EXCLUDED.name,
@@ -1142,8 +1144,9 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
                 description = EXCLUDED.description,
                 project_goal = EXCLUDED.project_goal,
                 business_case = EXCLUDED.business_case,
-                total_budget = EXCLUDED.total_budget
-        `, [normalisedProjectId, projectName, startDate, endDate, status, description, projectGoal, businessCase, totalBudget]);
+                total_budget = EXCLUDED.total_budget,
+                hero_image_url = EXCLUDED.hero_image_url
+        `, [normalisedProjectId, projectName, startDate, endDate, status, description, projectGoal, businessCase, totalBudget, heroImageUrl]);
 
         await syncProjectMembers(client, normalisedProjectId, project.projectMembers, existingProject);
         await syncProjectReports(client, normalisedProjectId, project.reports, existingProject);

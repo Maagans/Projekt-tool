@@ -71,6 +71,21 @@ const sanitizeRichTextField = (value, fallbackValue = "") => {
   return "";
 };
 
+const sanitizeHeroImageUrl = (value, fallbackValue = null) => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : fallbackValue ?? null;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof fallbackValue === "string") {
+    const trimmed = fallbackValue.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  return null;
+};
+
 const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
   const config = payload.config ?? {};
   const fallbackConfig = fallback.config ?? {};
@@ -91,6 +106,7 @@ const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
       projectGoal: sanitizeRichTextField(config.projectGoal, fallbackConfig.projectGoal),
       businessCase: sanitizeRichTextField(config.businessCase, fallbackConfig.businessCase),
       totalBudget: sanitizeBudgetValue(config.totalBudget, fallbackConfig.totalBudget ?? null),
+      heroImageUrl: sanitizeHeroImageUrl(config.heroImageUrl, fallbackConfig.heroImageUrl),
     },
     status: allowedProjectStatus.has(payload.status)
       ? payload.status
@@ -140,6 +156,7 @@ export const createProjectRecord = async (payload, user) =>
       typeof data.config.totalBudget === "number" && Number.isFinite(data.config.totalBudget)
         ? data.config.totalBudget
         : null;
+    const heroImageUrl = typeof data.config.heroImageUrl === "string" ? data.config.heroImageUrl.trim() : null;
 
     const existing = await client.query(`SELECT 1 FROM projects WHERE id = $1::uuid`, [data.id]);
     if (existing.rowCount > 0) {
@@ -148,8 +165,8 @@ export const createProjectRecord = async (payload, user) =>
 
     const insertResult = await client.query(
       `
-        INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget)
-        VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9)
+        INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
+        VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10)
         RETURNING id::text
       `,
       [
@@ -162,6 +179,7 @@ export const createProjectRecord = async (payload, user) =>
         goalValue,
         businessCaseValue,
         totalBudgetValue,
+        heroImageUrl,
       ],
     );
 
@@ -200,7 +218,7 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
 
     const currentResult = await client.query(
       `
-        SELECT name, start_date, end_date, status, description, project_goal, business_case, total_budget
+        SELECT name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url
         FROM projects
         WHERE id = $1::uuid
         LIMIT 1
@@ -222,6 +240,7 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
           projectGoal: currentRow.project_goal ?? "",
           businessCase: currentRow.business_case ?? "",
           totalBudget: currentRow.total_budget !== null ? Number(currentRow.total_budget) : null,
+          heroImageUrl: currentRow.hero_image_url ?? null,
         },
         status: currentRow.status,
         description: currentRow.description ?? "",
@@ -233,6 +252,8 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
       typeof sanitized.config.totalBudget === "number" && Number.isFinite(sanitized.config.totalBudget)
         ? sanitized.config.totalBudget
         : null;
+    const heroImageUrl =
+      typeof sanitized.config.heroImageUrl === "string" ? sanitized.config.heroImageUrl.trim() || null : null;
     const result = await client.query(
       `
         UPDATE projects
@@ -243,8 +264,9 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
             description = $5,
             project_goal = $6,
             business_case = $7,
-            total_budget = $8
-        WHERE id = $9::uuid
+            total_budget = $8,
+            hero_image_url = $9
+        WHERE id = $10::uuid
         RETURNING id::text
       `,
       [
@@ -256,6 +278,7 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
         goalValue,
         businessCaseValue,
         totalBudgetValue,
+        heroImageUrl,
         projectId,
       ],
     );

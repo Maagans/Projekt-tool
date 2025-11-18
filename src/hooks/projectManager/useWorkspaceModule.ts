@@ -771,6 +771,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           projectName: normalizedName,
           projectStartDate: today.toISOString().split('T')[0],
           projectEndDate: endDate.toISOString().split('T')[0],
+          heroImageUrl: null,
           projectGoal: '',
           businessCase: '',
           totalBudget: null,

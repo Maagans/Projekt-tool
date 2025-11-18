@@ -29,6 +29,7 @@ const projectConfigSchema = z
     projectGoal: z.string().optional().nullable(),
     businessCase: z.string().optional().nullable(),
     totalBudget: budgetValueSchema,
+    heroImageUrl: z.string().url('heroImageUrl must be a valid URL.').optional().nullable(),
   })
   .passthrough();
 

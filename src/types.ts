@@ -118,6 +118,7 @@ export interface ProjectConfig {
   projectName: string;
   projectStartDate: string; // YYY-MM-DD
   projectEndDate: string;   // YYY-MM-DD
+  heroImageUrl?: string | null;
   projectGoal?: string;
   businessCase?: string;
   totalBudget?: number | null;
