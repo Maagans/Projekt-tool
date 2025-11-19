@@ -1,8 +1,15 @@
 import { z } from 'zod';
 import { respondValidationError } from '../utils/errors.js';
+import { PROJECT_STATUS } from '../constants/projectStatus.js';
 
-const statusOptions = ['active', 'completed', 'on-hold'];
+const statusOptions = Object.values(PROJECT_STATUS);
 const projectMemberGroupOptions = ['styregruppe', 'projektgruppe', 'partnere', 'referencegruppe', 'unassigned'];
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const dateStringSchema = z
+  .string()
+  .trim()
+  .refine((value) => isoDateRegex.test(value), { message: 'Date must be formatted as YYYY-MM-DD.' });
 
 const budgetValueSchema = z
   .preprocess((value) => {
@@ -20,6 +27,57 @@ const budgetValueSchema = z
     return value;
   }, z.number({ invalid_type_error: 'totalBudget must be a number.' }).nonnegative('totalBudget must be non-negative.').nullable())
   .optional();
+
+const workstreamInputSchema = z
+  .array(
+    z.object({
+      id: z.string().uuid('workstream id must be a valid UUID.').optional(),
+      name: z.string().trim().min(1, 'workstream name is required.'),
+      order: z.number().int().nonnegative().optional(),
+    }),
+  )
+  .optional()
+  .transform((streams) => {
+    if (!streams) {
+      return undefined;
+    }
+    const normalized = streams
+      .map((stream, index) => ({
+        ...stream,
+        name: stream.name.trim(),
+        order: typeof stream.order === 'number' ? stream.order : index,
+      }))
+      .sort((a, b) => a.order - b.order)
+      .map((stream, index) => ({ ...stream, order: index }));
+    return normalized;
+  });
+
+export const createProjectInputSchema = z.object({
+  id: z.string().uuid('project id must be a valid UUID.').optional(),
+  config: z.object({
+    projectName: z.string().trim().min(1, 'projectName is required.'),
+    projectStartDate: dateStringSchema,
+    projectEndDate: dateStringSchema,
+    projectGoal: z.string().optional().nullable(),
+    businessCase: z.string().optional().nullable(),
+    totalBudget: budgetValueSchema,
+    heroImageUrl: z.string().trim().url('heroImageUrl must be a valid URL.').optional().nullable(),
+  }),
+  status: z.enum(statusOptions, { invalid_type_error: 'status must be valid.' }).optional(),
+  description: z.string().optional(),
+  projectMembers: z.array(z.any()).optional(),
+  reports: z.array(z.any()).optional(),
+  workstreams: workstreamInputSchema,
+});
+
+export const updateProjectInputSchema = z.object({
+  config: createProjectInputSchema.shape.config.partial().optional(),
+  status: z.enum(statusOptions, { invalid_type_error: 'status must be valid.' }).optional(),
+  description: z.string().optional(),
+  projectMembers: z.array(z.any()).optional(),
+  reports: z.array(z.any()).optional(),
+  workstreams: workstreamInputSchema,
+});
 
 const projectConfigSchema = z
   .object({

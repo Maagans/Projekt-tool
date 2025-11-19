@@ -2,148 +2,75 @@ import { randomUUID } from "crypto";
 import { withTransaction } from "../../utils/transactions.js";
 import { createAppError } from "../../utils/errors.js";
 import { ensureEmployeeLinkForUser, syncProjectReports, syncProjectWorkstreams } from "../workspaceService.js";
-import { toDateOnly } from "../../utils/helpers.js";
+import * as projectRepository from "../../repositories/projectRepository.js";
+import { createProjectInputSchema, updateProjectInputSchema } from "../../validators/projectValidators.js";
+import { USER_ROLES } from "../../constants/roles.js";
+import { PROJECT_STATUS } from "../../constants/projectStatus.js";
 
-const allowedProjectStatus = new Set(["active", "completed", "on-hold"]);
-
-const toDateOnlyString = (value) => toDateOnly(value);
-
-const stripHtml = (value) => {
-  if (typeof value !== "string") {
-    return "";
-  }
-  return value.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").trim();
-};
-
-const toDbRichTextValue = (value) => {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const stripped = stripHtml(value);
-  return stripped.length > 0 ? value : null;
-};
-
-const parseBudgetInput = (value) => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value === "string") {
-    const normalized = value.replace(",", ".").trim();
-    if (normalized.length === 0) {
-      return null;
-    }
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const sanitizeBudgetValue = (value, fallback = null) => {
-  if (value === null) {
-    return null;
-  }
-  if (value === undefined) {
-    const parsedFallback = parseBudgetInput(fallback);
-    return parsedFallback === null ? null : Math.round(parsedFallback * 100) / 100;
-  }
-  if (typeof value === "string" && value.trim() === "") {
-    return null;
-  }
-  const parsed = parseBudgetInput(value);
-  if (parsed === null) {
-    const parsedFallback = parseBudgetInput(fallback);
-    return parsedFallback === null ? null : Math.round(parsedFallback * 100) / 100;
-  }
-  const rounded = Math.round(parsed * 100) / 100;
-  return rounded < 0 ? 0 : rounded;
-};
-
-const sanitizeRichTextField = (value, fallbackValue = "") => {
-  if (typeof value === "string") {
+const toIsoDateString = (value) => {
+  if (typeof value === "string" && value.trim().length > 0) {
     return value;
   }
-  if (value === null) {
-    return "";
+  const date = value instanceof Date ? value : new Date(value ?? Date.now());
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().split("T")[0];
   }
-  if (typeof fallbackValue === "string") {
-    return fallbackValue;
-  }
-  return "";
+  return date.toISOString().split("T")[0];
 };
 
-const sanitizeHeroImageUrl = (value, fallbackValue = null) => {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : fallbackValue ?? null;
-  }
-  if (value === null) {
-    return null;
-  }
-  if (typeof fallbackValue === "string") {
-    const trimmed = fallbackValue.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  return null;
+const buildCreateInput = (payload = {}) => {
+  const today = new Date().toISOString().split("T")[0];
+  const config = payload.config ?? {};
+  const fallbackEndDate = config.projectEndDate ?? config.projectStartDate ?? today;
+  return {
+    ...payload,
+    config: {
+      projectName: typeof config.projectName === "string" ? config.projectName : "Nyt projekt",
+      projectStartDate: typeof config.projectStartDate === "string" ? config.projectStartDate : today,
+      projectEndDate: typeof fallbackEndDate === "string" ? fallbackEndDate : today,
+      projectGoal: typeof config.projectGoal === "string" ? config.projectGoal : "",
+      businessCase: typeof config.businessCase === "string" ? config.businessCase : "",
+      totalBudget: config.totalBudget ?? null,
+      heroImageUrl: typeof config.heroImageUrl === "string" ? config.heroImageUrl : config.heroImageUrl ?? null,
+    },
+    status: payload.status ?? PROJECT_STATUS.ACTIVE,
+    description: payload.description ?? "",
+  };
 };
 
-const sanitizeWorkstreamsPayload = (value) => {
-  if (!Array.isArray(value)) {
+const parseCreateProjectInput = (payload) => {
+  const parsed = createProjectInputSchema.safeParse(buildCreateInput(payload));
+  if (!parsed.success) {
+    throw createAppError("Invalid project payload.", 400, parsed.error);
+  }
+  return parsed.data;
+};
+
+const parseUpdateProjectInput = (payload) => {
+  const parsed = updateProjectInputSchema.safeParse(payload ?? {});
+  if (!parsed.success) {
+    throw createAppError("Invalid project payload.", 400, parsed.error);
+  }
+  return parsed.data;
+};
+
+const normalizeWorkstreams = (streams) => {
+  if (!Array.isArray(streams)) {
     return undefined;
   }
-  return value
-    .map((stream, index) => {
-      if (!stream) {
-        return null;
-      }
-      const name = typeof stream.name === "string" ? stream.name.trim() : "";
-      if (!name) {
-        return null;
-      }
-      return {
-        id: stream.id && typeof stream.id === "string" ? stream.id : randomUUID(),
-        name,
-        order: Number.isFinite(stream.order) ? Number(stream.order) : index,
-      };
-    })
-    .filter(Boolean)
-    .map((stream, index) => ({ ...stream, order: index }));
+  return streams.map((stream, index) => ({
+    ...stream,
+    id: stream.id ?? randomUUID(),
+    order: typeof stream.order === "number" ? stream.order : index,
+  }));
 };
 
-const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
-  const config = payload.config ?? {};
-  const fallbackConfig = fallback.config ?? {};
-  const fallbackStatus = fallback.status;
-  const fallbackDescription = fallback.description;
-  const defaultDate = () => toDateOnlyString(new Date());
-  const resolveDate = (value, fallbackValue) => toDateOnlyString(value) ?? fallbackValue ?? defaultDate();
-
-  return {
-    id: payload.id && typeof payload.id === "string" ? payload.id : randomUUID(),
-    config: {
-      projectName: (config.projectName ?? fallbackConfig.projectName ?? "").trim() || "Nyt projekt",
-      projectStartDate: resolveDate(config.projectStartDate, fallbackConfig.projectStartDate),
-      projectEndDate: resolveDate(
-        config.projectEndDate,
-        fallbackConfig.projectEndDate ?? config.projectStartDate ?? fallbackConfig.projectStartDate
-      ),
-      projectGoal: sanitizeRichTextField(config.projectGoal, fallbackConfig.projectGoal),
-      businessCase: sanitizeRichTextField(config.businessCase, fallbackConfig.businessCase),
-      totalBudget: sanitizeBudgetValue(config.totalBudget, fallbackConfig.totalBudget ?? null),
-      heroImageUrl: sanitizeHeroImageUrl(config.heroImageUrl, fallbackConfig.heroImageUrl),
-    },
-    status: allowedProjectStatus.has(payload.status)
-      ? payload.status
-      : fallbackStatus && allowedProjectStatus.has(fallbackStatus)
-        ? fallbackStatus
-        : "active",
-    description:
-      typeof payload.description === "string"
-        ? payload.description
-        : typeof fallbackDescription === "string"
-          ? fallbackDescription
-          : "",
-    workstreams: sanitizeWorkstreamsPayload(payload.workstreams),
-  };
+const toNullableRichTextValue = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? value : null;
 };
 
 const assertCanManageProjects = async (client, user) => {
@@ -152,85 +79,78 @@ const assertCanManageProjects = async (client, user) => {
     throw createAppError("Unauthorized", 401);
   }
   const role = effectiveUser.role;
-  if (role !== "Administrator" && role !== "Projektleder") {
+  if (role !== USER_ROLES.ADMIN && role !== USER_ROLES.PROJECT_LEADER) {
     throw createAppError("Forbidden: Insufficient permissions.", 403);
   }
   return effectiveUser;
 };
 
-const checkProjectLead = async (client, projectId, employeeId) => {
-  const result = await client.query(
-    `
-      SELECT 1 FROM project_members
-      WHERE project_id = $1::uuid AND employee_id = $2::uuid AND is_project_lead = true
-      LIMIT 1
-    `,
-    [projectId, employeeId],
-  );
-  return result.rowCount > 0;
-};
+const checkProjectLead = (client, projectId, employeeId) =>
+  projectRepository.isProjectLead(client, projectId, employeeId);
 
 export const createProjectRecord = async (payload, user) =>
   withTransaction(async (client) => {
     const effectiveUser = await assertCanManageProjects(client, user);
-    const data = sanitizeProjectPayload({
-      ...payload,
-      workstreams: Array.isArray(payload.workstreams) ? payload.workstreams : [],
-    });
-    const goalValue = toDbRichTextValue(data.config.projectGoal);
-    const businessCaseValue = toDbRichTextValue(data.config.businessCase);
+    const parsedInput = parseCreateProjectInput(payload);
+    const data = {
+      id: parsedInput.id ?? randomUUID(),
+      config: {
+        projectName: parsedInput.config.projectName,
+        projectStartDate: parsedInput.config.projectStartDate,
+        projectEndDate: parsedInput.config.projectEndDate,
+        projectGoal: parsedInput.config.projectGoal ?? "",
+        businessCase: parsedInput.config.businessCase ?? "",
+        totalBudget: parsedInput.config.totalBudget ?? null,
+        heroImageUrl: parsedInput.config.heroImageUrl ?? null,
+      },
+      status: parsedInput.status ?? "active",
+      description: parsedInput.description ?? "",
+      workstreams: normalizeWorkstreams(parsedInput.workstreams),
+    };
+    const goalValue = toNullableRichTextValue(data.config.projectGoal);
+    const businessCaseValue = toNullableRichTextValue(data.config.businessCase);
     const totalBudgetValue =
       typeof data.config.totalBudget === "number" && Number.isFinite(data.config.totalBudget)
-        ? data.config.totalBudget
+        ? Math.max(0, Math.round(data.config.totalBudget * 100) / 100)
         : null;
-    const heroImageUrl = typeof data.config.heroImageUrl === "string" ? data.config.heroImageUrl.trim() : null;
+    const heroImageUrl =
+      typeof data.config.heroImageUrl === "string" ? data.config.heroImageUrl.trim() || null : null;
 
-    const existing = await client.query(`SELECT 1 FROM projects WHERE id = $1::uuid`, [data.id]);
-    if (existing.rowCount > 0) {
+    const exists = await projectRepository.existsById(client, data.id);
+    if (exists) {
       throw createAppError("Project already exists.", 409);
     }
 
-    const insertResult = await client.query(
-      `
-        INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
-        VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10)
-        RETURNING id::text
-      `,
-      [
-        data.id,
-        data.config.projectName,
-        data.config.projectStartDate,
-        data.config.projectEndDate,
-        data.status,
-        data.description,
-        goalValue,
-        businessCaseValue,
-        totalBudgetValue,
-        heroImageUrl,
-      ],
-    );
+    const createdProject = await projectRepository.create(client, {
+      id: data.id,
+      name: data.config.projectName,
+      startDate: data.config.projectStartDate,
+      endDate: data.config.projectEndDate,
+      status: data.status,
+      description: (data.description ?? "").trim(),
+      projectGoal: goalValue,
+      businessCase: businessCaseValue,
+      totalBudget: totalBudgetValue,
+      heroImageUrl,
+    });
 
-    const projectId = insertResult.rows[0].id;
-    if (effectiveUser.role === "Projektleder" && effectiveUser.employeeId) {
-      await client.query(
-        `
-          INSERT INTO project_members (id, project_id, employee_id, role, member_group, is_project_lead)
-          VALUES ($1::uuid, $2::uuid, $3::uuid, 'Projektleder', 'projektgruppe', true)
-          ON CONFLICT DO NOTHING
-        `,
-        [randomUUID(), projectId, effectiveUser.employeeId],
-      );
+    if (createdProject?.id && effectiveUser.role === USER_ROLES.PROJECT_LEADER && effectiveUser.employeeId) {
+      await projectRepository.addProjectLeadMember(client, {
+        id: randomUUID(),
+        projectId: createdProject.id,
+        employeeId: effectiveUser.employeeId,
+      });
     }
 
-    if (Array.isArray(data.workstreams)) {
-      await syncProjectWorkstreams(client, projectId, data.workstreams);
+    if (createdProject?.id && Array.isArray(data.workstreams)) {
+      await syncProjectWorkstreams(client, createdProject.id, data.workstreams);
     }
 
-    if (Array.isArray(payload.reports) && payload.reports.length > 0) {
-      await syncProjectReports(client, projectId, payload.reports);
+    if (createdProject?.id && Array.isArray(payload.reports) && payload.reports.length > 0) {
+      await syncProjectReports(client, createdProject.id, payload.reports);
     }
 
-    return projectId;
+    return createdProject?.id;
   });
 
 export const updateProjectRecord = async (projectId, projectPayload, user) =>
@@ -239,87 +159,63 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
     if (!effectiveUser) {
       throw createAppError("Unauthorized", 401);
     }
-    if (effectiveUser.role === "Projektleder") {
+    if (effectiveUser.role === USER_ROLES.PROJECT_LEADER) {
       if (!effectiveUser.employeeId || !(await checkProjectLead(client, projectId, effectiveUser.employeeId))) {
         throw createAppError("Forbidden: Insufficient permissions.", 403);
       }
-    } else if (effectiveUser.role !== "Administrator") {
+    } else if (effectiveUser.role !== USER_ROLES.ADMIN) {
       throw createAppError("Forbidden: Insufficient permissions.", 403);
     }
 
-    const currentResult = await client.query(
-      `
-        SELECT name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url
-        FROM projects
-        WHERE id = $1::uuid
-        LIMIT 1
-      `,
-      [projectId],
-    );
-    if (currentResult.rowCount === 0) {
+    const currentRow = await projectRepository.findByIdForUpdate(client, projectId);
+    if (!currentRow) {
       throw createAppError("Project not found.", 404);
     }
-    const currentRow = currentResult.rows[0];
 
-    const sanitized = sanitizeProjectPayload(
-      { ...projectPayload, id: projectId },
-      {
-        config: {
-          projectName: currentRow.name,
-          projectStartDate: toDateOnlyString(currentRow.start_date),
-          projectEndDate: toDateOnlyString(currentRow.end_date),
-          projectGoal: currentRow.project_goal ?? "",
-          businessCase: currentRow.business_case ?? "",
-          totalBudget: currentRow.total_budget !== null ? Number(currentRow.total_budget) : null,
-          heroImageUrl: currentRow.hero_image_url ?? null,
-        },
-        status: currentRow.status,
-        description: currentRow.description ?? "",
-      },
-    );
-    const goalValue = toDbRichTextValue(sanitized.config.projectGoal);
-    const businessCaseValue = toDbRichTextValue(sanitized.config.businessCase);
+    const parsedInput = parseUpdateProjectInput(projectPayload);
+    const config = {
+      projectName: parsedInput.config?.projectName ?? currentRow.name ?? "Nyt projekt",
+      projectStartDate: parsedInput.config?.projectStartDate ?? toIsoDateString(currentRow.start_date),
+      projectEndDate: parsedInput.config?.projectEndDate ?? toIsoDateString(currentRow.end_date),
+      projectGoal: parsedInput.config?.projectGoal ?? currentRow.project_goal ?? "",
+      businessCase: parsedInput.config?.businessCase ?? currentRow.business_case ?? "",
+      totalBudget:
+        parsedInput.config?.totalBudget ??
+        (currentRow.total_budget !== null ? Number(currentRow.total_budget) : null),
+      heroImageUrl: parsedInput.config?.heroImageUrl ?? currentRow.hero_image_url ?? null,
+    };
+    const status = parsedInput.status ?? currentRow.status ?? PROJECT_STATUS.ACTIVE;
+    const description = parsedInput.description ?? currentRow.description ?? "";
+    const normalizedWorkstreams = normalizeWorkstreams(parsedInput.workstreams);
+    const shouldUpdateWorkstreams = Array.isArray(projectPayload.workstreams);
+
+    const goalValue = toNullableRichTextValue(config.projectGoal);
+    const businessCaseValue = toNullableRichTextValue(config.businessCase);
     const totalBudgetValue =
-      typeof sanitized.config.totalBudget === "number" && Number.isFinite(sanitized.config.totalBudget)
-        ? sanitized.config.totalBudget
+      typeof config.totalBudget === "number" && Number.isFinite(config.totalBudget)
+        ? Math.max(0, Math.round(config.totalBudget * 100) / 100)
         : null;
     const heroImageUrl =
-      typeof sanitized.config.heroImageUrl === "string" ? sanitized.config.heroImageUrl.trim() || null : null;
-    const result = await client.query(
-      `
-        UPDATE projects
-        SET name = $1,
-            start_date = $2::date,
-            end_date = $3::date,
-            status = $4,
-            description = $5,
-            project_goal = $6,
-            business_case = $7,
-            total_budget = $8,
-            hero_image_url = $9
-        WHERE id = $10::uuid
-        RETURNING id::text
-      `,
-      [
-        sanitized.config.projectName,
-        sanitized.config.projectStartDate,
-        sanitized.config.projectEndDate,
-        sanitized.status,
-        sanitized.description,
-        goalValue,
-        businessCaseValue,
-        totalBudgetValue,
-        heroImageUrl,
-        projectId,
-      ],
-    );
+      typeof config.heroImageUrl === "string" ? config.heroImageUrl.trim() || null : null;
+    const updated = await projectRepository.update(client, {
+      projectId,
+      name: config.projectName,
+      startDate: config.projectStartDate,
+      endDate: config.projectEndDate,
+      status,
+      description: description.trim(),
+      projectGoal: goalValue,
+      businessCase: businessCaseValue,
+      totalBudget: totalBudgetValue,
+      heroImageUrl,
+    });
 
-    if (result.rowCount === 0) {
+    if (!updated) {
       throw createAppError("Project not found.", 404);
     }
 
-    if (Array.isArray(projectPayload.workstreams)) {
-      await syncProjectWorkstreams(client, projectId, sanitized.workstreams ?? []);
+    if (shouldUpdateWorkstreams) {
+      await syncProjectWorkstreams(client, projectId, normalizedWorkstreams ?? []);
     }
 
     if (Array.isArray(projectPayload.reports) && projectPayload.reports.length > 0) {
@@ -343,9 +239,10 @@ export const deleteProjectRecord = async (projectId, user) =>
       throw createAppError("Forbidden: Insufficient permissions.", 403);
     }
 
-    const result = await client.query(`DELETE FROM projects WHERE id = $1::uuid`, [projectId]);
-    if (result.rowCount === 0) {
+    const deleted = await projectRepository.deleteById(client, projectId);
+    if (!deleted) {
       throw createAppError("Project not found.", 404);
     }
     return { success: true };
   });
+

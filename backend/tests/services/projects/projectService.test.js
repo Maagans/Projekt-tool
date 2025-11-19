@@ -14,6 +14,7 @@ vi.mock("../../../utils/transactions.js", () => ({
 vi.mock("../../../services/workspaceService.js", () => ({
   ensureEmployeeLinkForUser: vi.fn(),
   syncProjectReports: vi.fn(),
+  syncProjectWorkstreams: vi.fn(),
 }));
 
 const createMockClient = (...responses) => {
@@ -98,7 +99,7 @@ describe("projectService", () => {
           },
         ],
       },
-      { rowCount: 1 },
+      { rowCount: 1, rows: [{ id: "proj-1" }] },
     );
     withTransaction.mockImplementation(async (callback) => callback(mockClient));
     ensureEmployeeLinkForUser.mockResolvedValue({

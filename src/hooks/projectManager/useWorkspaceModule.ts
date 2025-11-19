@@ -1418,20 +1418,23 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           update: (itemType: TimelineItemType, id: string, payload: TimelineUpdatePayload) => {
             updateState((state) => {
               if (itemType === 'phase') {
+                const phasePayload = payload as Partial<Phase>;
                 return {
                   ...state,
-                  phases: state.phases.map((item) => (item.id === id ? { ...item, ...payload } : item)),
+                  phases: state.phases.map((item) => (item.id === id ? { ...item, ...phasePayload } : item)),
                 };
               }
               if (itemType === 'milestone') {
+                const milestonePayload = payload as Partial<Milestone>;
                 return {
                   ...state,
-                  milestones: state.milestones.map((item) => (item.id === id ? { ...item, ...payload } : item)),
+                  milestones: state.milestones.map((item) => (item.id === id ? { ...item, ...milestonePayload } : item)),
                 };
               }
+              const deliverablePayload = payload as Partial<Deliverable>;
               return {
                 ...state,
-                deliverables: state.deliverables.map((item) => (item.id === id ? { ...item, ...payload } : item)),
+                deliverables: state.deliverables.map((item) => (item.id === id ? { ...item, ...deliverablePayload } : item)),
               };
             });
           },

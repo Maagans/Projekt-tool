@@ -3,19 +3,7 @@ import { createAppError } from "../utils/errors.js";
 import { withTransaction } from "../utils/transactions.js";
 import { normalizeEmail, toNonNegativeCapacity } from "../utils/helpers.js";
 import { ensureEmployeeLinkForUser, resolveDepartmentLocation } from "./workspaceService.js";
-
-const EMPLOYEE_SELECT_FIELDS = `
-  id::text,
-  name,
-  email,
-  COALESCE(location, '') AS location,
-  COALESCE(department, '') AS department,
-  COALESCE(max_capacity_hours_week, 0)::float AS max_capacity_hours_week,
-  azure_ad_id,
-  job_title,
-  account_enabled,
-  synced_at
-`;
+import * as employeeRepository from "../repositories/employeeRepository.js";
 
 const mapEmployeeRow = (row) => {
   const resolved = resolveDepartmentLocation(
@@ -54,19 +42,11 @@ const assertAdmin = (user) => {
 };
 
 const fetchEmployeeOrThrow = async (client, employeeId) => {
-  const result = await client.query(
-    `
-      SELECT ${EMPLOYEE_SELECT_FIELDS}
-      FROM employees
-      WHERE id = $1::uuid
-      LIMIT 1
-    `,
-    [employeeId],
-  );
-  if (result.rowCount === 0) {
+  const employee = await employeeRepository.findById(client, employeeId);
+  if (!employee) {
     throw createAppError("Employee not found.", 404);
   }
-  return result.rows[0];
+  return employee;
 };
 
 const assertProjectLeadAccess = async (client, user, employeeId) => {
@@ -83,21 +63,8 @@ const assertProjectLeadAccess = async (client, user, employeeId) => {
     throw createAppError("Forbidden: Missing employee linkage.", 403);
   }
 
-  const result = await client.query(
-    `
-      SELECT 1
-      FROM project_members target
-      INNER JOIN project_members lead
-        ON lead.project_id = target.project_id
-      WHERE target.employee_id = $1::uuid
-        AND lead.employee_id = $2::uuid
-        AND lead.is_project_lead = true
-      LIMIT 1
-    `,
-    [employeeId, user.employeeId],
-  );
-
-  if (result.rowCount === 0) {
+  const hasAccess = await employeeRepository.findProjectsWhereLead(client, user.employeeId, employeeId);
+  if (!hasAccess) {
     throw createAppError("Forbidden: Project lead access required.", 403);
   }
   return true;
@@ -127,16 +94,15 @@ export const createEmployeeRecord = async (payload, user) =>
     const maxCapacity = toNonNegativeCapacity(payload.maxCapacityHoursWeek ?? 0);
 
     try {
-      const insertResult = await client.query(
-        `
-          INSERT INTO employees (id, name, email, location, department, max_capacity_hours_week)
-          VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''), NULLIF($5, ''), $6::numeric)
-          RETURNING ${EMPLOYEE_SELECT_FIELDS}
-        `,
-        [employeeId, name, email, location ?? "", department ?? "", maxCapacity],
-      );
-
-      return mapEmployeeRow(insertResult.rows[0]);
+      const rawEmployee = await employeeRepository.create(client, {
+        id: employeeId,
+        name,
+        email,
+        location,
+        department,
+        maxCapacityHoursWeek: maxCapacity,
+      });
+      return mapEmployeeRow(rawEmployee);
     } catch (error) {
       if (error.code === "23505") {
         throw createAppError("Employee with this email already exists.", 409, error);
@@ -206,16 +172,8 @@ export const updateEmployeeRecord = async (employeeId, updates, user) =>
     }
 
     try {
-      const result = await client.query(
-        `
-          UPDATE employees
-          SET ${setStatements.join(", ")}
-          WHERE id = $${index}::uuid
-          RETURNING ${EMPLOYEE_SELECT_FIELDS}
-        `,
-        [...params, employeeId],
-      );
-      return mapEmployeeRow(result.rows[0]);
+      const updatedRow = await employeeRepository.update(client, employeeId, setStatements, params);
+      return mapEmployeeRow(updatedRow);
     } catch (error) {
       if (error.code === "23505") {
         throw createAppError("Another employee already uses this email.", 409, error);
@@ -230,8 +188,10 @@ export const deleteEmployeeRecord = async (employeeId, user) =>
     assertAdmin(effectiveUser);
     await fetchEmployeeOrThrow(client, employeeId);
 
-    await client.query(`DELETE FROM project_members WHERE employee_id = $1::uuid`, [employeeId]);
-    await client.query(`DELETE FROM employees WHERE id = $1::uuid`, [employeeId]);
+    const deleted = await employeeRepository.deleteById(client, employeeId);
+    if (!deleted) {
+      throw createAppError("Employee not found.", 404);
+    }
 
     return { success: true };
   });
