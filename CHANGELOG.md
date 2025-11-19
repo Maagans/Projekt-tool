@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [1.8.0] - 2025-11-19
+### Added
+- `Agents.md` og `Hardeningplan.md` dokumenterer layer-arkitektur og hardening-plan for nye features.
+- Centralt konstantlag for roller (`backend/constants/roles.js`) og projektstatus (`backend/constants/projectStatus.js`) samt dedikerede repositories for projekter og medarbejdere.
+
+### Changed
+- `projectService` og `employeesService` benytter nu repositories + Zod-validering; alle SQL-kald er trukket ud, og permissions/sanitetslogik er bevaret i services.
+- Auth- og bruger-services validerer nu login/register + rolleændringer via Zod, og passwords/emails normaliseres før brug.
+- Frontend-typer (`src/types.ts`) er strammet så UserRole/ProjectStatus/ProjectConfig matcher backend-kontrakterne (inkl. `null`-felter og `PhaseStatus` med `Pending`).
+
 ## [1.7.0] - 2025-11-17
 ### Added
 - Projektindstillinger har fået felterne projektmål, business case og samlet budget inkl. backend-migration, API-typer og RichText/nummerfelter i UI'et (UX-018).

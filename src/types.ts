@@ -52,7 +52,7 @@ export interface Risk {
   projectRiskUpdatedAt?: string | null;
 }
 
-export type PhaseStatus = 'Planned' | 'Active' | 'Completed';
+export type PhaseStatus = 'Planned' | 'Active' | 'Completed' | 'Pending';
 export type MilestoneStatus = 'Pending' | 'On Track' | 'Delayed' | 'Completed';
 export type DeliverableStatus = 'Pending' | 'In Progress' | 'Completed';
 
@@ -153,8 +153,8 @@ export interface ProjectConfig {
   projectStartDate: string; // YYY-MM-DD
   projectEndDate: string;   // YYY-MM-DD
   heroImageUrl?: string | null;
-  projectGoal?: string;
-  businessCase?: string;
+  projectGoal?: string | null;
+  businessCase?: string | null;
   totalBudget?: number | null;
 }
 

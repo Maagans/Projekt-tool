@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { respondValidationError } from "../utils/errors.js";
+import { USER_ROLES } from "../constants/roles.js";
 
-const roleSchema = z.enum(["Administrator", "Projektleder", "Teammedlem"], {
+const roleSchema = z.enum(Object.values(USER_ROLES), {
   required_error: "role is required.",
   invalid_type_error: "role must be a string.",
 });
@@ -29,3 +30,8 @@ export const validateUserRoleChange = (req, res, next) => {
   req.validatedBody = bodyParsed.data;
   return next();
 };
+
+export const updateUserRoleSchema = z.object({
+  id: paramsSchema.shape.id,
+  role: roleSchema,
+});
