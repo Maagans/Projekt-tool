@@ -3,6 +3,7 @@ import {
   Milestone,
   Phase,
   ProjectState,
+  Workstream,
 } from '../../types';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../app/constants';
 
@@ -24,7 +25,14 @@ export const getErrorMessage = (error: unknown): string => {
 export type TimelineItemType = 'phase' | 'milestone' | 'deliverable';
 export type TimelineUpdatePayload = Partial<Phase> | Partial<Milestone> | Partial<Deliverable>;
 
-export const getInitialProjectState = (): ProjectState => ({
+export const getInitialProjectState = (): ProjectState => {
+  const defaultWorkstreams: Workstream[] = [
+    { id: generateId(), name: 'Initiering', order: 0 },
+    { id: generateId(), name: 'Analyse og udvikling', order: 1 },
+    { id: generateId(), name: 'Implementering', order: 2 },
+  ];
+
+  return {
   statusItems: [
     { id: generateId(), content: 'Projektets mål er defineret, og gevinsterne er klarlagt.' },
     { id: generateId(), content: 'Interessenter er engageret, og kommunikationsplanen er på plads.' },
@@ -84,42 +92,76 @@ export const getInitialProjectState = (): ProjectState => ({
           name: 'Overdragelse til drift bliver forsinket pga. mangelfuld dokumentation',
           s: 2,
           k: 4,
-        },
-      ],
+      },
+    ],
+  workstreams: defaultWorkstreams,
   phases: [
-    { id: generateId(), text: 'Idebeskrivelse', start: 0, end: 15, highlight: 'blue' },
-    { id: generateId(), text: 'Forberedelse & planlægning', start: 15, end: 35, highlight: 'green' },
-    { id: generateId(), text: 'Analyse & udvikling', start: 35, end: 65, highlight: 'yellow' },
-    { id: generateId(), text: 'Implementering, idriftsættelse & evaluering', start: 65, end: 100, highlight: 'purple' },
+    {
+      id: generateId(),
+      text: 'Idebeskrivelse',
+      start: 0,
+      end: 15,
+      highlight: 'blue',
+      workstreamId: defaultWorkstreams[0]?.id,
+      status: 'Planned',
+    },
+    {
+      id: generateId(),
+      text: 'Forberedelse & planlægning',
+      start: 15,
+      end: 35,
+      highlight: 'green',
+      workstreamId: defaultWorkstreams[0]?.id,
+      status: 'Planned',
+    },
+    {
+      id: generateId(),
+      text: 'Analyse & udvikling',
+      start: 35,
+      end: 65,
+      highlight: 'yellow',
+      workstreamId: defaultWorkstreams[1]?.id,
+      status: 'Active',
+    },
+    {
+      id: generateId(),
+      text: 'Implementering, idriftsættelse & evaluering',
+      start: 65,
+      end: 100,
+      highlight: 'purple',
+      workstreamId: defaultWorkstreams[2]?.id,
+      status: 'Planned',
+    },
   ],
   milestones: [
-    { id: generateId(), text: 'Go/No-Go fase 2', position: 20 },
-    { id: generateId(), text: 'Design godkendt', position: 45 },
-    { id: generateId(), text: 'Klar til idriftsættelse', position: 70 },
-    { id: generateId(), text: 'Projektafslutning', position: 95 },
+    { id: generateId(), text: 'Go/No-Go fase 2', position: 20, status: 'Pending', workstreamId: defaultWorkstreams[0]?.id },
+    { id: generateId(), text: 'Design godkendt', position: 45, status: 'On Track', workstreamId: defaultWorkstreams[1]?.id },
+    { id: generateId(), text: 'Klar til idriftsættelse', position: 70, status: 'On Track', workstreamId: defaultWorkstreams[2]?.id },
+    { id: generateId(), text: 'Projektafslutning', position: 95, status: 'Pending', workstreamId: defaultWorkstreams[2]?.id },
   ],
   deliverables: [
-    { id: generateId(), text: 'Kort ideoplæg', position: 10 },
-    { id: generateId(), text: 'Foreløbig interessentoversigt', position: 12 },
-    { id: generateId(), text: 'Første risikovurdering', position: 14 },
-    { id: generateId(), text: 'Projektbeskrivelse', position: 25 },
-    { id: generateId(), text: 'Målhierarki og milepælsplan', position: 28 },
-    { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32 },
-    { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34 },
-    { id: generateId(), text: 'Kravspecifikation', position: 45 },
-    { id: generateId(), text: 'Prototype/testleverance', position: 55 },
-    { id: generateId(), text: 'Uddannelses- og implementeringsplan', position: 60 },
-    { id: generateId(), text: 'Implementeret løsning', position: 75 },
-    { id: generateId(), text: 'Overdragelse til drift', position: 82 },
-    { id: generateId(), text: 'Kommunikation til brugere', position: 88 },
-    { id: generateId(), text: 'Evalueringsrapport & gevinstopfølgning', position: 95 },
+    { id: generateId(), text: 'Kort ideoplæg', position: 10, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Foreløbig interessentoversigt', position: 12, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Første risikovurdering', position: 14, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Projektbeskrivelse', position: 25, status: 'In Progress', milestoneId: null },
+    { id: generateId(), text: 'Målhierarki og milepælsplan', position: 28, status: 'In Progress', milestoneId: null },
+    { id: generateId(), text: 'Interessentanalyse & kommunikationsplan', position: 32, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Risiko- og budgetopdatering', position: 34, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Kravspecifikation', position: 45, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Prototype/testleverance', position: 55, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Uddannelses- og implementeringsplan', position: 60, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Implementeret løsning', position: 75, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Overdragelse til drift', position: 82, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Kommunikation til brugere', position: 88, status: 'Pending', milestoneId: null },
+    { id: generateId(), text: 'Evalueringsrapport & gevinstopfølgning', position: 95, status: 'Pending', milestoneId: null },
   ],
   kanbanTasks: [
     { id: generateId(), content: 'Afhold opstartsmøde med styregruppen', status: 'done', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
     { id: generateId(), content: 'Samle input til kravspecifikation', status: 'doing', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
     { id: generateId(), content: 'Planlæg brugertræning', status: 'todo', assignee: null, dueDate: null, notes: null, createdAt: new Date().toISOString() },
   ],
-});
+  };
+};
 
 export const cloneStateWithNewIds = (state: ProjectState): ProjectState => ({
   statusItems: (state.statusItems ?? []).map((item) => ({ id: generateId(), content: item.content })),
@@ -143,16 +185,37 @@ export const cloneStateWithNewIds = (state: ProjectState): ProjectState => ({
     start: phase.start,
     end: phase.end,
     highlight: phase.highlight ?? 'blue',
+    workstreamId: phase.workstreamId ?? null,
+    startDate: phase.startDate ?? null,
+    endDate: phase.endDate ?? null,
+    status: phase.status ?? null,
   })),
   milestones: (state.milestones ?? []).map((milestone) => ({
     id: generateId(),
     text: milestone.text,
     position: milestone.position ?? 0,
+    date: milestone.date ?? null,
+    status: milestone.status ?? null,
+    workstreamId: milestone.workstreamId ?? null,
   })),
   deliverables: (state.deliverables ?? []).map((deliverable) => ({
     id: generateId(),
     text: deliverable.text,
     position: deliverable.position ?? 0,
+    milestoneId: deliverable.milestoneId ?? null,
+    status: deliverable.status ?? null,
+    owner: deliverable.owner ?? null,
+    ownerId: deliverable.ownerId ?? null,
+    description: deliverable.description ?? null,
+    notes: deliverable.notes ?? null,
+    startDate: deliverable.startDate ?? null,
+    endDate: deliverable.endDate ?? null,
+    progress: typeof deliverable.progress === 'number' ? deliverable.progress : null,
+    checklist: (deliverable.checklist ?? []).map((item) => ({
+      id: generateId(),
+      text: item.text,
+      completed: !!item.completed,
+    })),
   })),
   kanbanTasks: (state.kanbanTasks ?? []).map((task) => ({
     id: generateId(),
@@ -162,6 +225,11 @@ export const cloneStateWithNewIds = (state: ProjectState): ProjectState => ({
     dueDate: task.dueDate ?? null,
     notes: task.notes ?? null,
     createdAt: task.createdAt ?? new Date().toISOString(),
+  })),
+  workstreams: (state.workstreams ?? []).map((stream, index) => ({
+    id: stream.id ?? generateId(),
+    name: stream.name ?? `Workstream ${index + 1}`,
+    order: typeof stream.order === 'number' ? stream.order : index,
   })),
 });
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip } from 'recharts';
 import { applyAlpha, type ProjectStackChartConfig, type StackAreaConfig } from '../resourceAnalyticsStacking';
 import { formatWeekLabel, formatHours } from '../../../../utils/format';
@@ -12,37 +13,22 @@ type StackedProjectsCardProps = {
 };
 
 export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHours }: StackedProjectsCardProps) => {
+  const [view, setView] = useState<'planned' | 'actual'>('planned');
   const areaMeta = new Map<string, StackAreaConfig>();
   [...chart.plannedAreas, ...chart.actualAreas].forEach((area) => {
     areaMeta.set(area.dataKey, area);
   });
 
-  return (
-    <section className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-testid="stacked-projects-card">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-800">Stacked belastning pr. projekt</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Viser planlagt og faktisk tid pr. projekt for den valgte periode. Projekter sorteres efter samlet belastning.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
-          {baselineHoursWeek > 0 ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">
-              Baseline: {formatHours(baselineHoursWeek)} t/uge
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
-              Baseline ikke sat
-            </span>
-          )}
-          <span>
-            Total baseline: <strong>{formatHours(baselineTotalHours)} timer</strong>
-          </span>
-        </div>
-      </header>
-
-      <div className="h-96 w-full rounded-2xl border border-slate-100 bg-slate-50/40 p-3">
+  const renderChart = (variant: 'planned' | 'actual') => {
+    const areas = variant === 'planned' ? chart.plannedAreas : chart.actualAreas;
+    return (
+      <div
+        key={variant}
+        className={`absolute inset-0 transition-opacity duration-300 ${
+          view === variant ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={view !== variant}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chart.data}>
             <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
@@ -51,7 +37,7 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
             {baselineHoursWeek > 0 &&
               chart.overBaselineRanges.map((range) => (
                 <ReferenceArea
-                  key={`${range.start}-${range.end}`}
+                  key={`${range.start}-${range.end}-${variant}`}
                   x1={range.start}
                   x2={range.end}
                   y2={baselineHoursWeek}
@@ -71,14 +57,14 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
               />
             )}
             <Tooltip content={<StackedTooltip meta={areaMeta} baseline={baselineHoursWeek} />} />
-            {[...chart.plannedAreas, ...chart.actualAreas].map((area) => (
+            {areas.map((area) => (
               <Area
-                key={area.dataKey}
+                key={`${variant}-${area.dataKey}`}
                 type="monotone"
                 dataKey={area.dataKey}
-                stackId={area.variant === 'planned' ? 'planned' : 'actual'}
+                stackId="stack"
                 stroke={area.color}
-                fill={applyAlpha(area.color, area.variant === 'planned' ? 0.35 : 0.65)}
+                fill={applyAlpha(area.color, variant === 'planned' ? 0.35 : 0.65)}
                 fillOpacity={1}
                 strokeWidth={2}
                 isAnimationActive={false}
@@ -86,6 +72,53 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
             ))}
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  return (
+    <section className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-testid="stacked-projects-card">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800">Stacked belastning pr. projekt</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Viser planlagt og faktisk tid pr. projekt. Brug togglen til at skifte mellem planlagt og faktisk visning.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2 text-xs text-slate-500">
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 text-sm font-semibold text-slate-600">
+            <button
+              type="button"
+              onClick={() => setView('planned')}
+              className={`rounded-full px-3 py-1 transition ${view === 'planned' ? 'bg-white text-slate-800 shadow-sm' : ''}`}
+            >
+              Planlagt
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('actual')}
+              className={`rounded-full px-3 py-1 transition ${view === 'actual' ? 'bg-white text-slate-800 shadow-sm' : ''}`}
+            >
+              Faktisk
+            </button>
+          </div>
+          {baselineHoursWeek > 0 ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">
+              Baseline: {formatHours(baselineHoursWeek)} t/uge
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+              Baseline ikke sat
+            </span>
+          )}
+          <span>
+            Total baseline: <strong>{formatHours(baselineTotalHours)} timer</strong>
+          </span>
+        </div>
+      </header>
+
+      <div className="relative h-96 w-full rounded-2xl border border-slate-100 bg-slate-50/40 p-3 overflow-hidden">
+        {(['planned', 'actual'] as const).map((variant) => renderChart(variant))}
       </div>
 
       <StackedLegend entries={chart.legendEntries} />

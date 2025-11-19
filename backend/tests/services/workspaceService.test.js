@@ -47,6 +47,19 @@ describe('workspaceService.loadFullWorkspace', () => {
           };
         }
 
+        if (text.includes('FROM project_workstreams')) {
+          return {
+            rows: [
+              {
+                id: 'ws-1',
+                project_id: '5ac7b3f2-318e-40ff-9c3a-222222222222',
+                name: 'Analyse & udvikling',
+                sort_order: 0,
+              },
+            ],
+          };
+        }
+
         if (text.includes('FROM project_members')) {
           return {
             rows: [
@@ -93,6 +106,10 @@ describe('workspaceService.loadFullWorkspace', () => {
           };
         }
 
+        if (text.includes('FROM report_deliverable_checklist')) {
+          return { rows: [] };
+        }
+
         // Remaining report* tables
         return { rows: [] };
       }),
@@ -115,6 +132,9 @@ describe('workspaceService.loadFullWorkspace', () => {
 
     const [project] = workspace.projects;
     expect(project.config.projectName).toBe('Apollo');
+    expect(project.workstreams).toEqual([
+      { id: 'ws-1', name: 'Analyse & udvikling', order: 0 },
+    ]);
     expect(project.projectMembers).toHaveLength(1);
     expect(project.projectMembers[0].timeEntries.map((entry) => entry.weekKey)).toEqual([
       '2025-W01',

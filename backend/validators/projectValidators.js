@@ -41,6 +41,13 @@ const projectSchema = z
     description: z.string().optional(),
     projectMembers: z.array(z.any()).optional(),
     reports: z.array(z.any()).optional(),
+    workstreams: z.array(
+      z.object({
+        id: z.string().uuid('workstream id must be a valid UUID.').optional(),
+        name: z.string().trim().min(1, 'workstream name is required.'),
+        order: z.number().int().nonnegative().optional(),
+      }),
+    ).optional(),
   })
   .passthrough();
 
@@ -55,6 +62,7 @@ const projectUpdateSchema = z
     description: z.string().optional(),
     projectMembers: z.array(z.any()).optional(),
     reports: z.array(z.any()).optional(),
+    workstreams: projectSchema.shape.workstreams.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one project field must be provided.',

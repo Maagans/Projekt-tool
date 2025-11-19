@@ -15,6 +15,7 @@ import {
   ProjectState,
   ProjectStatus,
   Report,
+  Workstream,
   locations,
 } from '../../types';
 import type { WorkspaceData, WorkspaceSettings } from '../../types';
@@ -764,6 +765,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       const today = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 6);
+      const initialPlanState = getInitialProjectState();
+      const initialWorkstreams = (initialPlanState.workstreams ?? []).map((stream, index) => ({
+        ...stream,
+        order: typeof stream.order === 'number' ? stream.order : index,
+      }));
 
       const newProject: Project = {
         id: generateId(),
@@ -780,6 +786,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         projectMembers: [],
         status: 'active',
         permissions: { canEdit: true, canLogTime: true },
+        workstreams: initialWorkstreams,
       };
 
       setProjects((prev) => [...prev, newProject]);
@@ -1125,6 +1132,55 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       const project = projects.find((candidate) => candidate.id === projectId);
       if (!project) return null;
 
+      const sanitizeWorkstreamList = (streams: Workstream[]): Workstream[] =>
+        streams
+          .map((stream, index) => {
+            const name = typeof stream?.name === 'string' ? stream.name.trim() : '';
+            if (!name) {
+              return null;
+            }
+            return {
+              id: stream.id ?? generateId(),
+              name,
+              order: typeof stream.order === 'number' ? stream.order : index,
+            };
+          })
+          .filter((stream): stream is Workstream => Boolean(stream))
+          .sort((a, b) => a.order - b.order)
+          .map((stream, index) => ({ ...stream, order: index }));
+
+      const cloneStreamsForState = (streams: Workstream[]) =>
+        streams.map((stream, index) => ({
+          ...stream,
+          order: typeof stream.order === 'number' ? stream.order : index,
+        }));
+
+      const applyWorkstreamsUpdate = (updater: (current: Workstream[]) => Workstream[]) => {
+        let nextStreams: Workstream[] | null = null;
+        updateProjects((prevProjects) =>
+          prevProjects.map((candidate) => {
+            if (candidate.id !== projectId) return candidate;
+            const currentStreams = candidate.workstreams ?? [];
+            const updated = sanitizeWorkstreamList(updater(currentStreams));
+            nextStreams = updated;
+            return {
+              ...candidate,
+              workstreams: updated,
+              reports: candidate.reports.map((report) => ({
+                ...report,
+                state: {
+                  ...report.state,
+                  workstreams: cloneStreamsForState(updated),
+                },
+              })),
+            };
+          }),
+        );
+        if (nextStreams) {
+          scheduleProjectSync(projectId, { workstreams: nextStreams });
+        }
+      };
+
       const updateState = (updater: (prevState: ProjectState) => ProjectState) => {
         if (weekKey) updateProjectState(projectId, weekKey, updater);
       };
@@ -1279,19 +1335,83 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               kanbanTasks: state.kanbanTasks.map((task) => (task.id === id ? { ...task, ...details } : task)),
             })),
         },
+        workstreamManager: {
+          add: (name?: string) =>
+            applyWorkstreamsUpdate((current) => [
+              ...current,
+              {
+                id: generateId(),
+                name: (name ?? '').trim() || `Workstream ${current.length + 1}`,
+                order: current.length,
+              },
+            ]),
+          rename: (id: string, nextName: string) =>
+            applyWorkstreamsUpdate((current) =>
+              current.map((stream) =>
+                stream.id === id ? { ...stream, name: nextName.trim() || stream.name } : stream,
+              ),
+            ),
+          delete: (id: string) => {
+            applyWorkstreamsUpdate((current) => current.filter((stream) => stream.id !== id));
+            updateState((state) => ({
+              ...state,
+              phases: state.phases.map((phase) => (phase.workstreamId === id ? { ...phase, workstreamId: null } : phase)),
+              milestones: state.milestones.map((milestone) =>
+                milestone.workstreamId === id ? { ...milestone, workstreamId: null } : milestone,
+              ),
+            }));
+          },
+          reorder: (sourceIndex: number, destinationIndex: number) =>
+            applyWorkstreamsUpdate((current) => {
+              const list = [...current];
+              if (sourceIndex < 0 || sourceIndex >= list.length) {
+                return list;
+              }
+              const targetIndex = Math.max(0, Math.min(destinationIndex, list.length));
+              const [moved] = list.splice(sourceIndex, 1);
+              if (!moved) {
+                return list;
+              }
+              list.splice(targetIndex, 0, moved);
+              return list;
+            }),
+        },
         timelineManager: {
           add: (itemType: TimelineItemType, position: number) => {
             updateState((state) => {
               const id = generateId();
+              const workstreamSource = state.workstreams ?? project.workstreams ?? [];
+              const defaultWorkstreamId = workstreamSource[0]?.id ?? null;
               if (itemType === 'phase') {
-                const newPhase: Phase = { id, text: 'Ny fase', start: position, end: position + 10, highlight: 'blue' };
+                const newPhase: Phase = {
+                  id,
+                  text: 'Ny fase',
+                  start: position,
+                  end: position + 10,
+                  highlight: 'blue',
+                  workstreamId: defaultWorkstreamId,
+                  status: 'Planned',
+                };
                 return { ...state, phases: [...state.phases, newPhase] };
               }
               if (itemType === 'milestone') {
-                const newMilestone: Milestone = { id, text: 'Ny milepæl', position };
+                const newMilestone: Milestone = {
+                  id,
+                  text: 'Ny milepæl',
+                  position,
+                  status: 'Pending',
+                  workstreamId: defaultWorkstreamId,
+                };
                 return { ...state, milestones: [...state.milestones, newMilestone] };
               }
-              const newDeliverable: Deliverable = { id, text: 'Ny leverance', position };
+              const newDeliverable: Deliverable = {
+                id,
+                text: 'Ny leverance',
+                position,
+                status: 'Pending',
+                milestoneId: null,
+                checklist: [],
+              };
               return { ...state, deliverables: [...state.deliverables, newDeliverable] };
             });
           },
@@ -1381,6 +1501,63 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             return markers;
           },
         },
+        deliverableChecklistManager: {
+          addItem: (deliverableId: string, text?: string) =>
+            updateState((state) => ({
+              ...state,
+              deliverables: state.deliverables.map((deliverable) =>
+                deliverable.id !== deliverableId
+                  ? deliverable
+                  : {
+                      ...deliverable,
+                      checklist: [
+                        ...(deliverable.checklist ?? []),
+                        { id: generateId(), text: (text ?? 'Nyt punkt').trim() || 'Nyt punkt', completed: false },
+                      ],
+                    },
+              ),
+            })),
+          updateItem: (deliverableId: string, itemId: string, nextText: string) =>
+            updateState((state) => ({
+              ...state,
+              deliverables: state.deliverables.map((deliverable) =>
+                deliverable.id !== deliverableId
+                  ? deliverable
+                  : {
+                      ...deliverable,
+                      checklist: (deliverable.checklist ?? []).map((item) =>
+                        item.id === itemId ? { ...item, text: nextText.trim() || item.text } : item,
+                      ),
+                    },
+              ),
+            })),
+          toggleItem: (deliverableId: string, itemId: string) =>
+            updateState((state) => ({
+              ...state,
+              deliverables: state.deliverables.map((deliverable) =>
+                deliverable.id !== deliverableId
+                  ? deliverable
+                  : {
+                      ...deliverable,
+                      checklist: (deliverable.checklist ?? []).map((item) =>
+                        item.id === itemId ? { ...item, completed: !item.completed } : item,
+                      ),
+                    },
+              ),
+            })),
+          deleteItem: (deliverableId: string, itemId: string) =>
+            updateState((state) => ({
+              ...state,
+              deliverables: state.deliverables.map((deliverable) =>
+                deliverable.id !== deliverableId
+                  ? deliverable
+                  : {
+                      ...deliverable,
+                      checklist: (deliverable.checklist ?? []).filter((item) => item.id !== itemId),
+                    },
+              ),
+            })),
+        },
         reportsManager: {
           getAvailableWeeks: () => {
             const weeks = new Set<string>();
@@ -1407,7 +1584,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 if (p.id !== projectId || p.reports.some((report) => report.weekKey === weekKey)) return p;
                 const latest = copyLatest ? [...p.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0] : null;
                 const baseState = latest ? latest.state : getInitialProjectState();
-                const newReport: Report = { weekKey, state: cloneStateWithNewIds(baseState) };
+                const canonicalStreams = cloneStreamsForState(p.workstreams ?? baseState.workstreams ?? []);
+                const seededState: ProjectState = {
+                  ...baseState,
+                  workstreams: canonicalStreams,
+                };
+                const newReport: Report = { weekKey, state: cloneStateWithNewIds(seededState) };
                 nextReports = [...p.reports, newReport].sort((a, b) => b.weekKey.localeCompare(a.weekKey));
                 return {
                   ...p,
@@ -1443,9 +1625,14 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               updateProjects((prevProjects) =>
                 prevProjects.map((p) => {
                   if (p.id !== projectId) return p;
+                  const baseState = getInitialProjectState();
+                  const canonicalStreams = cloneStreamsForState(p.workstreams ?? baseState.workstreams ?? []);
                   const newReport: Report = {
                     weekKey: weekToCreate,
-                    state: cloneStateWithNewIds(getInitialProjectState()),
+                    state: cloneStateWithNewIds({
+                      ...baseState,
+                      workstreams: canonicalStreams,
+                    }),
                   };
                   seededReports = [...p.reports, newReport];
                   return { ...p, reports: seededReports };

@@ -148,6 +148,33 @@ const createQueryHandler = () => {
       return { rows: [] };
     }
 
+    if (trimmed.includes('FROM project_workstreams')) {
+      return { rows: [] };
+    }
+
+    if (trimmed.includes('FROM report_deliverable_checklist')) {
+      return { rows: [] };
+    }
+
+    if (trimmed.includes('SELECT id::text, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url FROM projects')) {
+      return {
+        rows: [
+          {
+            id: 'proj-1',
+            name: 'Apollo',
+            start_date: new Date('2025-01-01'),
+            end_date: new Date('2025-06-30'),
+            status: 'active',
+            description: 'Strategisk initiativ',
+            project_goal: '<p>Mål</p>',
+            business_case: '<p>Case</p>',
+            total_budget: 1000000,
+            hero_image_url: null,
+          },
+        ],
+      };
+    }
+
     throw new Error(`Unhandled query: ${trimmed}`);
   });
 };

@@ -56,5 +56,7 @@ describe('StackedProjectsCard', () => {
     expect(screen.getByText('Baseline: 10 t/uge')).toBeInTheDocument();
     expect(screen.getByText('Projekt Alpha')).toBeInTheDocument();
     expect(screen.getByText('Projekt Beta')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Planlagt/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Faktisk/i })).toBeInTheDocument();
   });
 });

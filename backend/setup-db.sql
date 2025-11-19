@@ -46,6 +46,7 @@ DROP TABLE IF EXISTS report_risk_snapshots CASCADE;
 DROP TABLE IF EXISTS project_risk_history CASCADE;
 DROP TABLE IF EXISTS project_risks CASCADE;
 DROP TABLE IF EXISTS report_kanban_tasks CASCADE;
+DROP TABLE IF EXISTS report_deliverable_checklist CASCADE;
 DROP TABLE IF EXISTS report_deliverables CASCADE;
 DROP TABLE IF EXISTS report_milestones CASCADE;
 DROP TABLE IF EXISTS report_phases CASCADE;
@@ -55,6 +56,7 @@ DROP TABLE IF EXISTS report_challenge_items CASCADE;
 DROP TABLE IF EXISTS report_status_items CASCADE;
 DROP TABLE IF EXISTS report_next_step_items CASCADE;
 DROP TABLE IF EXISTS project_member_time_entries CASCADE;
+DROP TABLE IF EXISTS project_workstreams CASCADE;
 DROP TABLE IF EXISTS project_members CASCADE;
 DROP TABLE IF EXISTS reports CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
@@ -113,6 +115,17 @@ CREATE TABLE project_members (
     CONSTRAINT chk_member_group CHECK (member_group IN ('styregruppe','projektgruppe','partnere','referencegruppe','unassigned')),
     UNIQUE (project_id, employee_id)
 );
+
+CREATE TABLE project_workstreams (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX project_workstreams_unique_name_per_project ON project_workstreams(project_id, name);
+CREATE INDEX project_workstreams_project_sort_idx ON project_workstreams(project_id, sort_order);
 
 
 CREATE TABLE project_member_time_entries (
@@ -251,7 +264,12 @@ CREATE TABLE report_phases (
     start_percentage NUMERIC(5,2) NOT NULL,
     end_percentage NUMERIC(5,2) NOT NULL,
     highlight TEXT NOT NULL,
-    CONSTRAINT chk_phase_range CHECK (start_percentage BETWEEN 0 AND 100 AND end_percentage BETWEEN 0 AND 100 AND start_percentage <= end_percentage)
+    workstream_id UUID REFERENCES project_workstreams(id) ON DELETE SET NULL,
+    start_date DATE,
+    end_date DATE,
+    status TEXT,
+    CONSTRAINT chk_phase_range CHECK (start_percentage BETWEEN 0 AND 100 AND end_percentage BETWEEN 0 AND 100 AND start_percentage <= end_percentage),
+    CONSTRAINT chk_report_phases_status CHECK (status IS NULL OR status IN ('Planned','Active','Completed'))
 );
 
 
@@ -260,7 +278,11 @@ CREATE TABLE report_milestones (
     report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     position_percentage NUMERIC(5,2) NOT NULL,
-    CONSTRAINT chk_milestone_range CHECK (position_percentage BETWEEN 0 AND 100)
+    workstream_id UUID REFERENCES project_workstreams(id) ON DELETE SET NULL,
+    due_date DATE,
+    status TEXT,
+    CONSTRAINT chk_milestone_range CHECK (position_percentage BETWEEN 0 AND 100),
+    CONSTRAINT chk_report_milestones_status CHECK (status IS NULL OR status IN ('Pending','On Track','Delayed','Completed'))
 );
 
 
@@ -269,8 +291,28 @@ CREATE TABLE report_deliverables (
     report_id BIGINT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     position_percentage NUMERIC(5,2) NOT NULL,
-    CONSTRAINT chk_deliverable_range CHECK (position_percentage BETWEEN 0 AND 100)
+    milestone_id UUID REFERENCES report_milestones(id) ON DELETE SET NULL,
+    status TEXT,
+    owner_name TEXT,
+    owner_employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+    description TEXT,
+    notes TEXT,
+    start_date DATE,
+    end_date DATE,
+    progress NUMERIC(5,2),
+    CONSTRAINT chk_deliverable_range CHECK (position_percentage BETWEEN 0 AND 100),
+    CONSTRAINT chk_report_deliverables_status CHECK (status IS NULL OR status IN ('Pending','In Progress','Completed')),
+    CONSTRAINT chk_report_deliverables_progress CHECK (progress IS NULL OR (progress >= 0 AND progress <= 100))
 );
+
+CREATE TABLE report_deliverable_checklist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    deliverable_id UUID NOT NULL REFERENCES report_deliverables(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    text TEXT NOT NULL,
+    completed BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX report_deliverable_checklist_deliverable_idx ON report_deliverable_checklist(deliverable_id, position);
 
 
 CREATE TABLE report_kanban_tasks (

@@ -19,6 +19,20 @@ const normalizeMirrorValue = (value) => {
     return trimmed.length > 0 ? trimmed : null;
 };
 
+const PHASE_STATUS_OPTIONS = new Set(['Planned', 'Active', 'Completed']);
+const MILESTONE_STATUS_OPTIONS = new Set(['Pending', 'On Track', 'Delayed', 'Completed']);
+const DELIVERABLE_STATUS_OPTIONS = new Set(['Pending', 'In Progress', 'Completed']);
+
+const cloneWorkstreamsForState = (streams = []) => (
+    Array.isArray(streams)
+        ? streams
+        : []
+).map((stream, index) => ({
+    id: stream?.id ?? ensureUuid(),
+    name: stream?.name ?? `Workstream ${index + 1}`,
+    order: typeof stream?.order === 'number' ? stream.order : index,
+}));
+
 export const resolveDepartmentLocation = (source = {}, fallback = {}) => {
     const normalizedLocation = normalizeMirrorValue(source.location);
     const normalizedDepartment = normalizeMirrorValue(source.department);
@@ -104,10 +118,44 @@ export const loadFullWorkspace = async (clientOverride) => {
         description: row.description ?? '',
         projectMembers: [],
         reports: [],
+        workstreams: [],
     }));
 
     const projectMap = new Map(projects.map((project) => [project.id, project]));
     const projectIds = projects.map((project) => project.id);
+
+    if (projectIds.length > 0) {
+        const workstreamsResult = await executor.query(
+            `
+            SELECT id::text, project_id::text, name, sort_order::int
+            FROM project_workstreams
+            WHERE project_id = ANY($1::uuid[])
+            ORDER BY sort_order ASC, name ASC
+        `,
+            [projectIds],
+        );
+
+        workstreamsResult.rows.forEach((row) => {
+            const project = projectMap.get(row.project_id);
+            if (!project) {
+                return;
+            }
+            if (!Array.isArray(project.workstreams)) {
+                project.workstreams = [];
+            }
+            project.workstreams.push({
+                id: row.id,
+                name: row.name,
+                order: Number(row.sort_order ?? project.workstreams.length),
+            });
+        });
+
+        projects.forEach((project) => {
+            project.workstreams = (project.workstreams ?? [])
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map((stream, index) => ({ ...stream, order: index }));
+        });
+    }
 
     const memberMap = new Map();
     if (projectIds.length > 0) {
@@ -168,6 +216,7 @@ export const loadFullWorkspace = async (clientOverride) => {
         `, [projectIds]);
 
         for (const row of reportsResult.rows) {
+            const project = projectMap.get(row.project_id);
             const report = {
                 id: row.id,
                 weekKey: row.week_key,
@@ -181,10 +230,10 @@ export const loadFullWorkspace = async (clientOverride) => {
                     milestones: [],
                     deliverables: [],
                     kanbanTasks: [],
+                    workstreams: cloneWorkstreamsForState(project?.workstreams ?? []),
                 },
             };
             reportMap.set(row.id, report);
-            const project = projectMap.get(row.project_id);
             if (project) {
                 project.reports.push(report);
             }
@@ -346,7 +395,7 @@ export const loadFullWorkspace = async (clientOverride) => {
         }
 
         const phases = await fetchReportItems(`
-            SELECT id::text, report_id::text, label, start_percentage::float, end_percentage::float, highlight
+            SELECT id::text, report_id::text, label, start_percentage::float, end_percentage::float, highlight, workstream_id::text, start_date, end_date, status
             FROM report_phases
             WHERE report_id::text = ANY($1::text[])
             ORDER BY start_percentage ASC
@@ -360,12 +409,16 @@ export const loadFullWorkspace = async (clientOverride) => {
                     start: Number(row.start_percentage ?? 0),
                     end: Number(row.end_percentage ?? 0),
                     highlight: row.highlight ?? 'blue',
+                    workstreamId: row.workstream_id ?? null,
+                    startDate: toDateOnly(row.start_date),
+                    endDate: toDateOnly(row.end_date),
+                    status: row.status ?? null,
                 });
             }
         });
 
         const milestones = await fetchReportItems(`
-            SELECT id::text, report_id::text, label, position_percentage::float
+            SELECT id::text, report_id::text, label, position_percentage::float, workstream_id::text, due_date, status
             FROM report_milestones
             WHERE report_id::text = ANY($1::text[])
             ORDER BY position_percentage ASC
@@ -377,12 +430,47 @@ export const loadFullWorkspace = async (clientOverride) => {
                     id: row.id,
                     text: row.label,
                     position: Number(row.position_percentage ?? 0),
+                    workstreamId: row.workstream_id ?? null,
+                    date: toDateOnly(row.due_date),
+                    status: row.status ?? null,
                 });
             }
         });
 
+        const checklistRows = await fetchReportItems(`
+            SELECT c.id::text, d.report_id::text, c.deliverable_id::text, c.position, c.text, c.completed
+            FROM report_deliverable_checklist c
+            JOIN report_deliverables d ON d.id = c.deliverable_id
+            WHERE d.report_id::text = ANY($1::text[])
+            ORDER BY c.position ASC, c.id::uuid ASC
+        `);
+        const checklistMap = new Map();
+        checklistRows.forEach((row) => {
+            if (!checklistMap.has(row.deliverable_id)) {
+                checklistMap.set(row.deliverable_id, []);
+            }
+            checklistMap.get(row.deliverable_id).push({
+                id: row.id,
+                text: row.text,
+                completed: Boolean(row.completed),
+            });
+        });
+
         const deliverables = await fetchReportItems(`
-            SELECT id::text, report_id::text, label, position_percentage::float
+            SELECT
+                id::text,
+                report_id::text,
+                label,
+                position_percentage::float,
+                milestone_id::text,
+                status,
+                owner_name,
+                owner_employee_id::text,
+                description,
+                notes,
+                start_date,
+                end_date,
+                progress::float
             FROM report_deliverables
             WHERE report_id::text = ANY($1::text[])
             ORDER BY position_percentage ASC
@@ -394,6 +482,16 @@ export const loadFullWorkspace = async (clientOverride) => {
                     id: row.id,
                     text: row.label,
                     position: Number(row.position_percentage ?? 0),
+                    milestoneId: row.milestone_id ?? null,
+                    status: row.status ?? null,
+                    owner: row.owner_name ?? null,
+                    ownerId: row.owner_employee_id ?? null,
+                    description: row.description ?? null,
+                    notes: row.notes ?? null,
+                    startDate: toDateOnly(row.start_date),
+                    endDate: toDateOnly(row.end_date),
+                    progress: typeof row.progress === 'number' ? Number(row.progress) : null,
+                    checklist: checklistMap.get(row.id) ?? [],
                 });
             }
         });
@@ -718,6 +816,58 @@ const syncTimeEntries = async (client, projectMemberId, timeEntriesPayload) => {
         `, [projectMemberId, entry.weekKey, planned, actual]);
     }
 };
+export const syncProjectWorkstreams = async (client, projectId, workstreamsPayload) => {
+    if (!Array.isArray(workstreamsPayload)) {
+        return;
+    }
+
+    const existingResult = await client.query(
+        'SELECT id::text FROM project_workstreams WHERE project_id = $1::uuid',
+        [projectId],
+    );
+    const existingIds = new Set(existingResult.rows.map((row) => row.id));
+    const seenIds = new Set();
+
+    const sanitized = workstreamsPayload
+        .map((stream, index) => {
+            if (!stream) {
+                return null;
+            }
+            const name = typeof stream.name === 'string' ? stream.name.trim() : '';
+            if (!name) {
+                return null;
+            }
+            return {
+                id: stream.id && isValidUuid(stream.id) ? stream.id : ensureUuid(),
+                name,
+                order: Number.isFinite(stream.order) ? Number(stream.order) : index,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.order - b.order)
+        .map((stream, index) => ({ ...stream, order: index }));
+
+    for (const stream of sanitized) {
+        seenIds.add(stream.id);
+        await client.query(
+            `
+            INSERT INTO project_workstreams (id, project_id, name, sort_order)
+            VALUES ($1::uuid, $2::uuid, $3, $4)
+            ON CONFLICT (id)
+            DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+        `,
+            [stream.id, projectId, stream.name, stream.order],
+        );
+    }
+
+    const idsToDelete = [...existingIds].filter((id) => !seenIds.has(id));
+    if (idsToDelete.length > 0) {
+        await client.query('DELETE FROM project_workstreams WHERE project_id = $1::uuid AND id = ANY($2::uuid[])', [
+            projectId,
+            idsToDelete,
+        ]);
+    }
+};
 const syncReportState = async (client, reportId, state, existingState = null) => {
     const safeState = state ?? {};
     const previousState = existingState ?? {};
@@ -752,6 +902,12 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const milestoneUsedIds = new Set((previousState.milestones ?? []).map((item) => item?.id).filter(Boolean));
     const deliverableUsedIds = new Set((previousState.deliverables ?? []).map((item) => item?.id).filter(Boolean));
     const taskUsedIds = new Set((previousState.kanbanTasks ?? []).map((item) => item?.id).filter(Boolean));
+    const deliverableChecklistUsedIds = new Set(
+        (previousState.deliverables ?? [])
+            .flatMap((deliverable) => (deliverable.checklist ?? []).map((item) => item?.id))
+            .filter(Boolean),
+    );
+    const milestoneIdReference = new Map();
 
     const ensureStableId = (candidate, usedSet) => {
         if (typeof candidate === 'string' && candidate.trim().length > 0 && !usedSet.has(candidate)) {
@@ -871,14 +1027,29 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         phase.id = phaseId;
         const start = Number.isFinite(phase.start) ? Math.max(0, Math.min(100, Number(phase.start))) : 0;
         const end = Number.isFinite(phase.end) ? Math.max(0, Math.min(100, Number(phase.end))) : start;
+        const workstreamId = phase.workstreamId && isValidUuid(phase.workstreamId) ? phase.workstreamId : null;
+        const startDate = toDateOnly(phase.startDate);
+        const endDate = toDateOnly(phase.endDate);
+        const phaseStatus = PHASE_STATUS_OPTIONS.has(phase.status) ? phase.status : null;
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
                 await client.query(
                     `
-            INSERT INTO report_phases (id, report_id, label, start_percentage, end_percentage, highlight)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
+            INSERT INTO report_phases (id, report_id, label, start_percentage, end_percentage, highlight, workstream_id, start_date, end_date, status)
+            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6, $7::uuid, $8::date, $9::date, $10)
         `,
-                    [phaseId, reportIdValue, phase.text ?? '', start, end, phase.highlight ?? 'blue'],
+                    [
+                        phaseId,
+                        reportIdValue,
+                        phase.text ?? '',
+                        start,
+                        end,
+                        phase.highlight ?? 'blue',
+                        workstreamId,
+                        startDate,
+                        endDate,
+                        phaseStatus,
+                    ],
                 );
                 break;
             } catch (error) {
@@ -896,17 +1067,22 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
     const milestones = Array.isArray(safeState.milestones) ? safeState.milestones : [];
     for (const milestone of milestones) {
         if (!milestone) continue;
+        const originalMilestoneId = milestone.id;
         let milestoneId = ensureStableId(milestone.id, milestoneUsedIds);
         milestone.id = milestoneId;
+        milestoneIdReference.set(originalMilestoneId ?? milestoneId, milestoneId);
         const position = Number.isFinite(milestone.position) ? Math.max(0, Math.min(100, Number(milestone.position))) : 0;
+        const workstreamId = milestone.workstreamId && isValidUuid(milestone.workstreamId) ? milestone.workstreamId : null;
+        const dueDate = toDateOnly(milestone.date);
+        const milestoneStatus = MILESTONE_STATUS_OPTIONS.has(milestone.status) ? milestone.status : null;
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
                 await client.query(
                     `
-            INSERT INTO report_milestones (id, report_id, label, position_percentage)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4)
+            INSERT INTO report_milestones (id, report_id, label, position_percentage, workstream_id, due_date, status)
+            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5::uuid, $6::date, $7)
         `,
-                    [milestoneId, reportIdValue, milestone.text ?? '', position],
+                    [milestoneId, reportIdValue, milestone.text ?? '', position, workstreamId, dueDate, milestoneStatus],
                 );
                 break;
             } catch (error) {
@@ -927,14 +1103,43 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         let deliverableId = ensureStableId(deliverable.id, deliverableUsedIds);
         deliverable.id = deliverableId;
         const position = Number.isFinite(deliverable.position) ? Math.max(0, Math.min(100, Number(deliverable.position))) : 0;
+        const milestoneRefId = deliverable.milestoneId
+            ? milestoneIdReference.get(deliverable.milestoneId) ?? (isValidUuid(deliverable.milestoneId) ? deliverable.milestoneId : null)
+            : null;
+        const deliverableStatus = DELIVERABLE_STATUS_OPTIONS.has(deliverable.status) ? deliverable.status : null;
+        const ownerName = typeof deliverable.owner === 'string' ? deliverable.owner.trim() || null : null;
+        const ownerId = deliverable.ownerId && isValidUuid(deliverable.ownerId) ? deliverable.ownerId : null;
+        const description = typeof deliverable.description === 'string' ? deliverable.description : null;
+        const notes = typeof deliverable.notes === 'string' ? deliverable.notes : null;
+        const startDate = toDateOnly(deliverable.startDate);
+        const endDate = toDateOnly(deliverable.endDate);
+        const progress =
+            typeof deliverable.progress === 'number' && Number.isFinite(deliverable.progress)
+                ? Math.max(0, Math.min(100, Number(deliverable.progress)))
+                : null;
+        const checklistItems = Array.isArray(deliverable.checklist) ? deliverable.checklist : [];
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
                 await client.query(
                     `
-            INSERT INTO report_deliverables (id, report_id, label, position_percentage)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4)
+            INSERT INTO report_deliverables (id, report_id, label, position_percentage, milestone_id, status, owner_name, owner_employee_id, description, notes, start_date, end_date, progress)
+            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5::uuid, $6, $7, $8::uuid, $9, $10, $11::date, $12::date, $13)
         `,
-                    [deliverableId, reportIdValue, deliverable.text ?? '', position],
+                    [
+                        deliverableId,
+                        reportIdValue,
+                        deliverable.text ?? '',
+                        position,
+                        milestoneRefId,
+                        deliverableStatus,
+                        ownerName,
+                        ownerId,
+                        description,
+                        notes,
+                        startDate,
+                        endDate,
+                        progress,
+                    ],
                 );
                 break;
             } catch (error) {
@@ -945,6 +1150,37 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
                     continue;
                 }
                 throw error;
+            }
+        }
+
+        for (let index = 0; index < checklistItems.length; index += 1) {
+            const item = checklistItems[index];
+            if (!item) continue;
+            let checklistId = ensureStableId(item.id, deliverableChecklistUsedIds);
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                    await client.query(
+                        `
+                INSERT INTO report_deliverable_checklist (id, deliverable_id, position, text, completed)
+                VALUES ($1::uuid, $2::uuid, $3, $4, $5)
+            `,
+                        [
+                            checklistId,
+                            deliverableId,
+                            index,
+                            typeof item.text === 'string' ? item.text : '',
+                            item.completed === true,
+                        ],
+                    );
+                    break;
+                } catch (error) {
+                    if (error.code === '23505' && attempt < 2) {
+                        deliverableChecklistUsedIds.delete(checklistId);
+                        checklistId = ensureStableId(null, deliverableChecklistUsedIds);
+                        continue;
+                    }
+                    throw error;
+                }
             }
         }
     }
@@ -1148,6 +1384,9 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
                 hero_image_url = EXCLUDED.hero_image_url
         `, [normalisedProjectId, projectName, startDate, endDate, status, description, projectGoal, businessCase, totalBudget, heroImageUrl]);
 
+        if (Array.isArray(project.workstreams)) {
+            await syncProjectWorkstreams(client, normalisedProjectId, project.workstreams);
+        }
         await syncProjectMembers(client, normalisedProjectId, project.projectMembers, existingProject);
         await syncProjectReports(client, normalisedProjectId, project.reports, existingProject);
     }

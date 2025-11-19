@@ -1,4 +1,4 @@
-﻿# Azure AD SSO + Employee Sync Roadmap
+# Azure AD SSO + Employee Sync Roadmap
 
 This document outlines goals, prerequisites, milestones, and an incremental delivery plan to add Microsoft Entra ID (Azure AD) Single Sign-On and employee synchronization via Microsoft Graph.
 
@@ -242,15 +242,15 @@ Capacity aggregation rules:
 ## Milestones
 
 ### Status (2025-11-04)
-- âœ… **RM-0**: Feature flag sat pÃ¥ plads uden adfÃ¦rdsÃ¦ndringer.
-- âœ… **RM-1**: Kapacitets- og afdelingsfelter lever i databasen og bruges i aggregationerne.
-- âœ… **RM-2**: Aggregationsservice med fixtures og tests leveres.
-- âœ… **RM-3**: `/analytics/resources` endpointet kÃ¸rer med validering og rollebeskyttelse.
-- âœ… **RM-4**: PMO-visningen henter data via hooken og understÃ¸tter filtre.
-- âœ… **RM-5**: Projektpanelet viser projekt-scope analytics for ledere.
-- âœ… **RM-6**: CSV-export og caching forbedrer svartid i drift.
-- âœ… **RM-7**: Dokumentation, changelog og release-notes opdateret (README, ROADMAP, CHANGELOG pr. v1.2.8).
-- ðŸ”­ **NÃ¦ste skridt**: Evaluere feedback fra PMO-fanen, planlÃ¦gge eventuelle ekstra datavisualiseringer og forberede Azure SSO-integrationens afhÃ¦ngigheder.
+- ✅ **RM-0**: Feature flag sat på plads uden adfærdsændringer.
+- ✅ **RM-1**: Kapacitets- og afdelingsfelter lever i databasen og bruges i aggregationerne.
+- ✅ **RM-2**: Aggregationsservice med fixtures og tests leveres.
+- ✅ **RM-3**: `/analytics/resources` endpointet kører med validering og rollebeskyttelse.
+- ✅ **RM-4**: PMO-visningen henter data via hooken og understøtter filtre.
+- ✅ **RM-5**: Projektpanelet viser projekt-scope analytics for ledere.
+- ✅ **RM-6**: CSV-export og caching forbedrer svartid i drift.
+- ✅ **RM-7**: Dokumentation, changelog og release-notes opdateret (README, ROADMAP, CHANGELOG pr. v1.2.8).
+- 🔭 **Næste skridt**: Evaluere feedback fra PMO-fanen, planlægge eventuelle ekstra datavisualiseringer og forberede Azure SSO-integrationens afhængigheder.
 
 ### RM-0 ? Requirements Lock & Skeleton
 - Confirm weekly aggregation and department mapping (confirmed).
@@ -373,55 +373,94 @@ Modernise the project risk workflow with a dedicated analysis module, draggable 
 
 ## Milestones
 
-### RISK-000 â€“ Discovery & Experience Blueprint
+### RISK-000 – Discovery & Experience Blueprint
 - Align stakeholders on target roles, terminology, and probability/impact scales.
-- Produce wireframes for the project â€œRisiciâ€ tab and updated report matrix.
+- Produce wireframes for the project “Risici” tab and updated report matrix.
 - Deliverable: UX brief with glossary, acceptance examples, and open decisions.
 
-### RISK-001 â€“ Data Model & Migration
+### RISK-001 – Data Model & Migration
 - Create `project_risks` (id, project_id, title, description, probability, impact, mitigation, owner_id, due_date, status, score).
 - Add optional `project_risk_history` for audit trail (created_by, change log, timestamps).
 - Backfill existing report risks into the new schema as read-only historical records.
 - Acceptance: migration runs cleanly on staging with zero data loss.
 
-### RISK-002 â€“ Backend Services & APIs
+### RISK-002 – Backend Services & APIs
 - Implement risk service with CRUD, soft delete, scoring helper, and matrix coordinate mapping.
 - Add routes: `GET/POST /projects/:projectId/risks`, `PATCH/DELETE /risks/:riskId`.
 - Enforce roles: Administrator + Projektleder can edit, others read-only.
 - Replace report risk creation with reference-only lookups.
 - Tests: Vitest unit coverage and Supertest integration suite.
 
-### RISK-003 â€“ Feature Flag & Config
+### RISK-003 – Feature Flag & Config
 - Introduce `PROJECT_RISK_ANALYSIS_ENABLED` flag, documented in `.env.example`.
 - Wire guard rails into routes and report exports when disabled.
 - Update README/TASKS with rollout plan and ops considerations.
 
-### RISK-004 â€“ Frontend Risk Analysis Tab
+### RISK-004 – Frontend Risk Analysis Tab
 - Create new route (e.g. `/projects/:id/risks`) with React Query client and optimistic updates.
 - Build list + drawer editor (title, description, probability, impact, mitigation, owner, due date, status).
 - Add owner picker leveraging existing employee catalogue.
 - Tests: Vitest + Testing Library for hooks, components, and error states.
 
-### RISK-005 â€“ Modern Risk Matrix UX
+### RISK-005 – Modern Risk Matrix UX
 - Rebuild matrix component with draggable cards, touch support, score colour-coding, keyboard accessibility.
 - Dragging updates probability/impact with debounced API persistence.
 - Enhance styling with Tailwind, transitions, and responsive layout.
 
-### RISK-006 â€“ Reporting & Export Integration
+### RISK-006 – Reporting & Export Integration
 - Reports module fetches risks from analysis service, filter by status, snapshot scoring.
 - Persist per-report risk snapshots so historical reports remain unchanged even if risks are edited or archived later.
-- Display a badge (e.g. â€œArkiveret siden uge Xâ€) when a snapshot references a risk that has been archived in the analysis module.
+- Display a badge (e.g. “Arkiveret siden uge X”) when a snapshot references a risk that has been archived in the analysis module.
 - Add CSV/PDF export for current matrix, including mitigation notes and owners.
 - Update report templates to surface risk counts and criticality badges.
 
-### RISK-007 â€“ QA, UAT & Documentation
-- Full regression: backend services/APIs, frontend components, end-to-end smoke path (create risk â†’ drag in matrix â†’ include in report).
+### RISK-007 – QA, UAT & Documentation
+- Full regression: backend services/APIs, frontend components, end-to-end smoke path (create risk → drag in matrix → include in report).
 - UAT script for PMO/Projektleder roles.
 - Documentation refresh: README module guide, CHANGELOG entry, release checklist.
 
 ## Dependencies & Considerations
 - Requires reliable employee directory data for owner selection.
-- Confirm standard probability/impact scale (e.g. 1â€“5) before milestone RISK-001.
+- Confirm standard probability/impact scale (e.g. 1–5) before milestone RISK-001.
 - Coordinate deprecation of legacy `report_risks` writes; plan migration cut-over.
 - Future extension: dashboards for risk trends, automated reminders, portfolio summaries.
 
+---
+
+## Milestone Plan & Timeline Harmonization
+
+### Objectives
+- Give projekter en dedikeret "Milep�lsplan"-fane med fuld CRUD p� faser, milep�le, leverancer og workstreams.
+- Rebrande prototypen `TimelineView` til `MilestonePlan` og sikre, at komponenten respekterer en `readOnly`-tilstand til brug p� rapportsiden.
+- Udvide backend/datamodellen med workstreams, deliverable-felter (start/slut, ansvarlig, checklist osv.) og sikre migrations/CRUD i `workspaceService`.
+- Erstat den gamle tidslinjeudsnit p� rapporter med den nye plan i read-only, s� alle views deler samme sandhed.
+
+### Milestone MP-0 � Arkitektur & fundament
+- Import�r prototypens kilde til `src/app/pages/projects/components/MilestonePlan.tsx`, omd�b komponenten, og tilf�j `readOnly`-prop der skjuler alle handlinger og deaktiverer drag/drop.
+- Installer `lucide-react` (og andre n�dvendige afh�ngigheder) i FE, og dokument�r dem i README/CHANGELOG.
+- Forbered nye TypeScript-typer i `src/types.ts` (workstreams, deliverable/checklist-felter, udvidede faser/milep�le) uden at bryde eksisterende kode.
+- Acceptance: App bygger gr�nt, og lint/tests best�r med nye typer og dependency.
+
+### Milestone MP-1 � Backend datamodel & API
+- Opret nye tabeller/kolonner: `project_workstreams`, udvidede `report_phases` (name/start/end/status), `report_milestones` (workstream/status), `report_deliverables`, `report_deliverable_checklist`.
+- Opdater `workspaceService` til at loade/synce de nye strukturer ind i `ProjectState`, inkl. migrations for eksisterende projekter (default-felter hvis data mangler).
+- Eksponer nye `projectActions` i `useWorkspaceModule` (add/update/delete for workstreams, faser, milep�le, deliverables, checklists) med serverpersistens.
+- Acceptance: `npm run migrate` og backend-tests k�rer succesfuldt; GET `/workspace` returnerer plan-data.
+
+### Milestone MP-2 � MilestonePlan fane (redigerbar)
+- Tilf�j en ny route/fane i `ProjectLayout` (`/projects/:id/plan`) der henter projektets plan og renderer `MilestonePlan` med alle modaler (fase/milep�l/deliverable/workstream/guide).
+- Tilslut komponentens callbacks til `projectActions` (optimistic updates + fejlfeedback), og del state med React Query / context.
+- Sikr at Tailwind-tema og farver matcher resten af appen (ingen hardcoded inline-styles ud over farvepaletten).
+- Acceptance: Projektledere/Administratorer kan oprette/redigere alle elementer, logge tjeklister og se workstreams i b�de liste- og Gantt-view.
+
+### Milestone MP-3 � Rapportintegration & rollout
+- Udskift eksisterende timeline-sektion p� rapportsiden med `MilestonePlan` i `readOnly`-tilstand (ingen knapper, ingen drag/drop).
+- Respekt�r eksisterende "Gem tidslinje"-draftlogik ved at knytte den til de nye planfelter eller deaktivere knappen i read-only.
+- Tilf�j n�dvendige datamigreringer/scripts, s� historiske rapporter f�r konverteret legacy timeline-data til den nye struktur.
+- Acceptance: Rapport-siden viser korrekt planudsnit uden redigeringsmuligheder; gamle timeline-features er fjernet uden regressions.
+
+### Milestone MP-4 � QA & dokumentation
+- Udvid vitest/Testing Library suites til at d�kke nye hooks, reducerlogik og komponenter (b�de edit og readOnly).
+- End-to-end smoke: opret fase -> workstream -> milep�l -> leverance, redig�r i planfanen, verific�r at rapport-siden viser de samme data.
+- Opdater `README.md`, `CHANGELOG.md`, `TASKS.md` og interne supportdocs med nye faner, rettigheder og migreringsinstruktioner.
+- Acceptance: QA-script signoff, dokumentation merged, og feature flag (hvis anvendt) st�r klar til produktion.

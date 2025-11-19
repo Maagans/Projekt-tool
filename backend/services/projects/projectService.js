@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { withTransaction } from "../../utils/transactions.js";
 import { createAppError } from "../../utils/errors.js";
-import { ensureEmployeeLinkForUser, syncProjectReports } from "../workspaceService.js";
+import { ensureEmployeeLinkForUser, syncProjectReports, syncProjectWorkstreams } from "../workspaceService.js";
 import { toDateOnly } from "../../utils/helpers.js";
 
 const allowedProjectStatus = new Set(["active", "completed", "on-hold"]);
@@ -86,6 +86,29 @@ const sanitizeHeroImageUrl = (value, fallbackValue = null) => {
   return null;
 };
 
+const sanitizeWorkstreamsPayload = (value) => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value
+    .map((stream, index) => {
+      if (!stream) {
+        return null;
+      }
+      const name = typeof stream.name === "string" ? stream.name.trim() : "";
+      if (!name) {
+        return null;
+      }
+      return {
+        id: stream.id && typeof stream.id === "string" ? stream.id : randomUUID(),
+        name,
+        order: Number.isFinite(stream.order) ? Number(stream.order) : index,
+      };
+    })
+    .filter(Boolean)
+    .map((stream, index) => ({ ...stream, order: index }));
+};
+
 const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
   const config = payload.config ?? {};
   const fallbackConfig = fallback.config ?? {};
@@ -119,6 +142,7 @@ const sanitizeProjectPayload = (payload = {}, fallback = {}) => {
         : typeof fallbackDescription === "string"
           ? fallbackDescription
           : "",
+    workstreams: sanitizeWorkstreamsPayload(payload.workstreams),
   };
 };
 
@@ -149,7 +173,10 @@ const checkProjectLead = async (client, projectId, employeeId) => {
 export const createProjectRecord = async (payload, user) =>
   withTransaction(async (client) => {
     const effectiveUser = await assertCanManageProjects(client, user);
-    const data = sanitizeProjectPayload(payload);
+    const data = sanitizeProjectPayload({
+      ...payload,
+      workstreams: Array.isArray(payload.workstreams) ? payload.workstreams : [],
+    });
     const goalValue = toDbRichTextValue(data.config.projectGoal);
     const businessCaseValue = toDbRichTextValue(data.config.businessCase);
     const totalBudgetValue =
@@ -193,6 +220,10 @@ export const createProjectRecord = async (payload, user) =>
         `,
         [randomUUID(), projectId, effectiveUser.employeeId],
       );
+    }
+
+    if (Array.isArray(data.workstreams)) {
+      await syncProjectWorkstreams(client, projectId, data.workstreams);
     }
 
     if (Array.isArray(payload.reports) && payload.reports.length > 0) {
@@ -285,6 +316,10 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
 
     if (result.rowCount === 0) {
       throw createAppError("Project not found.", 404);
+    }
+
+    if (Array.isArray(projectPayload.workstreams)) {
+      await syncProjectWorkstreams(client, projectId, sanitized.workstreams ?? []);
     }
 
     if (Array.isArray(projectPayload.reports) && projectPayload.reports.length > 0) {

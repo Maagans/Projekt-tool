@@ -52,24 +52,57 @@ export interface Risk {
   projectRiskUpdatedAt?: string | null;
 }
 
+export type PhaseStatus = 'Planned' | 'Active' | 'Completed';
+export type MilestoneStatus = 'Pending' | 'On Track' | 'Delayed' | 'Completed';
+export type DeliverableStatus = 'Pending' | 'In Progress' | 'Completed';
+
+export interface Workstream {
+  id: string;
+  name: string;
+  order: number;
+}
+
 export interface Phase {
   id: string;
   text: string;
   start: number; // Percentage
   end: number;   // Percentage
   highlight: string;
+  workstreamId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: PhaseStatus | null;
 }
 
 export interface Milestone {
   id: string;
   text: string;
   position: number; // Percentage
+  date?: string | null;
+  status?: MilestoneStatus | null;
+  workstreamId?: string | null;
+}
+
+export interface DeliverableChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
 }
 
 export interface Deliverable {
   id: string;
   text: string;
   position: number; // Percentage
+  milestoneId?: string | null;
+  status?: DeliverableStatus | null;
+  owner?: string | null;
+  ownerId?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  progress?: number | null;
+  checklist?: DeliverableChecklistItem[];
 }
 
 export interface KanbanTask {
@@ -112,6 +145,7 @@ export interface ProjectState {
   milestones: Milestone[];
   deliverables: Deliverable[];
   kanbanTasks: KanbanTask[];
+  workstreams?: Workstream[];
 }
 
 export interface ProjectConfig {
@@ -144,6 +178,7 @@ export interface Project {
   projectMembers: ProjectMember[];
   status: ProjectStatus;
   permissions: ProjectPermissions;
+  workstreams?: Workstream[];
 }
 
 export interface WorkspaceSettings {

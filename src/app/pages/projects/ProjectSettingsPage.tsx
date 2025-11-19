@@ -103,12 +103,22 @@ export const ProjectSettingsPage = () => {
   };
 
   const [budgetInputValue, setBudgetInputValue] = useState<string>('');
+  const [startDateInput, setStartDateInput] = useState(project.config.projectStartDate);
+  const [endDateInput, setEndDateInput] = useState(project.config.projectEndDate);
 
   useEffect(() => {
     setBudgetInputValue(
       typeof project.config.totalBudget === 'number' ? String(project.config.totalBudget) : '',
     );
   }, [project.config.totalBudget]);
+
+  useEffect(() => {
+    setStartDateInput(project.config.projectStartDate);
+  }, [project.config.projectStartDate]);
+
+  useEffect(() => {
+    setEndDateInput(project.config.projectEndDate);
+  }, [project.config.projectEndDate]);
 
   const handleBudgetChange = (event: ChangeEvent<HTMLInputElement>) => {
     setBudgetInputValue(event.target.value);
@@ -155,8 +165,13 @@ export const ProjectSettingsPage = () => {
                 <label className="mb-1 block text-sm font-medium text-slate-600">Startdato</label>
                 <input
                   type="date"
-                  value={project.config.projectStartDate}
-                  onChange={(event) => updateProjectConfig(project.id, { projectStartDate: event.target.value })}
+                  value={startDateInput}
+                  onChange={(event) => setStartDateInput(event.target.value)}
+                  onBlur={() => {
+                    if (startDateInput && startDateInput !== project.config.projectStartDate) {
+                      updateProjectConfig(project.id, { projectStartDate: startDateInput });
+                    }
+                  }}
                   disabled={isSaving}
                   className="w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                   style={{ colorScheme: 'light' }}
@@ -166,8 +181,13 @@ export const ProjectSettingsPage = () => {
                 <label className="mb-1 block text-sm font-medium text-slate-600">Slutdato</label>
                 <input
                   type="date"
-                  value={project.config.projectEndDate}
-                  onChange={(event) => updateProjectConfig(project.id, { projectEndDate: event.target.value })}
+                  value={endDateInput}
+                  onChange={(event) => setEndDateInput(event.target.value)}
+                  onBlur={() => {
+                    if (endDateInput && endDateInput !== project.config.projectEndDate) {
+                      updateProjectConfig(project.id, { projectEndDate: endDateInput });
+                    }
+                  }}
                   disabled={isSaving}
                   className="w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                   style={{ colorScheme: 'light' }}
