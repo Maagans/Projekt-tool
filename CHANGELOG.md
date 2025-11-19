@@ -4,7 +4,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
-## [1.8.0] - 2025-11-19
+## [1.8.1] - 2025-11-19
 ### Added
 - `Agents.md` og `Hardeningplan.md` dokumenterer layer-arkitektur og hardening-plan for nye features.
 - Centralt konstantlag for roller (`backend/constants/roles.js`) og projektstatus (`backend/constants/projectStatus.js`) samt dedikerede repositories for projekter og medarbejdere.
