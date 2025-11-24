@@ -1016,10 +1016,10 @@ resourceAnalyticsService og API-controllerens svar.
   - Tests: backend `npm test --run` grøn.
   - Afhængigheder: LEG-002 (genbrugt time entries repo).
 
-- [ ] LEG-004: Auth/Setup repos (users/employees)
+- [x] LEG-004: Auth/Setup repos (users/employees)
   - Formål: Flytte direkte queries ud af `authService` og `setupService`.
-  - Ændringer: Repos for users/employees bootstrap; zod-validering på payloads; service orkestrerer hashing/creation.
-  - Test (TDD): Repo-tests (unik email), service-tests (hash, duplicate handling), API-tests for setup.
+  - Ændringer: Nyt `usersRepository` (find/exists/countAdmins/create) med UUID-defaults, `employeeRepository.create` får UUID fallback; `authService` og `setupService` bruger nu repos + Zod-validators og kører hashing/employee-linking via transaktioner.
+  - Tests (TDD): `npm test --prefix backend -- --run` + `npm run lint --prefix backend` (inkl. ny repo-unit-test for users).
   - Afhængigheder: ST-002.
 
 - [ ] LEG-005: Flyt projekt-opdateringer ud af workspaceService (dato-hygiejne)

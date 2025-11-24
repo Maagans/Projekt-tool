@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 const EMPLOYEE_SELECT_FIELDS = `
   id::text,
   name,
@@ -75,13 +77,15 @@ export const create = async (client, employee) => {
     maxCapacityHoursWeek,
   } = employee;
 
+  const employeeId = id ?? randomUUID();
+
   const { rows } = await client.query(
     `
       INSERT INTO employees (id, name, email, location, department, max_capacity_hours_week)
       VALUES ($1::uuid, $2, LOWER($3), NULLIF($4, ''), NULLIF($5, ''), $6::numeric)
       RETURNING ${EMPLOYEE_SELECT_FIELDS}
     `,
-    [id, name, email, location ?? "", department ?? "", maxCapacityHoursWeek],
+    [employeeId, name, email, location ?? "", department ?? "", maxCapacityHoursWeek],
   );
   return rows[0] ?? null;
 };

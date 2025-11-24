@@ -8,6 +8,8 @@ import { ensureEmployeeLinkForUser } from "./workspaceService.js";
 import { withTransaction } from "../utils/transactions.js";
 import { config } from "../config/index.js";
 import { loginSchema, registerSchema } from "../validators/authValidators.js";
+import * as usersRepository from "../repositories/usersRepository.js";
+import * as employeeRepository from "../repositories/employeeRepository.js";
 
 const jwtSecret = config.jwtSecret;
 
@@ -17,11 +19,7 @@ export const login = async (email, password) => {
     }
 
     const { email: normalizedEmail, password: sanitizedPassword } = loginSchema.parse({ email, password });
-    const result = await pool.query(
-        'SELECT id::text, name, email, role, password_hash, employee_id::text FROM users WHERE LOWER(email) = $1',
-        [normalizedEmail],
-    );
-    const user = result.rows[0];
+    const user = await usersRepository.findByEmail(pool, normalizedEmail);
     if (!user) {
         logger.warn({ event: 'login_failed', reason: 'user_not_found' });
         throw createAppError('Login failed. Please check your email and password.', 401);
@@ -60,8 +58,8 @@ export const register = async (email, name, password) => {
         name,
         password,
     });
-    const existingUser = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
-    if (existingUser.rowCount > 0) {
+    const exists = await usersRepository.existsByEmail(pool, normalizedEmail);
+    if (exists) {
         throw createAppError('An account with this email already exists.', 409);
     }
 
@@ -69,21 +67,29 @@ export const register = async (email, name, password) => {
         const passwordHash = await bcrypt.hash(sanitizedPassword, 10);
 
         let employeeId = null;
-        const employeeResult = await client.query('SELECT id::text FROM employees WHERE LOWER(email) = $1', [normalizedEmail]);
-        if (employeeResult.rowCount > 0) {
-            employeeId = employeeResult.rows[0].id;
+        const existingEmployee = await employeeRepository.findByEmail(client, normalizedEmail);
+        if (existingEmployee) {
+            employeeId = existingEmployee.id;
         } else {
-            const insertEmployee = await client.query(
-                'INSERT INTO employees (name, email) VALUES ($1, LOWER($2)) RETURNING id::text',
-                [sanitizedName, normalizedEmail],
-            );
-            employeeId = insertEmployee.rows[0].id;
+            const createdEmployee = await employeeRepository.create(client, {
+                id: undefined,
+                name: sanitizedName,
+                email: normalizedEmail,
+                location: '',
+                department: '',
+                maxCapacityHoursWeek: 0,
+            });
+            employeeId = createdEmployee?.id ?? null;
         }
 
-        await client.query(
-            'INSERT INTO users (name, email, password_hash, role, employee_id) VALUES ($1, LOWER($2), $3, $4, $5::uuid)',
-            [sanitizedName, normalizedEmail, passwordHash, 'Teammedlem', employeeId],
-        );
+        await usersRepository.create(client, {
+            id: undefined,
+            name: sanitizedName,
+            email: normalizedEmail,
+            passwordHash,
+            role: 'Teammedlem',
+            employeeId,
+        });
 
         return { success: true };
     });
