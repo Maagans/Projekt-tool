@@ -18,6 +18,27 @@ const assertAuthenticated = (user) => {
   }
 };
 
+const assertProjectReadAccess = async (client, projectId, user) => {
+  assertAuthenticated(user);
+  if (user.role === "Administrator") return;
+  const employeeId = user.employeeId ?? null;
+  if (!employeeId) {
+    throw createAppError("Forbidden: Missing employee link.", 403);
+  }
+  const memberResult = await client.query(
+    `
+      SELECT 1
+      FROM project_members
+      WHERE project_id = $1::uuid AND employee_id = $2::uuid
+      LIMIT 1
+    `,
+    [projectId, employeeId],
+  );
+  if (memberResult.rowCount === 0) {
+    throw createAppError("Forbidden: Project membership required.", 403);
+  }
+};
+
 const assertProjectEditAccess = async (client, projectId, user) => {
   assertAuthenticated(user);
   if (user.role === "Administrator") return;
@@ -65,7 +86,7 @@ export const listProjectReports = async (projectId, user) => {
     assertAuthenticated(user);
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     await ensureProjectExists(client, projectId);
-    await assertProjectEditAccess(client, projectId, effectiveUser);
+    await assertProjectReadAccess(client, projectId, effectiveUser);
     const reports = await getReportsByProjectId(client, projectId);
     return reports;
   }, { client: pool });
@@ -75,7 +96,7 @@ export const getReport = async (reportId, user) => {
   return withTransaction(async (client) => {
     const report = await fetchReportOrThrow(client, reportId);
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
-    await assertProjectEditAccess(client, report.projectId, effectiveUser);
+    await assertProjectReadAccess(client, report.projectId, effectiveUser);
     const state = await getReportState(client, report.id);
     return { ...report, state };
   }, { client: pool });
