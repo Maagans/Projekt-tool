@@ -1388,7 +1388,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                   text: 'Ny fase',
                   start: position,
                   end: position + 10,
-                  highlight: 'blue',
+                  highlight: '#dbeafe',
                   workstreamId: defaultWorkstreamId,
                   status: 'Planned',
                 };

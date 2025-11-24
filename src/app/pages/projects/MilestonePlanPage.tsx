@@ -1,5 +1,5 @@
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import { MilestonePlan } from '../../../components/milestone-plan/MilestonePlan';
@@ -9,6 +9,8 @@ import { ProjectState, DeliverableChecklistItem } from '../../../types';
 export const MilestonePlanPage: React.FC = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const { projects, projectActions, employees, canManage } = useProjectManager();
+    const [isSeedingReport, setIsSeedingReport] = useState(false);
+    const [seedError, setSeedError] = useState<string | null>(null);
 
     const project = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
@@ -16,6 +18,51 @@ export const MilestonePlanPage: React.FC = () => {
         if (!project || !project.reports || project.reports.length === 0) return null;
         return [...project.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0];
     }, [project]);
+
+    const phasePalette = useMemo(
+        () => ['#e2e8f0', '#fee2e2', '#ffedd5', '#fef9c3', '#dcfce7', '#dbeafe', '#e0e7ff', '#f3e8ff', '#fae8ff'],
+        [],
+    );
+
+    const sanitizePhaseColor = useCallback(
+        (color?: string | null) => {
+            if (!color) return phasePalette[0];
+            const normalized = color.trim().toLowerCase();
+            const mapped: Record<string, string> = {
+                completed: '#dcfce7',
+                active: '#dbeafe',
+                planned: '#e2e8f0',
+                green: '#dcfce7',
+                blue: '#dbeafe',
+                red: '#fee2e2',
+                yellow: '#fef9c3',
+            };
+            const fromMap = mapped[normalized];
+            if (fromMap) return fromMap;
+            const exact = phasePalette.find((c) => c.toLowerCase() === normalized);
+            return exact ?? phasePalette[0];
+        },
+        [phasePalette],
+    );
+
+    useEffect(() => {
+        if (!project || !canManage) return;
+        if ((project.reports?.length ?? 0) > 0) return;
+        if (isSeedingReport) return;
+        const actions = projectActions(project.id, null);
+        if (!actions?.reportsManager?.createNext) return;
+        setIsSeedingReport(true);
+        try {
+            const createdWeek = actions.reportsManager.createNext();
+            if (!createdWeek) {
+                setSeedError('Kunne ikke oprette første rapport. Tjek projektets datoer.');
+            } else {
+                setSeedError(null);
+            }
+        } finally {
+            setIsSeedingReport(false);
+        }
+    }, [project, canManage, projectActions, isSeedingReport]);
 
     const planProject: PlanProject | null = useMemo(() => {
         if (!project || !latestReport) return null;
@@ -75,9 +122,9 @@ export const MilestonePlanPage: React.FC = () => {
                 startDate: startDate || '',
                 endDate: endDate || '',
                 status: (p.status as Phase['status']) || 'Planned',
-                ...(p.highlight ? { color: p.highlight } : {})
+                color: sanitizePhaseColor(p.highlight)
             };
-        });
+        }, [sanitizePhaseColor]);
 
         const workstreams: Workstream[] = project.workstreams || [];
 
@@ -134,7 +181,7 @@ export const MilestonePlanPage: React.FC = () => {
             text: phase.name,
             start: 0,
             end: 0,
-            highlight: phase.color || 'blue',
+            highlight: sanitizePhaseColor(phase.color),
             startDate: phase.startDate || null,
             endDate: phase.endDate || null,
             status: phase.status,
@@ -270,7 +317,12 @@ export const MilestonePlanPage: React.FC = () => {
     };
 
     if (!project) return <div>Projekt ikke fundet</div>;
-    if (!planProject) return <div>Ingen rapport data fundet</div>;
+    if (!planProject) {
+        if (isSeedingReport) {
+            return <div className="p-6">Opretter første rapport...</div>;
+        }
+        return <div className="p-6">{seedError ?? 'Ingen rapport data fundet'}</div>;
+    }
 
     return (
         <div className="p-6 flex flex-col flex-1 h-full w-full">

@@ -522,7 +522,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                     const left = ((start - minDate) / totalDuration) * 100;
                                     const width = ((end - start) / totalDuration) * 100;
 
-                                    const phaseColor = phase.color || '#e2e8f0'; // Default slate-200
+                                    const phaseColor = sanitizePhaseColor(phase.color);
 
                                     return (
                                         <div
@@ -1080,4 +1080,22 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
             />
         </>
     );
+};
+const PHASE_COLORS = ['#e2e8f0', '#fee2e2', '#ffedd5', '#fef9c3', '#dcfce7', '#dbeafe', '#e0e7ff', '#f3e8ff', '#fae8ff'];
+const sanitizePhaseColor = (color?: string | null) => {
+    if (!color) return PHASE_COLORS[0];
+    const normalized = color.trim().toLowerCase();
+    const mapped: Record<string, string> = {
+        completed: '#dcfce7',
+        active: '#dbeafe',
+        planned: '#e2e8f0',
+        green: '#dcfce7',
+        blue: '#dbeafe',
+        red: '#fee2e2',
+        yellow: '#fef9c3',
+    };
+    const fromMap = mapped[normalized];
+    if (fromMap) return fromMap;
+    const exact = PHASE_COLORS.find((c) => c.toLowerCase() === normalized);
+    return exact ?? PHASE_COLORS[0];
 };
