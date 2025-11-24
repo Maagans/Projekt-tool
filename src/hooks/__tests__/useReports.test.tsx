@@ -68,7 +68,22 @@ describe('useReports hooks', () => {
 
     const updated: ReportDetail = {
       ...initial,
-      state: { ...initial.state, phases: [{ id: 'p1', text: 'Plan', start: 0, end: 10, highlight: '', workstreamId: null, startDate: null, endDate: null, status: null }] },
+      state: {
+        ...initial.state,
+        phases: [
+          {
+            id: 'p1',
+            text: 'Plan',
+            start: 0,
+            end: 10,
+            highlight: '',
+            workstreamId: null,
+            startDate: null,
+            endDate: null,
+            status: null,
+          },
+        ],
+      },
     };
 
     (reportApi.updateReport as unknown as vi.Mock).mockResolvedValue(updated);

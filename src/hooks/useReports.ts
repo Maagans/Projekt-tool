@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportApi, type ReportDetail, type ReportState, type ReportSummary } from '../api/report';
-import type { ProjectState, Risk, KanbanTask, ListItem, MainTableRow, Phase, Milestone, Deliverable, Workstream } from '../types';
+import type { KanbanTask, ListItem, MainTableRow, Phase, Milestone, Deliverable, Workstream } from '../types';
 
 export const reportKeys = {
   all: ['reports'] as const,
@@ -120,10 +120,10 @@ export const useReportRiskMatrix = () => {
   const baseMutation = useReportStateMutation();
 
   return useMutation({
-    mutationFn: async ({ reportId, risks }: { reportId: string; risks: Risk[] }) => {
+    mutationFn: async ({ reportId, risks }: { reportId: string; risks: ReportState['risks'] }) => {
       const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
       const loaded = ensureReportLoaded(reportId, current);
-      const nextState = mergeState(loaded.state as ProjectState, { risks });
+      const nextState = mergeState(loaded.state, { risks });
       return baseMutation.mutateAsync({ reportId, state: nextState });
     },
   });
@@ -137,7 +137,7 @@ export const useReportKanban = () => {
     mutationFn: async ({ reportId, kanbanTasks }: { reportId: string; kanbanTasks: KanbanTask[] }) => {
       const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
       const loaded = ensureReportLoaded(reportId, current);
-      const nextState = mergeState(loaded.state as ProjectState, { kanbanTasks });
+      const nextState = mergeState(loaded.state, { kanbanTasks });
       return baseMutation.mutateAsync({ reportId, state: nextState });
     },
   });
@@ -163,7 +163,7 @@ export const useReportStatusCards = () => {
     }) => {
       const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
       const loaded = ensureReportLoaded(reportId, current);
-      const nextState = mergeState(loaded.state as ProjectState, {
+      const nextState = mergeState(loaded.state, {
         statusItems: statusItems ?? loaded.state.statusItems,
         challengeItems: challengeItems ?? loaded.state.challengeItems,
         nextStepItems: nextStepItems ?? loaded.state.nextStepItems,
