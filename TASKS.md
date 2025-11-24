@@ -977,19 +977,51 @@ resourceAnalyticsService og API-controllerens svar.
     1) Zod-parser tests for responses og fejl.
     2) Hook-tests (Vitest/RTL/MSW): fetch success/error, optimistic update + rollback for timeline/kanban, error-toasts.
   - Accept: Hooks eksponerer typed data/mutationer; fejl giver toasts; ingen komponenter taler direkte til fetch/`projectActions`.
-  - Status 24/11: API-klient (src/api/report.ts) + hooks (useReports.ts) og tests tilføjet; frontend testkørsel blokeres her af EPERM (Vite/esbuild).
-  - Afhængigheder: RP-002, DX-002 (React Query), ST-005 (strict TS).
+  - Status 25/11: RP-003 gennemført; API-klient/hooks + tests grønne (Vitest + tsc/vite build) med normaliseret ProjectState/risk-parsing.
+  - Afhængigheder: RP-001 (mapping), RP-002 (API-kontrakt), DX-002 (React Query), ST-005 (strict TS).
 
-- [ ] RP-004: Opdel ProjectReportsPage i paneler og brug nye hooks
+- [x] RP-004: Opdel ProjectReportsPage i paneler og brug nye hooks
   - Formål: Fjerne spaghetti og gå til ren komponentstruktur med props-baseret rendering.
-  - Ændringer: Split i `ReportPageShell`, `ReportHeader`, `ReportTimelinePanel`, `ReportRiskPanel`, `ReportKanbanPanel`, `ReportStatusCards`, `ReportWeekSelector`; hver bruger hooks fra RP-003; fjern legacy `projectActions`-koblinger for rapporter; introducer evt. feature-flag til cutover.
+  - Ændringer: Split i `ReportPageShell`, `ReportHeader`, `ReportTimelinePanel`, `ReportRiskPanel`, `ReportKanbanPanel`, `ReportStatusCards`, `ReportWeekSelector`; hver bruger hooks fra RP-003; fjern legacy `projectActions`-koblinger for rapporter; introducer evt. feature-flag til cutover. Udgangspunkt: domænemapping i `docs/rp-001-report-refactor.md` og RP-002/003-typer.
   - Test (TDD):
     1) RTL: hvert panel render + interaktion (valg af uge, add/edit timeline, select risk, kanban toggle/inspektør).
     2) Integration: render samlet side med mocked hooks, verificer toasts og state-udveksling.
     3) `npm run lint` + `npm run test` + manuelt sanity (load rapport, opdater timeline/risiko/kanban).
   - Accept: Projekt-rapportside er opdelt i mindre komponenter uden direkte API-kald; hooks driver data; UI bevarer eksisterende funktionalitet eller bedre.
-  - Afhængigheder: RP-003.
+  - Afhængigheder: RP-001 (mapping), RP-002, RP-003.
 
+
+## Fase P16 – 3-lags oprydning (legacy)
+
+- [x] LEG-001: Flyt project_risks (riskService) til repo + zod
+  - Formål: Fjerne direkte SQL i `backend/services/risk/riskService.js`.
+  - Ændringer: Nyt repository for `project_risks` + history; service kun orkestrering/validering; zod-validators for CRUD-ruter.
+  - Test (TDD): Unit-tests for repo (insert/update/archive), service-mock-tests for permissions/validation, Supertest for ruter.
+  - Afhængigheder: ST-002 (config/validering).
+
+- [ ] LEG-002: Refaktorér timeEntriesService til repo-lag
+  - Formål: Eliminere `client.query` i `backend/services/projects/timeEntriesService.js`.
+  - Ændringer: Nyt repository for time entries; service bruger repo + zod; håndtér lead lookup via repo.
+  - Test (TDD): Repo-tests (CRUD + conflicts), service-tests (validation/edge-cases), API-test for tidsregistrering.
+  - Afhængigheder: ST-002.
+
+- [ ] LEG-003: Udskille projectMembers/Workspace til repos
+  - Formål: Slanke `workspaceService` og `projectMembersService` (fjerner direkte SQL).
+  - Ændringer: Repos for projekter, medlemmer, time entries; service-lag kun orchestration/validering; opdater relaterede controller-tests.
+  - Test (TDD): Repo-tests (create/update/delete), service-tests (transaktioner/permissions), workspace-route Supertest.
+  - Afhængigheder: LEG-002 (time entries repo kan genbruges).
+
+- [ ] LEG-004: Auth/Setup repos (users/employees)
+  - Formål: Flytte direkte queries ud af `authService` og `setupService`.
+  - Ændringer: Repos for users/employees bootstrap; zod-validering på payloads; service orkestrerer hashing/creation.
+  - Test (TDD): Repo-tests (unik email), service-tests (hash, duplicate handling), API-tests for setup.
+  - Afhængigheder: ST-002.
+
+- [ ] LEG-005: Flyt projekt-opdateringer ud af workspaceService (dato-hygiejne)
+  - Formål: Undgå dato-forskydninger og blandet ansvar ved at lade projekt-API’et (controller/service/repo) stå for alle projekt-skriveoperationer.
+  - Ændringer: Fjern/feature-flag projekt-persistens fra `workspaceService` sync; sørg for at frontend bruger projekt-API til status/dato/goal/budget osv.; behold kun read i workspace-load. Normalisér datoer til `YYYY-MM-DD` begge veje.
+  - Test (TDD): API-tests for projekt-CRUD (status/dato/budget) med timezone-sensitive datoer; end-to-end workspace load uden at mutere projekter; regressionstest for “skift status ændrer ikke start/slutdato”.
+  - Afhængigheder: LEG-002/003 (projektrepo/relationer), AGENTS.md 3-lags krav.
 
 
 

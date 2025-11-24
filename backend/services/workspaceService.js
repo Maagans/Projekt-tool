@@ -1,7 +1,7 @@
 import { config } from '../config/index.js';
 import pool from '../db.js';
 import logger from '../logger.js';
-import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity, classifyReportIdentifier } from '../utils/helpers.js';
+import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity } from '../utils/helpers.js';
 import * as workstreamRepository from '../repositories/workstreamRepository.js';
 import * as reportRepository from '../repositories/reportRepository.js';
 
@@ -859,8 +859,6 @@ export const syncProjectWorkstreams = async (client, projectId, workstreamsPaylo
 const syncReportState = async (client, reportId, state, existingState = null) => {
     const safeState = state ?? {};
     const previousState = existingState ?? {};
-    const { value: reportIdValue, sqlType: reportIdSqlType } = classifyReportIdentifier(reportId);
-    const reportIdCast = `::${reportIdSqlType}`;
 
     const resetTables = [
         'report_status_items',
@@ -1284,8 +1282,8 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
 
         const config = project.config ?? {};
         const projectName = (config.projectName ?? '').trim() || 'Nyt projekt';
-        const startDate = config.projectStartDate || toDateOnly(new Date());
-        const endDate = config.projectEndDate || startDate;
+        const startDate = toDateOnly(config.projectStartDate) || toDateOnly(new Date());
+        const endDate = toDateOnly(config.projectEndDate) || startDate;
         const status = ['active', 'completed', 'on-hold'].includes(project.status) ? project.status : 'active';
         const description = typeof project.description === 'string' ? project.description : null;
         const projectGoal = typeof config.projectGoal === 'string' ? config.projectGoal : null;

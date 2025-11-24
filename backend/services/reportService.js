@@ -42,6 +42,16 @@ const assertProjectEditAccess = async (client, projectId, user) => {
   }
 };
 
+const ensureProjectExists = async (client, projectId) => {
+  const result = await client.query(
+    `SELECT id::text FROM projects WHERE id = $1::uuid LIMIT 1`,
+    [projectId],
+  );
+  if (result.rowCount === 0) {
+    throw createAppError("Project not found.", 404);
+  }
+};
+
 const fetchReportOrThrow = async (client, reportId) => {
   const report = await getReportById(client, reportId);
   if (!report) {
@@ -54,6 +64,7 @@ export const listProjectReports = async (projectId, user) => {
   return withTransaction(async (client) => {
     assertAuthenticated(user);
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
+    await ensureProjectExists(client, projectId);
     await assertProjectEditAccess(client, projectId, effectiveUser);
     const reports = await getReportsByProjectId(client, projectId);
     return reports;
@@ -73,6 +84,7 @@ export const getReport = async (reportId, user) => {
 export const createReport = async (projectId, payload, user) => {
   return withTransaction(async (client) => {
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
+    await ensureProjectExists(client, projectId);
     await assertProjectEditAccess(client, projectId, effectiveUser);
 
     const { weekKey, state = {} } = payload ?? {};

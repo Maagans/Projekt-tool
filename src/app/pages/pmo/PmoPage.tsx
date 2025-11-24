@@ -241,12 +241,15 @@ export const PmoPage = () => {
       .filter((summary) => summary.totalPlanned > 0 || summary.totalActual > 0);
 
     const grouped = Object.fromEntries(locations.map((location) => [location, [] as EmployeeWorkload[]])) as Record<
-      Location,
+      Location | string,
       EmployeeWorkload[]
     >;
 
     for (const summary of employeeData) {
       if (!summary.location) continue;
+      if (!grouped[summary.location]) {
+        grouped[summary.location] = [];
+      }
       grouped[summary.location].push(summary);
     }
 

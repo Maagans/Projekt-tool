@@ -6,7 +6,6 @@ import createApp from "../../app.js";
 import { config } from "../../config/index.js";
 import {
   listProjectReports,
-  getReport,
   createReport,
   updateReport,
   deleteReport,
@@ -14,7 +13,6 @@ import {
 
 vi.mock("../../services/reportService.js", () => ({
   listProjectReports: vi.fn(),
-  getReport: vi.fn(),
   createReport: vi.fn(),
   updateReport: vi.fn(),
   deleteReport: vi.fn(),

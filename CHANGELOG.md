@@ -4,11 +4,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.10.0] - 2025-11-24
 ### Added
-- Backend report CRUD/API layer + validators (list/detail/create/update/delete) that follow RP-002 plan; includes `reportService`, controller + repository helpers, and Zod payload guards.
+- Risk repository-lag for projekt-risici (LEG-001) med service-integration; services bruger ikke længere direkte SQL.
+- Demo-seed opdateret til ny rapport-/risikoarkitektur: workstreams, snapshots, projekt-risici, gyldige locations og aktuelle tidsregistreringer (2025-W44..W47); seed kører med `--reset`.
 
 ### Changed
-- Added Supertest coverage for the new `/api/projects/:projectId/reports` + `/api/reports/:id` endpoints and documented the mapping in `docs/rp-001-report-refactor.md`.
+- Rapportservice validerer projekt-eksistens før oprettelse/listing og undgår FK-fejl på stale projectIds.
+- Projektservice normaliserer datoer med `toDateOnly` for at undgå dagsforskydning ved status-opdatering.
+- ProjectReportsPage og PmoPage robusthed: fejlhåndtering for rapport-load og fix for grouped locations i PMO.
+- Seedede projektperioder justeret til 2025-2026 for at matche nuværende datoer; locations begrænset til godkendte afdelinger.
 
 ## [1.9.0] - 2025-11-24
 ### Added

@@ -64,7 +64,17 @@ export const deleteItems = async (client, reportId, tableNames) => {
         if (!REPORT_ITEM_TABLES.includes(table)) {
             throw new Error(`Invalid table name for report items: ${table}`);
         }
-        await client.query(`DELETE FROM ${table} WHERE report_id = $1${reportIdCast}`, [value]);
+        if (table === 'report_deliverable_checklist') {
+            // Checklist har ikke direkte report_id kolonne; slet via relaterede deliverables for rapporten
+            await client.query(
+                `DELETE FROM report_deliverable_checklist WHERE deliverable_id IN (
+                    SELECT id FROM report_deliverables WHERE report_id = $1${reportIdCast}
+                )`,
+                [value],
+            );
+        } else {
+            await client.query(`DELETE FROM ${table} WHERE report_id = $1${reportIdCast}`, [value]);
+        }
     }
 };
 
@@ -308,12 +318,27 @@ export const getReportState = async (client, reportId) => {
             },
         );
         legacyRisks.rows.forEach((row) => {
+            const probability = Number(row.probability ?? 1);
+            const impact = Number(row.consequence ?? 1);
             state.risks.push({
                 id: row.id,
-                name: row.name,
-                s: Number(row.probability ?? 1),
-                k: Number(row.consequence ?? 1),
                 projectRiskId: null,
+                title: row.name ?? '',
+                description: null,
+                probability,
+                impact,
+                score: probability * impact,
+                category: 'other',
+                status: 'open',
+                owner: null,
+                mitigationPlanA: null,
+                mitigationPlanB: null,
+                followUpNotes: null,
+                followUpFrequency: null,
+                dueDate: null,
+                lastFollowUpAt: null,
+                isArchived: false,
+                projectRiskUpdatedAt: null,
             });
         });
     }
@@ -411,7 +436,7 @@ export const getReportState = async (client, reportId) => {
                 text: `
                   SELECT id::text, deliverable_id::text, position, text, completed
                   FROM report_deliverable_checklist
-                  WHERE deliverable_id = ANY($1::text[])
+                  WHERE deliverable_id = ANY($1::uuid[])
                 `,
                 values: [deliverableIds],
             },
@@ -459,8 +484,21 @@ export const getReportState = async (client, reportId) => {
 };
 
 export const replaceReportState = async (client, reportId, state) => {
-    const { value: reportIdValue, sqlType: reportIdSqlType } = classifyReportIdentifier(reportId);
-    const reportIdCast = `::${reportIdSqlType}`;
+    const { value, sqlType } = classifyReportIdentifier(reportId);
+    const reportIdCast = `::${sqlType}`;
+    const projectResult = await client.query(
+        `SELECT project_id FROM reports WHERE id = $1${reportIdCast} LIMIT 1`,
+        [value],
+    );
+    const projectId = projectResult.rows[0]?.project_id ?? null;
+    let allowedWorkstreamIds = new Set();
+    if (projectId) {
+        const wsResult = await client.query(
+            'SELECT id::text FROM project_workstreams WHERE project_id = $1::uuid',
+            [projectId],
+        );
+        allowedWorkstreamIds = new Set(wsResult.rows.map((row) => row.id));
+    }
 
     const resetTables = [
         'report_status_items',
@@ -504,13 +542,15 @@ export const replaceReportState = async (client, reportId, state) => {
 
     for (const phase of state.phases ?? []) {
         if (!phase?.id) continue;
+        const sanitizedWorkstreamId =
+            phase.workstreamId && allowedWorkstreamIds.has(phase.workstreamId) ? phase.workstreamId : null;
         await insertPhase(client, reportId, {
             id: phase.id,
             label: phase.text ?? "",
             start: phase.start ?? 0,
             end: phase.end ?? 0,
             highlight: phase.highlight ?? "",
-            workstreamId: phase.workstreamId ?? null,
+            workstreamId: sanitizedWorkstreamId,
             startDate: phase.startDate ?? null,
             endDate: phase.endDate ?? null,
             status: phase.status ?? null,
@@ -519,11 +559,13 @@ export const replaceReportState = async (client, reportId, state) => {
 
     for (const milestone of state.milestones ?? []) {
         if (!milestone?.id) continue;
+        const sanitizedWorkstreamId =
+            milestone.workstreamId && allowedWorkstreamIds.has(milestone.workstreamId) ? milestone.workstreamId : null;
         await insertMilestone(client, reportId, {
             id: milestone.id,
             label: milestone.text ?? "",
             position: milestone.position ?? 0,
-            workstreamId: milestone.workstreamId ?? null,
+            workstreamId: sanitizedWorkstreamId,
             dueDate: milestone.date ?? null,
             status: milestone.status ?? null,
         });
@@ -533,11 +575,12 @@ export const replaceReportState = async (client, reportId, state) => {
     for (const deliverable of state.deliverables ?? []) {
         if (!deliverable?.id || deliverableIdSet.has(deliverable.id)) continue;
         deliverableIdSet.add(deliverable.id);
+        const resolvedMilestoneId = deliverable.milestoneId ?? null;
         await insertDeliverable(client, reportId, {
             id: deliverable.id,
             label: deliverable.text ?? "",
             position: deliverable.position ?? 0,
-            milestoneId: deliverable.milestoneId ?? null,
+            milestoneId: resolvedMilestoneId,
             status: deliverable.status ?? null,
             ownerName: deliverable.owner ?? null,
             ownerId: deliverable.ownerId ?? null,

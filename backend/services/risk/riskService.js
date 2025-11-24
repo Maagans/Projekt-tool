@@ -9,6 +9,15 @@ import {
   PROJECT_RISK_STATUSES,
   assertRiskScale,
 } from "./riskSchema.js";
+import {
+  archiveProjectRisk as archiveProjectRiskRepo,
+  ensureProjectExists,
+  fetchRiskById,
+  insertProjectRisk,
+  isProjectMember as isProjectMemberRepo,
+  listProjectRisks as listProjectRisksRepo,
+  updateProjectRisk as updateProjectRiskRepo,
+} from "../../repositories/riskRepository.js";
 
 const SELECT_FIELDS = `
   r.id::text AS id,
@@ -83,33 +92,17 @@ const mapRiskRow = (row) => {
 };
 
 const fetchProjectOrThrow = async (client, projectId) => {
-  const result = await client.query(
-    `SELECT id::text FROM projects WHERE id = $1::uuid LIMIT 1`,
-    [projectId],
-  );
-  if (result.rowCount === 0) {
+  const exists = await ensureProjectExists(client, projectId);
+  if (!exists) {
     throw createAppError("Project not found.", 404);
   }
 };
 
 const isProjectMember = async (client, projectId, employeeId, { requireLead = false } = {}) => {
   if (!employeeId) return false;
-  const result = await client.query(
-    `
-      SELECT is_project_lead
-      FROM project_members
-      WHERE project_id = $1::uuid AND employee_id = $2::uuid
-      LIMIT 1
-    `,
-    [projectId, employeeId],
-  );
-  if (result.rowCount === 0) {
-    return false;
-  }
-  if (!requireLead) {
-    return true;
-  }
-  return result.rows[0].is_project_lead === true;
+  const result = await isProjectMemberRepo(client, projectId, employeeId);
+  if (!result.isMember) return false;
+  return requireLead ? result.isLead : result.isMember;
 };
 
 const assertReadAccess = async (client, projectId, user) => {
@@ -178,20 +171,11 @@ const buildListFilters = ({ includeArchived = false, status, ownerId, category, 
 };
 
 const fetchRiskOrThrow = async (client, riskId) => {
-  const result = await client.query(
-    `
-      SELECT ${SELECT_FIELDS}
-      FROM project_risks r
-      LEFT JOIN employees e ON e.id = r.owner_id
-      WHERE r.id = $1::uuid
-      LIMIT 1
-    `,
-    [riskId],
-  );
-  if (result.rowCount === 0) {
+  const row = await fetchRiskById(client, riskId);
+  if (!row) {
     throw createAppError("Risk not found.", 404);
   }
-  return result.rows[0];
+  return row;
 };
 
 const normalizeStatus = (status) => {
@@ -223,15 +207,8 @@ export const listProjectRisks = async (projectId, filters = {}, user, { client }
   await assertReadAccess(executor, projectId, effectiveUser ?? user);
 
   const { clauses, params } = buildListFilters(filters);
-  const queryText = `
-    SELECT ${SELECT_FIELDS}
-    FROM project_risks r
-    LEFT JOIN employees e ON e.id = r.owner_id
-    WHERE ${clauses.join(" AND ")}
-    ORDER BY r.updated_at DESC
-  `;
-  const result = await executor.query(queryText, [projectId, ...params]);
-  return result.rows.map(mapRiskRow);
+  const rows = await listProjectRisksRepo(executor, projectId, clauses.join(" AND "), [projectId, ...params]);
+  return rows.map(mapRiskRow);
 };
 
 const prepareInsertParams = (projectId, payload, user) => {
@@ -268,48 +245,8 @@ export const createProjectRisk = async (projectId, payload, user, options = {}) 
     await assertEditAccess(client, projectId, effectiveUser);
 
     const insertPayload = prepareInsertParams(projectId, payload, effectiveUser);
-    const result = await client.query(
-      `
-        WITH inserted AS (
-          INSERT INTO project_risks (
-            project_id, title, description, probability, impact, score,
-            mitigation_plan_a, mitigation_plan_b, owner_id,
-            follow_up_notes, follow_up_frequency, category,
-            last_follow_up_at, due_date, status, created_by, updated_by
-          )
-          VALUES (
-            $1::uuid, $2, $3, $4, $5, $6,
-            $7, $8, $9::uuid,
-            $10, $11, $12,
-            $13, $14, $15, $16::uuid, $16::uuid
-          )
-          RETURNING *
-        )
-        SELECT ${SELECT_FIELDS}
-        FROM inserted r
-        LEFT JOIN employees e ON e.id = r.owner_id
-      `,
-      [
-        insertPayload.projectId,
-        insertPayload.title,
-        insertPayload.description,
-        insertPayload.probability,
-        insertPayload.impact,
-        insertPayload.score,
-        insertPayload.mitigationPlanA,
-        insertPayload.mitigationPlanB,
-        insertPayload.ownerId,
-        insertPayload.followUpNotes,
-        insertPayload.followUpFrequency,
-        insertPayload.category,
-        insertPayload.lastFollowUpAt,
-        insertPayload.dueDate,
-        insertPayload.status,
-        insertPayload.createdBy,
-      ],
-    );
-
-    return mapRiskRow(result.rows[0]);
+    const row = await insertProjectRisk(client, insertPayload);
+    return mapRiskRow(row);
   }, options);
 };
 
@@ -400,14 +337,8 @@ export const updateProjectRisk = async (riskId, updates, user, options = {}) => 
       throw createAppError("No valid risk fields provided for update.", 400);
     }
 
-    const query = `
-      UPDATE project_risks r
-      SET ${sets.join(", ")}
-      WHERE r.id = $${params.length + 1}::uuid
-      RETURNING ${SELECT_FIELDS}
-    `;
-    const result = await client.query(query, [...params, riskId]);
-    return mapRiskRow(result.rows[0]);
+    const row = await updateProjectRiskRepo(client, riskId, sets, params);
+    return mapRiskRow(row);
   }, options);
 };
 
@@ -417,15 +348,7 @@ export const archiveProjectRisk = async (riskId, user, options = {}) => {
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     await assertEditAccess(client, riskRow.project_id, effectiveUser);
 
-    await client.query(
-      `
-        UPDATE project_risks
-        SET is_archived = true, status = 'closed',
-            updated_by = $1::uuid, updated_at = NOW()
-        WHERE id = $2::uuid
-      `,
-      [effectiveUser.id ?? null, riskId],
-    );
+    await archiveProjectRiskRepo(client, riskId, effectiveUser.id ?? null);
 
     return { success: true };
   }, options);

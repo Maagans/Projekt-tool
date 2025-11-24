@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { withTransaction } from "../../utils/transactions.js";
 import { createAppError } from "../../utils/errors.js";
+import { toDateOnly } from "../../utils/helpers.js";
 import { ensureEmployeeLinkForUser, syncProjectReports, syncProjectWorkstreams } from "../workspaceService.js";
 import * as projectRepository from "../../repositories/projectRepository.js";
 import { createProjectInputSchema, updateProjectInputSchema } from "../../validators/projectValidators.js";
@@ -8,18 +9,24 @@ import { USER_ROLES } from "../../constants/roles.js";
 import { PROJECT_STATUS } from "../../constants/projectStatus.js";
 
 const toIsoDateString = (value) => {
-  if (typeof value === "string" && value.trim().length > 0) {
-    return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return toDateOnly(parsed);
+    }
+    return toDateOnly(new Date());
   }
   const date = value instanceof Date ? value : new Date(value ?? Date.now());
   if (Number.isNaN(date.getTime())) {
-    return new Date().toISOString().split("T")[0];
+    return toDateOnly(new Date());
   }
-  return date.toISOString().split("T")[0];
+  return toDateOnly(date);
 };
 
 const buildCreateInput = (payload = {}) => {
-  const today = new Date().toISOString().split("T")[0];
+  const today = toDateOnly(new Date()) ?? new Date().toISOString().split("T")[0];
   const config = payload.config ?? {};
   const fallbackEndDate = config.projectEndDate ?? config.projectStartDate ?? today;
   return {
