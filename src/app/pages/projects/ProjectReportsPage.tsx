@@ -237,6 +237,40 @@ const getAvailableWeeks = (projectStartDate?: string | null, projectEndDate?: st
     .sort()
     .reverse();
 
+const parseWeekKeyToDate = (weekKey: string): Date | null => {
+  const match = weekKey.match(/^(\d{4})-W(\d{1,2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(week)) return null;
+  // ISO week: week 1 is the week with the first Thursday of the year.
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dayOfWeek = simple.getUTCDay() || 7; // 1..7
+  // Move to Monday
+  const isoStart = new Date(simple);
+  isoStart.setUTCDate(simple.getUTCDate() - (dayOfWeek - 1));
+  return isoStart;
+};
+
+const addWeeks = (date: Date, weeks: number) => {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + weeks * 7);
+  return result;
+};
+
+const findNextWeekKey = (reports: ReportSummary[], projectEndDate?: string | null): string | null => {
+  if (!reports.length) return null;
+  const latestWeek = [...reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0].weekKey;
+  const latestWeekStart = parseWeekKeyToDate(latestWeek);
+  if (!latestWeekStart) return null;
+  const nextDate = addWeeks(latestWeekStart, 1);
+  const endDate = parseDateOnlyToUtcDate(projectEndDate);
+  if (endDate && nextDate > endDate) {
+    return null;
+  }
+  return getWeekKey(nextDate);
+};
+
 const cloneReportStateForCreate = (baseState?: ProjectState, workstreams?: Workstream[]): ProjectState => {
   const seeded = baseState ?? getInitialProjectState();
   const canonicalStreams =
@@ -1321,7 +1355,7 @@ export const ProjectReportsPage = () => {
             }}
             onCreateWeek={() => setIsNewReportModalOpen(true)}
             onCreateNext={() => {
-              const next = availableWeeks[0];
+              const next = findNextWeekKey(reports, project.config.projectEndDate) ?? availableWeeks[0];
               if (!next) return;
               createReportMutation.mutate(next);
             }}
