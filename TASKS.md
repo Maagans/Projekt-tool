@@ -1022,7 +1022,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Tests (TDD): `npm test --prefix backend -- --run` + `npm run lint --prefix backend` (inkl. ny repo-unit-test for users).
   - Afhængigheder: ST-002.
 
-- [ ] LEG-005: Flyt projekt-opdateringer ud af workspaceService (dato-hygiejne)
+- [x] LEG-005: Flyt projekt-opdateringer ud af workspaceService (dato-hygiejne)
   - Formål: Undgå dato-forskydninger og blandet ansvar ved at lade projekt-API'et (controller/service/repo) stå for alle projekt-skriveoperationer.
   - Kortlægning (nu): `workspaceService.syncProjects` skriver direkte til `projects` med `INSERT ... ON CONFLICT` (navn, start/end, status, goal, businessCase, budget, heroImageUrl) og kalder workstreams/members/reports. Datoer normaliseres via `toDateOnly(config.projectStartDate || new Date())`, så workspace-sync kan overskrive datoer og give forskydninger; permissions via `getUserEditableProjects`.
   - TDD-plan:

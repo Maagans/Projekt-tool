@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.11.0] - 2025-11-24
+### Added
+- Auth/setup flyttet til repository-lag (LEG-004): nyt `usersRepository`, UUID-defaults for employees, services bruger Zod + transaktioner.
+- MilestonePlan: auto-opretter første rapport for nye projekter, så tidsplanen ikke loader tomt.
+
+### Changed
+- Workspace-sync skriver ikke længere projekter (LEG-005); projekt-CRUD går kun via projekt-API, så start-/slutdatoer og status ikke bliver overskrevet ved sync.
+- Fasefarver clampes til den faste palette (ingen lave kontrastfarver) og nye faser seedes med pastel-blå default.
+
 ## [1.10.0] - 2025-11-24
 ### Added
 - Risk repository-lag for projekt-risici (LEG-001) med service-integration; services bruger ikke længere direkte SQL.
