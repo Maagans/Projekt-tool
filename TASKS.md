@@ -1023,9 +1023,13 @@ resourceAnalyticsService og API-controllerens svar.
   - Afhængigheder: ST-002.
 
 - [ ] LEG-005: Flyt projekt-opdateringer ud af workspaceService (dato-hygiejne)
-  - Formål: Undgå dato-forskydninger og blandet ansvar ved at lade projekt-API’et (controller/service/repo) stå for alle projekt-skriveoperationer.
-  - Ændringer: Fjern/feature-flag projekt-persistens fra `workspaceService` sync; sørg for at frontend bruger projekt-API til status/dato/goal/budget osv.; behold kun read i workspace-load. Normalisér datoer til `YYYY-MM-DD` begge veje.
-  - Test (TDD): API-tests for projekt-CRUD (status/dato/budget) med timezone-sensitive datoer; end-to-end workspace load uden at mutere projekter; regressionstest for “skift status ændrer ikke start/slutdato”.
+  - Formål: Undgå dato-forskydninger og blandet ansvar ved at lade projekt-API'et (controller/service/repo) stå for alle projekt-skriveoperationer.
+  - Kortlægning (nu): `workspaceService.syncProjects` skriver direkte til `projects` med `INSERT ... ON CONFLICT` (navn, start/end, status, goal, businessCase, budget, heroImageUrl) og kalder workstreams/members/reports. Datoer normaliseres via `toDateOnly(config.projectStartDate || new Date())`, så workspace-sync kan overskrive datoer og give forskydninger; permissions via `getUserEditableProjects`.
+  - TDD-plan:
+    1) Definér/stram Zod-schema for projekt-CRUD (status/dato/goal/budget) i validators og brug det i projektruterne.
+    2) Udvid projektrepo til update med sikre datoer (`YYYY-MM-DD`, ingen fallback til "i dag" hvis felt mangler).
+    3) Refaktor projektservice/route til eneste skrivevej; gør `workspaceService.persistWorkspace` read-only for projekter eller lad den delegere via projektservice (eventuelt feature-flag).
+    4) Tests: Supertest for projekt-CRUD med timezone-sensitive datoer (status-skift må ikke ændre start/end); unit-test for repo-dato-normalisering; regression på workspace-load (read) og at sync ikke muterer projekter.
   - Afhængigheder: LEG-002/003 (projektrepo/relationer), AGENTS.md 3-lags krav.
 
 

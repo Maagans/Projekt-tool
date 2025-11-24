@@ -1272,45 +1272,13 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
             continue;
         }
 
-        logDebug('syncProjects', 'Persist project', {
-            projectId: normalisedProjectId,
-            name: (project.config ?? {}).projectName ?? null,
-        });
-
-        const config = project.config ?? {};
-        const projectName = (config.projectName ?? '').trim() || 'Nyt projekt';
-        const startDate = toDateOnly(config.projectStartDate) || toDateOnly(new Date());
-        const endDate = toDateOnly(config.projectEndDate) || startDate;
-        const status = ['active', 'completed', 'on-hold'].includes(project.status) ? project.status : 'active';
-        const description = typeof project.description === 'string' ? project.description : null;
-        const projectGoal = typeof config.projectGoal === 'string' ? config.projectGoal : null;
-        const businessCase = typeof config.businessCase === 'string' ? config.businessCase : null;
-        const heroImageUrl = typeof config.heroImageUrl === 'string' ? config.heroImageUrl.trim() || null : null;
-        let totalBudget = null;
-        if (typeof config.totalBudget === 'number' && Number.isFinite(config.totalBudget)) {
-            totalBudget = Math.round(config.totalBudget * 100) / 100;
-        } else if (typeof config.totalBudget === 'string') {
-            const parsed = Number(config.totalBudget.replace(',', '.'));
-            if (Number.isFinite(parsed)) {
-                totalBudget = Math.round(parsed * 100) / 100;
-            }
+        if (!existingProject) {
+            logDebug('syncProjects', 'Skip project (not found in workspace)', {
+                projectId: normalisedProjectId,
+                originalId: project.id,
+            });
+            continue;
         }
-
-        await client.query(`
-            INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
-            VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (id)
-            DO UPDATE SET
-                name = EXCLUDED.name,
-                start_date = EXCLUDED.start_date,
-                end_date = EXCLUDED.end_date,
-                status = EXCLUDED.status,
-                description = EXCLUDED.description,
-                project_goal = EXCLUDED.project_goal,
-                business_case = EXCLUDED.business_case,
-                total_budget = EXCLUDED.total_budget,
-                hero_image_url = EXCLUDED.hero_image_url
-        `, [normalisedProjectId, projectName, startDate, endDate, status, description, projectGoal, businessCase, totalBudget, heroImageUrl]);
 
         if (Array.isArray(project.workstreams)) {
             await syncProjectWorkstreams(client, normalisedProjectId, project.workstreams);
