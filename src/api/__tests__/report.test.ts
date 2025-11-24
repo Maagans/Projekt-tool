@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { reportApi } from '../report';
 
-vi.mock('../api', () => ({
+vi.mock('../../api', () => ({
   fetchWithAuth: vi.fn(),
 }));
 
-const { fetchWithAuth } = await import('../api');
+const { fetchWithAuth } = await import('../../api');
 
 describe('reportApi', () => {
   beforeEach(() => {

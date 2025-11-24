@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useProjectReports, useReportTimelineMutation, reportKeys } from '../useReports';
 import type { ReportDetail } from '../../api/report';
 
@@ -40,8 +40,10 @@ describe('useReports hooks', () => {
     });
 
     await result.current.query.refetch();
-    expect(reportApi.listReports).toHaveBeenCalledWith('project-1');
-    expect(result.current.reports[0].id).toBe('rep-1');
+    await waitFor(() => {
+      expect(reportApi.listReports).toHaveBeenCalledWith('project-1');
+      expect(result.current.reports[0]?.id).toBe('rep-1');
+    });
   });
 
   it('updates timeline state and caches report detail', async () => {
