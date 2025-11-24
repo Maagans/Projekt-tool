@@ -1,0 +1,1 @@
+Jeg vil gerne implementere en ny komponent kaldet 'MilestonePlan' i min React app. Her er koden for selve komponenten samt dens afhængige modaler og type-definitioner. Sørg for at installere afhængigheder som 'lucide-react', hvis de mangler.

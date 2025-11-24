@@ -912,7 +912,7 @@ resourceAnalyticsService og API-controllerens svar.
 
 ## Fase P4 � Milep�lsplan & tidslinje
 
-- [ ] MP-001: Datamodel og backend-API for Milep�lsplan
+- [x] MP-001: Datamodel og backend-API for Milep�lsplan
   - Form�l: Udvide ProjectState og databasen med workstreams, udvidede faser/milep�le og leverancer inkl. checklister, s� b�de frontend og rapporter deler samme sandhed.
   - �ndringer: Tilf�j nye tabeller/kolonner (`project_workstreams`, `report_deliverables`, `report_deliverable_checklist`, ekstra felter p� `report_phases` og `report_milestones`), opdater `workspaceService` load/sync, introduc�r nye `projectActions` i `useWorkspaceModule`.
   - Test (TDD): `npm run lint`, `npm run test`, `npm run migrate`, samt en Supertest-suite der verificerer at GET `/workspace` returnerer workstreams/milestones/deliverables.
@@ -920,12 +920,22 @@ resourceAnalyticsService og API-controllerens svar.
   - PRD: ?.2 Visualisering & rapportering (Milep�le) + ? Stabilitet.
   - Afh�ngigheder: MP-0 arkitekturopgaver jf. roadmap (typer/deps) + BE-001..003.
 
-- [ ] MP-002: Ny MilestonePlan-fane med CRUD og modaler
+- [x] REF-001: Refaktorér Milepælsplan til 3-lags arkitektur (AGENTS.md compliance)
+  - Formål: Sikre at den nye kode overholder `AGENTS.md` ved at separere SQL fra forretningslogik, før vi bygger videre.
+  - Ændringer: 
+    - Udtræk SQL fra `syncProjectWorkstreams`, `syncReportState` m.fl. i `workspaceService.js` til nye repositories: `backend/repositories/workstreamRepository.js` og `backend/repositories/reportRepository.js`.
+    - Sørg for at services kun indeholder validering og orkestrering, ingen direkte `client.query`.
+  - Test (TDD): `npm run test` (eksisterende tests skal stadig passere grønt efter refaktorering).
+  - Accept: Ingen direkte SQL-kald i services relateret til MP-001; arkitekturen følger Controller -> Service -> Repository.
+  - Afhængigheder: MP-001.
+
+- [x] MP-002: Ny MilestonePlan-fane med CRUD og modaler
   - Form�l: Give projektledere et dedikeret UI (`/projects/:id/plan`) med Gantt-/listevisning, modal-flow og workstreamstyring.
   - �ndringer: Flyt/omd�b `TimelineView` ? `MilestonePlan`, tilf�j `readOnly`-prop, implement�r ny side/route i `ProjectLayout`, bind modaler til `projectActions`, installer `lucide-react`, dokument�r afh�ngigheder.
   - Test (TDD): `npm run lint`, `npm run test`, Vitest/RTL for plan-hooks og komponenter, manuelle sanity: opret fase?workstream?milep�l?leverance og persister.
   - Accept: Administrator/Projektleder kan fuldt redigere planen; sejr-scenarie og fejlscenarier (API-fejl) h�ndteres med toasts.
   - PRD: ?.2 Visualisering & rapportering, ? UX (ensartet Tailwind-styling).
+  - Status 24/11: Ny `/plan`-fane med MilestonePlan-komponent, modaler for workstream/fase/milep?l/leverance, `readOnly`-tilstand og lucide-ikoner er ude; flowet er bundet til `projectActions` med toasts for fejl/succes.
   - Afh�ngigheder: MP-001 backend, FE-005 Tailwind, eksisterende projektlayout.
 
 - [ ] MP-003: Read-only integration p� rapporter og migrationscutover
@@ -935,6 +945,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Rapportvisning viser korrekt timelineudsnit uden redigeringsmuligheder; konverterede projekter mister ikke historiske data.
   - PRD: ?.1 Kernerapportering, ? Stabilitet & dataintegritet.
   - Afh�ngigheder: MP-001, MP-002, eksisterende rapport-draftflow.
+
 
 
 

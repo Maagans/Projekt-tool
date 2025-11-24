@@ -31,7 +31,7 @@
   - Samme proces som H1, men for `employeesService.js`.  
   - Kritisk, da rettighedsstyring bor her.
 
-- [ ] **TASK-H5 – Zod for Auth/Users**  
+- [X] **TASK-H5 – Zod for Auth/Users**  
   - Valider login/register payloads med Zod i `authController.js` / `authService.js`.  
   - Beskyt API’et mod “bad data” helt fra indgangen.
 
@@ -39,7 +39,7 @@
 
 ## Fase 3 – Frontend Types (TypeScript Sync)
 
-- [ ] **TASK-H6 – Synkroniser Types**  
+- [X] **TASK-H6 – Synkroniser Types**  
   - Opdater `src/types.ts`, så de matcher de nye Zod-schemas fra backend.  
   - Garanterer at frontend ikke sender data, som backend afviser.
 
