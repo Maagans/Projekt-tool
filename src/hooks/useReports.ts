@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportApi, type ReportDetail, type ReportState, type ReportSummary } from '../api/report';
-import type { KanbanTask, ListItem, MainTableRow, Phase, Milestone, Deliverable, Workstream } from '../types';
+import type { KanbanTask, ListItem, MainTableRow, Phase, Milestone, Deliverable, Workstream, Risk } from '../types';
 
 export const reportKeys = {
   all: ['reports'] as const,
@@ -101,7 +101,7 @@ export const useReportTimelineMutation = () => {
     }) => {
       const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
       const loaded = ensureReportLoaded(reportId, current);
-      const nextState = mergeState(loaded.state as ProjectState, {
+      const nextState = mergeState(loaded.state, {
         phases,
         milestones,
         deliverables,
@@ -120,7 +120,7 @@ export const useReportRiskMatrix = () => {
   const baseMutation = useReportStateMutation();
 
   return useMutation({
-    mutationFn: async ({ reportId, risks }: { reportId: string; risks: ReportState['risks'] }) => {
+    mutationFn: async ({ reportId, risks }: { reportId: string; risks: Risk[] }) => {
       const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
       const loaded = ensureReportLoaded(reportId, current);
       const nextState = mergeState(loaded.state, { risks });

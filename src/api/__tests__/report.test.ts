@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { vi } from 'vitest';
 import { reportApi } from '../report';
 
 vi.mock('../../api', () => ({

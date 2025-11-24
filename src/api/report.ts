@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { fetchWithAuth } from '../api';
-import { type ProjectState, type Risk } from '../types';
+import {
+  type ProjectState,
+  type Risk,
+  type MainTableRow,
+  type Phase,
+  type Milestone,
+  type Deliverable,
+  type KanbanTask,
+  type ProjectRiskStatus,
+  type ProjectRiskCategoryKey,
+} from '../types';
 
 const listItemSchema = z.object({
   id: z.string().min(1),
@@ -139,39 +149,105 @@ const reportResponseSchema = z.object({
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
 type ApiReportState = z.infer<typeof projectStateSchema>;
 type ApiRisk = z.infer<typeof riskSchema>;
-export type ReportDetail = z.infer<typeof reportDetailSchema>;
+export type ReportDetail = z.infer<typeof reportDetailSchema> & { state: ReportState };
+export type ReportState = ProjectState;
 
-const normalizeRisk = (risk: ApiRisk): Risk => ({
-  id: risk.id,
-  name: risk.title,
-  s: risk.probability,
-  k: risk.impact,
-  projectRiskId: risk.projectRiskId ?? null,
-  description: risk.description ?? null,
-  status: risk.status ?? 'open',
-  categoryKey: typeof risk.category === 'string' ? risk.category : (risk.category?.key as string | undefined),
-  ownerName: risk.owner?.name ?? null,
-  ownerEmail: risk.owner?.email ?? null,
-  mitigationPlanA: risk.mitigationPlanA ?? null,
-  mitigationPlanB: risk.mitigationPlanB ?? null,
-  followUpNotes: risk.followUpNotes ?? null,
-  followUpFrequency: risk.followUpFrequency ?? null,
-  dueDate: risk.dueDate ?? null,
-  lastFollowUpAt: risk.lastFollowUpAt ?? null,
-  projectRiskArchived: risk.isArchived ?? false,
-  projectRiskUpdatedAt: risk.projectRiskUpdatedAt ?? null,
-});
+const normalizeRisk = (risk: ApiRisk): Risk => {
+  const categoryKey = (typeof risk.category === 'string'
+    ? (risk.category as ProjectRiskCategoryKey)
+    : (risk.category?.key as ProjectRiskCategoryKey | undefined)) ?? 'other';
+  const status = (risk.status as ProjectRiskStatus | undefined) ?? 'open';
+  return {
+    id: risk.id,
+    name: risk.title,
+    s: risk.probability,
+    k: risk.impact,
+    projectRiskId: risk.projectRiskId ?? null,
+    description: risk.description ?? null,
+    status,
+    categoryKey,
+    ownerName: risk.owner?.name ?? null,
+    ownerEmail: risk.owner?.email ?? null,
+    mitigationPlanA: risk.mitigationPlanA ?? null,
+    mitigationPlanB: risk.mitigationPlanB ?? null,
+    followUpNotes: risk.followUpNotes ?? null,
+    followUpFrequency: risk.followUpFrequency ?? null,
+    dueDate: risk.dueDate ?? null,
+    lastFollowUpAt: risk.lastFollowUpAt ?? null,
+    projectRiskArchived: risk.isArchived ?? false,
+    projectRiskUpdatedAt: risk.projectRiskUpdatedAt ?? null,
+  };
+};
+
+const normalizeMainTableRows = (rows: ApiReportState['mainTableRows']): MainTableRow[] =>
+  (rows ?? []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    note: row.note ?? '',
+  }));
+
+const normalizePhases = (phases: ApiReportState['phases']): Phase[] =>
+  (phases ?? []).map((p) => ({
+    id: p.id,
+    text: p.text,
+    start: p.start,
+    end: p.end,
+    highlight: p.highlight ?? '',
+    workstreamId: p.workstreamId ?? null,
+    startDate: p.startDate ?? null,
+    endDate: p.endDate ?? null,
+    status: p.status ?? null,
+  }));
+
+const normalizeMilestones = (milestones: ApiReportState['milestones']): Milestone[] =>
+  (milestones ?? []).map((m) => ({
+    id: m.id,
+    text: m.text,
+    position: m.position,
+    date: m.date ?? null,
+    status: m.status ?? null,
+    workstreamId: m.workstreamId ?? null,
+  }));
+
+const normalizeDeliverables = (deliverables: ApiReportState['deliverables']): Deliverable[] =>
+  (deliverables ?? []).map((d) => ({
+    id: d.id,
+    text: d.text,
+    position: d.position,
+    milestoneId: d.milestoneId ?? null,
+    status: d.status ?? null,
+    owner: d.owner ?? null,
+    ownerId: d.ownerId ?? null,
+    description: d.description ?? null,
+    notes: d.notes ?? null,
+    startDate: d.startDate ?? null,
+    endDate: d.endDate ?? null,
+    progress: d.progress ?? null,
+    checklist: d.checklist ?? [],
+  }));
+
+const normalizeKanban = (tasks: ApiReportState['kanbanTasks']): KanbanTask[] =>
+  (tasks ?? []).map((t) => ({
+    id: t.id,
+    content: t.content,
+    status: t.status,
+    assignee: t.assignee ?? null,
+    dueDate: t.dueDate ?? null,
+    notes: t.notes ?? null,
+    createdAt: t.createdAt ?? new Date().toISOString(),
+  }));
 
 const normalizeReportState = (state: ApiReportState): ProjectState => ({
   statusItems: state.statusItems ?? [],
   challengeItems: state.challengeItems ?? [],
   nextStepItems: state.nextStepItems ?? [],
-  mainTableRows: state.mainTableRows ?? [],
+  mainTableRows: normalizeMainTableRows(state.mainTableRows),
   risks: (state.risks ?? []).map(normalizeRisk),
-  phases: state.phases ?? [],
-  milestones: state.milestones ?? [],
-  deliverables: state.deliverables ?? [],
-  kanbanTasks: state.kanbanTasks ?? [],
+  phases: normalizePhases(state.phases),
+  milestones: normalizeMilestones(state.milestones),
+  deliverables: normalizeDeliverables(state.deliverables),
+  kanbanTasks: normalizeKanban(state.kanbanTasks),
   workstreams: state.workstreams ?? [],
 });
 
