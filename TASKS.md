@@ -1010,11 +1010,11 @@ resourceAnalyticsService og API-controllerens svar.
     4) Tests: repo-unit (CRUD/overlap/rollback), service-mock (validation/permissions), Supertest på eksisterende time-entry routes.
   - Afhængigheder: ST-002.
 
-- [ ] LEG-003: Udskille projectMembers/Workspace til repos
+- [x] LEG-003: Udskille projectMembers/Workspace til repos
   - Formål: Slanke `workspaceService` og `projectMembersService` (fjerner direkte SQL).
-  - Ændringer: Repos for projekter, medlemmer, time entries; service-lag kun orchestration/validering; opdater relaterede controller-tests.
-  - Test (TDD): Repo-tests (create/update/delete), service-tests (transaktioner/permissions), workspace-route Supertest.
-  - Afhængigheder: LEG-002 (time entries repo kan genbruges).
+  - Resultat: Nyt `projectMembersRepository` med CRUD/lead-checks, services bruger repo + eksisterende validators; workspace sync bruger repo + timeEntriesRepo; tests opdateret.
+  - Tests: backend `npm test --run` grøn.
+  - Afhængigheder: LEG-002 (genbrugt time entries repo).
 
 - [ ] LEG-004: Auth/Setup repos (users/employees)
   - Formål: Flytte direkte queries ud af `authService` og `setupService`.

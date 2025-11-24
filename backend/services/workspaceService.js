@@ -4,6 +4,7 @@ import logger from '../logger.js';
 import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity } from '../utils/helpers.js';
 import * as workstreamRepository from '../repositories/workstreamRepository.js';
 import * as reportRepository from '../repositories/reportRepository.js';
+import * as projectMembersRepository from '../repositories/projectMembersRepository.js';
 
 export const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -1180,11 +1181,8 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
 const syncProjectMembers = async (client, projectId, membersPayload, existingProject = null) => {
     const membersArray = Array.isArray(membersPayload) ? membersPayload : [];
 
-    const existingDbResult = await client.query(
-        'SELECT id::text, employee_id::text FROM project_members WHERE project_id = $1::uuid',
-        [projectId],
-    );
-    const existingIds = new Set(existingDbResult.rows.map((row) => row.id));
+    const existingDbMembers = await projectMembersRepository.listByProject(client, projectId);
+    const existingIds = new Set(existingDbMembers.map((row) => row.id));
     const seenIds = new Set();
 
     const existingWorkspaceProject = existingProject || { projectMembers: [] };
@@ -1208,15 +1206,14 @@ const syncProjectMembers = async (client, projectId, membersPayload, existingPro
             }
         }
 
-        await client.query(
-            `
-            INSERT INTO project_members (id, project_id, employee_id, role, member_group, is_project_lead)
-            VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6)
-            ON CONFLICT (id)
-            DO UPDATE SET role = EXCLUDED.role, member_group = EXCLUDED.member_group, is_project_lead = EXCLUDED.is_project_lead
-        `,
-            [memberId, projectId, member.employeeId, role, group, isLead],
-        );
+        await projectMembersRepository.insertMember(client, {
+            id: memberId,
+            projectId,
+            employeeId: member.employeeId,
+            role,
+            group,
+            isProjectLead: isLead,
+        });
 
         await syncTimeEntries(client, memberId, member.timeEntries);
         seenIds.add(memberId);
@@ -1224,7 +1221,7 @@ const syncProjectMembers = async (client, projectId, membersPayload, existingPro
 
     const idsToDelete = Array.from(existingIds).filter((id) => !seenIds.has(id));
     if (idsToDelete.length > 0) {
-        await client.query('DELETE FROM project_members WHERE project_id = $1::uuid AND id = ANY($2::uuid[])', [projectId, idsToDelete]);
+        await projectMembersRepository.deleteMissing(client, projectId, Array.from(seenIds));
     }
 };
 
