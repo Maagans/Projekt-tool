@@ -19,8 +19,45 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
     areaMeta.set(area.dataKey, area);
   });
 
+  const computeOverBaselineRanges = (variant: 'planned' | 'actual') => {
+    if (baselineHoursWeek <= 0) return [];
+    const ranges: Array<{ start: string; end: string }> = [];
+    let start: string | null = null;
+    const getValue = (point: ProjectStackChartConfig['data'][number]) =>
+      variant === 'planned' ? point.plannedTotal : point.actualTotal;
+
+    chart.data.forEach((point, index) => {
+      const over = getValue(point) > baselineHoursWeek;
+      if (over && !start) {
+        start = point.week;
+      }
+      if (!over && start) {
+        ranges.push({ start, end: chart.data[index - 1]?.week ?? point.week });
+        start = null;
+      }
+    });
+
+    if (start) {
+      ranges.push({ start, end: chart.data[chart.data.length - 1]?.week ?? start });
+    }
+    return ranges;
+  };
+
+  const computeOverBaselineWeeks = (variant: 'planned' | 'actual') =>
+    baselineHoursWeek <= 0
+      ? []
+      : chart.data.filter((point) =>
+          variant === 'planned' ? point.plannedTotal > baselineHoursWeek : point.actualTotal > baselineHoursWeek,
+        ).map((point) => point.week);
+
   const renderChart = (variant: 'planned' | 'actual') => {
     const areas = variant === 'planned' ? chart.plannedAreas : chart.actualAreas;
+    const getValue = (point: ProjectStackChartConfig['data'][number]) =>
+      variant === 'planned' ? point.plannedTotal : point.actualTotal;
+    const maxSeriesValue = Math.max(0, ...chart.data.map(getValue));
+    const overRanges = computeOverBaselineRanges(variant);
+    const yMax = Math.max(baselineHoursWeek || 0, maxSeriesValue);
+
     return (
       <div
         key={variant}
@@ -33,9 +70,13 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
           <AreaChart data={chart.data}>
             <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
             <XAxis dataKey="week" tickFormatter={formatWeekLabel} stroke="#475569" minTickGap={12} />
-            <YAxis stroke="#475569" tickFormatter={(value) => formatHours(Number(value))} />
+            <YAxis
+              stroke="#475569"
+              tickFormatter={(value) => formatHours(Number(value))}
+              domain={[0, yMax > 0 ? yMax : 'auto']}
+            />
             {baselineHoursWeek > 0 &&
-              chart.overBaselineRanges.map((range) => (
+              overRanges.map((range) => (
                 <ReferenceArea
                   key={`${range.start}-${range.end}-${variant}`}
                   x1={range.start}
@@ -75,6 +116,8 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
       </div>
     );
   };
+
+  const overBaselineWeeks = computeOverBaselineWeeks(view);
 
   return (
     <section className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm" data-testid="stacked-projects-card">
@@ -122,7 +165,7 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
       </div>
 
       <StackedLegend entries={chart.legendEntries} />
-      <OverBaselineBadges weeks={chart.overBaselineWeeks} baselineHoursWeek={baselineHoursWeek} />
+      <OverBaselineBadges weeks={overBaselineWeeks} baselineHoursWeek={baselineHoursWeek} />
     </section>
   );
 };
