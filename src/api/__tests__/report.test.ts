@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest';
 import { reportApi } from '../report';
 
 vi.mock('../../api', () => ({
@@ -6,6 +6,7 @@ vi.mock('../../api', () => ({
 }));
 
 const { fetchWithAuth } = await import('../../api');
+const mockedFetch = fetchWithAuth as MockedFunction<typeof fetchWithAuth>;
 
 describe('reportApi', () => {
   beforeEach(() => {
@@ -13,7 +14,7 @@ describe('reportApi', () => {
   });
 
   it('parses report list', async () => {
-    (fetchWithAuth as unknown as vi.Mock).mockResolvedValue({
+    mockedFetch.mockResolvedValue({
       success: true,
       reports: [{ id: 'r1', projectId: 'p1', weekKey: '2024-W05' }],
     });
@@ -23,7 +24,7 @@ describe('reportApi', () => {
   });
 
   it('parses report detail with defaults', async () => {
-    (fetchWithAuth as unknown as vi.Mock).mockResolvedValue({
+    mockedFetch.mockResolvedValue({
       success: true,
       report: {
         id: 'r1',

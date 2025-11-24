@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useProjectReports, useReportTimelineMutation, reportKeys } from '../useReports';
@@ -17,6 +17,8 @@ vi.mock('../../api/report', () => {
 });
 
 const { reportApi } = await import('../../api/report');
+const mockedList = reportApi.listReports as MockedFunction<typeof reportApi.listReports>;
+const mockedUpdate = reportApi.updateReport as MockedFunction<typeof reportApi.updateReport>;
 
 const createWrapper = (client: QueryClient) =>
   function Wrapper({ children }: { children: React.ReactNode }) {
@@ -34,7 +36,7 @@ describe('useReports hooks', () => {
   });
 
   it('fetches project reports', async () => {
-    (reportApi.listReports as unknown as vi.Mock).mockResolvedValue([{ id: 'rep-1', weekKey: '2024-W01' }]);
+    mockedList.mockResolvedValue([{ id: 'rep-1', weekKey: '2024-W01' }]);
     const { result } = renderHook(() => useProjectReports('project-1'), {
       wrapper: createWrapper(queryClient),
     });
@@ -86,7 +88,7 @@ describe('useReports hooks', () => {
       },
     };
 
-    (reportApi.updateReport as unknown as vi.Mock).mockResolvedValue(updated);
+    mockedUpdate.mockResolvedValue(updated);
 
     const { result } = renderHook(() => useReportTimelineMutation(), {
       wrapper: createWrapper(queryClient),

@@ -10,6 +10,9 @@ import {
   type KanbanTask,
   type ProjectRiskStatus,
   type ProjectRiskCategoryKey,
+  type PhaseStatus,
+  type MilestoneStatus,
+  type DeliverableStatus,
 } from '../types';
 
 const listItemSchema = z.object({
@@ -149,8 +152,9 @@ const reportResponseSchema = z.object({
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
 type ApiReportState = z.infer<typeof projectStateSchema>;
 type ApiRisk = z.infer<typeof riskSchema>;
-export type ReportDetail = z.infer<typeof reportDetailSchema> & { state: ReportState };
+type ApiReportDetail = z.infer<typeof reportDetailSchema>;
 export type ReportState = ProjectState;
+export type ReportDetail = { id: string; projectId?: string | null; weekKey: string; state: ReportState };
 
 const normalizeRisk = (risk: ApiRisk): Risk => {
   const categoryKey = (typeof risk.category === 'string'
@@ -197,7 +201,7 @@ const normalizePhases = (phases: ApiReportState['phases']): Phase[] =>
     workstreamId: p.workstreamId ?? null,
     startDate: p.startDate ?? null,
     endDate: p.endDate ?? null,
-    status: p.status ?? null,
+    status: (p.status as PhaseStatus | null | undefined) ?? null,
   }));
 
 const normalizeMilestones = (milestones: ApiReportState['milestones']): Milestone[] =>
@@ -206,7 +210,7 @@ const normalizeMilestones = (milestones: ApiReportState['milestones']): Mileston
     text: m.text,
     position: m.position,
     date: m.date ?? null,
-    status: m.status ?? null,
+    status: (m.status as MilestoneStatus | null | undefined) ?? null,
     workstreamId: m.workstreamId ?? null,
   }));
 
@@ -216,7 +220,7 @@ const normalizeDeliverables = (deliverables: ApiReportState['deliverables']): De
     text: d.text,
     position: d.position,
     milestoneId: d.milestoneId ?? null,
-    status: d.status ?? null,
+    status: (d.status as DeliverableStatus | null | undefined) ?? null,
     owner: d.owner ?? null,
     ownerId: d.ownerId ?? null,
     description: d.description ?? null,
@@ -267,7 +271,14 @@ export const reportApi = {
     if (!parsed.success) {
       throw new Error('Ugyldigt svar fra rapport-API.');
     }
-    return { ...parsed.data.report, state: normalizeReportState(parsed.data.report.state) };
+    const apiReport: ApiReportDetail = parsed.data.report;
+    const normalized: ReportDetail = {
+      id: apiReport.id,
+      projectId: apiReport.projectId ?? null,
+      weekKey: apiReport.weekKey,
+      state: normalizeReportState(apiReport.state),
+    };
+    return normalized;
   },
 
   async createReport(projectId: string, payload: { weekKey: string; state?: ReportState }): Promise<ReportDetail> {
@@ -279,7 +290,13 @@ export const reportApi = {
     if (!parsed.success) {
       throw new Error('Ugyldigt svar ved oprettelse af rapport.');
     }
-    return { ...parsed.data.report, state: normalizeReportState(parsed.data.report.state) };
+    const apiReport: ApiReportDetail = parsed.data.report;
+    return {
+      id: apiReport.id,
+      projectId: apiReport.projectId ?? null,
+      weekKey: apiReport.weekKey,
+      state: normalizeReportState(apiReport.state),
+    };
   },
 
   async updateReport(reportId: string, payload: { weekKey?: string; state?: ReportState }): Promise<ReportDetail> {
@@ -291,7 +308,13 @@ export const reportApi = {
     if (!parsed.success) {
       throw new Error('Ugyldigt svar ved opdatering af rapport.');
     }
-    return { ...parsed.data.report, state: normalizeReportState(parsed.data.report.state) };
+    const apiReport: ApiReportDetail = parsed.data.report;
+    return {
+      id: apiReport.id,
+      projectId: apiReport.projectId ?? null,
+      weekKey: apiReport.weekKey,
+      state: normalizeReportState(apiReport.state),
+    };
   },
 
   async deleteReport(reportId: string): Promise<void> {
