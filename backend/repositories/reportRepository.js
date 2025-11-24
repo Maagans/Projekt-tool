@@ -10,6 +10,7 @@ const REPORT_ITEM_TABLES = [
     'report_deliverables',
     'report_kanban_tasks',
     'report_risks',
+    'report_deliverable_checklist',
 ];
 
 export const getReportsByProjectId = async (client, projectId) => {
@@ -154,4 +155,420 @@ export const insertKanbanTask = async (client, reportId, { id, content, status, 
          VALUES ($1::uuid, $2::${sqlType}, $3, $4, $5, $6::date, $7, $8::timestamptz)`,
         [id, value, content, status, assignee, dueDate, notes, createdAt]
     );
+};
+
+export const getReportById = async (client, reportId) => {
+    const { value, sqlType } = classifyReportIdentifier(reportId);
+    const result = await client.query(
+        {
+            text: `SELECT id::text, project_id::text, week_key FROM reports WHERE id = $1::${sqlType} LIMIT 1`,
+            values: [value],
+        },
+    );
+    if (result.rowCount === 0) {
+        return null;
+    }
+    const row = result.rows[0];
+    return { id: row.id, projectId: row.project_id, weekKey: row.week_key };
+};
+
+export const updateReportWeekKey = async (client, reportId, weekKey) => {
+    const { value, sqlType } = classifyReportIdentifier(reportId);
+    await client.query(
+        {
+            text: `UPDATE reports SET week_key = $1 WHERE id = $2::${sqlType}`,
+            values: [weekKey, value],
+        },
+    );
+};
+
+export const deleteReport = async (client, reportId) => {
+    const { value, sqlType } = classifyReportIdentifier(reportId);
+    await client.query(
+        {
+            text: `DELETE FROM reports WHERE id = $1::${sqlType}`,
+            values: [value],
+        },
+    );
+};
+
+export const getReportState = async (client, reportId) => {
+    const { value, sqlType } = classifyReportIdentifier(reportId);
+    const reportIdCast = `::${sqlType}`;
+
+    const state = {
+        statusItems: [],
+        challengeItems: [],
+        nextStepItems: [],
+        mainTableRows: [],
+        risks: [],
+        phases: [],
+        milestones: [],
+        deliverables: [],
+        kanbanTasks: [],
+        workstreams: [],
+    };
+
+    const tables = [
+        {
+            sql: `SELECT id::text, position, content FROM report_status_items WHERE report_id = $1${reportIdCast}`,
+            handler: (row) => state.statusItems.push({ id: row.id, content: row.content }),
+        },
+        {
+            sql: `SELECT id::text, position, content FROM report_challenge_items WHERE report_id = $1${reportIdCast}`,
+            handler: (row) => state.challengeItems.push({ id: row.id, content: row.content }),
+        },
+        {
+            sql: `SELECT id::text, position, content FROM report_next_step_items WHERE report_id = $1${reportIdCast}`,
+            handler: (row) => state.nextStepItems.push({ id: row.id, content: row.content }),
+        },
+        {
+            sql: `SELECT id::text, position, title, status, note FROM report_main_table_rows WHERE report_id = $1${reportIdCast}`,
+            handler: (row) => state.mainTableRows.push({
+                id: row.id,
+                title: row.title,
+                status: row.status,
+                note: row.note ?? '',
+            }),
+        },
+    ];
+
+    for (const { sql, handler } of tables) {
+        const result = await client.query(sql, [value]);
+        result.rows.forEach(handler);
+    }
+
+    const snapshotResult = await client.query(
+        {
+            text: `
+                SELECT
+                  s.id::text,
+                  s.report_id::text,
+                  s.project_risk_id::text,
+                  s.title,
+                  s.description,
+                  s.probability,
+                  s.impact,
+                  s.score,
+                  s.category,
+                  s.status,
+                  s.owner_name,
+                  s.owner_email,
+                  s.mitigation_plan_a,
+                  s.mitigation_plan_b,
+                  s.follow_up_notes,
+                  s.follow_up_frequency,
+                  s.due_date,
+                  s.last_follow_up_at,
+                  s.created_at,
+                  pr.is_archived AS project_risk_archived,
+                  pr.updated_at AS project_risk_updated_at
+                FROM report_risk_snapshots s
+                LEFT JOIN project_risks pr ON pr.id = s.project_risk_id
+                WHERE s.report_id = $1${reportIdCast}
+                ORDER BY s.created_at ASC
+            `,
+            values: [value],
+        },
+    );
+
+    const snapshotRows = snapshotResult.rows ?? [];
+    if (snapshotRows.length > 0) {
+        snapshotRows.forEach((row) => {
+            state.risks.push({
+                id: row.id,
+                projectRiskId: row.project_risk_id,
+                title: row.title,
+                description: row.description ?? null,
+                probability: Number(row.probability ?? 1),
+                impact: Number(row.impact ?? 1),
+                score: Number(row.score ?? 1),
+                category: row.category ?? "other",
+                status: row.status ?? "open",
+                owner: row.owner_name ? { id: row.project_risk_id ?? row.id, name: row.owner_name, email: row.owner_email ?? null } : null,
+                mitigationPlanA: row.mitigation_plan_a ?? null,
+                mitigationPlanB: row.mitigation_plan_b ?? null,
+                followUpNotes: row.follow_up_notes ?? null,
+                followUpFrequency: row.follow_up_frequency ?? null,
+                dueDate: row.due_date ?? null,
+                lastFollowUpAt: row.last_follow_up_at ?? null,
+                isArchived: row.project_risk_archived ?? false,
+                projectRiskUpdatedAt: row.project_risk_updated_at ?? null,
+            });
+        });
+    } else {
+        const legacyRisks = await client.query(
+            {
+                text: `
+                  SELECT id::text, position, name, probability, consequence
+                  FROM report_risks
+                  WHERE report_id = $1${reportIdCast}
+                `,
+                values: [value],
+            },
+        );
+        legacyRisks.rows.forEach((row) => {
+            state.risks.push({
+                id: row.id,
+                name: row.name,
+                s: Number(row.probability ?? 1),
+                k: Number(row.consequence ?? 1),
+                projectRiskId: null,
+            });
+        });
+    }
+
+    const phasesResult = await client.query(
+        {
+            text: `
+              SELECT id::text, label, start_percentage::float, end_percentage::float, highlight, workstream_id::text, start_date, end_date, status
+              FROM report_phases
+              WHERE report_id = $1${reportIdCast}
+            `,
+            values: [value],
+        },
+    );
+    phasesResult.rows.forEach((row) => {
+        state.phases.push({
+            id: row.id,
+            text: row.label,
+            start: Number(row.start_percentage ?? 0),
+            end: Number(row.end_percentage ?? 0),
+            highlight: row.highlight ?? "",
+            workstreamId: row.workstream_id ?? null,
+            startDate: row.start_date,
+            endDate: row.end_date,
+            status: row.status ?? null,
+        });
+    });
+
+    const milestonesResult = await client.query(
+        {
+            text: `
+              SELECT id::text, label, position_percentage::float, workstream_id::text, due_date, status
+              FROM report_milestones
+              WHERE report_id = $1${reportIdCast}
+            `,
+            values: [value],
+        },
+    );
+    milestonesResult.rows.forEach((row) => {
+        state.milestones.push({
+            id: row.id,
+            text: row.label,
+            position: Number(row.position_percentage ?? 0),
+            date: row.due_date ?? null,
+            status: row.status ?? null,
+            workstreamId: row.workstream_id ?? null,
+        });
+    });
+
+    const deliverablesResult = await client.query(
+        {
+            text: `
+              SELECT
+                id::text,
+                label,
+                position_percentage::float,
+                milestone_id::text,
+                status,
+                owner_name,
+                owner_employee_id::text,
+                description,
+                notes,
+                start_date,
+                end_date,
+                progress
+              FROM report_deliverables
+              WHERE report_id = $1${reportIdCast}
+            `,
+            values: [value],
+        },
+    );
+    const deliverableIds = [];
+    deliverablesResult.rows.forEach((row) => {
+        deliverableIds.push(row.id);
+        state.deliverables.push({
+            id: row.id,
+            text: row.label,
+            position: Number(row.position_percentage ?? 0),
+            milestoneId: row.milestone_id ?? null,
+            status: row.status ?? null,
+            owner: row.owner_name ?? null,
+            ownerId: row.owner_employee_id ?? null,
+            description: row.description ?? null,
+            notes: row.notes ?? null,
+            startDate: row.start_date ?? null,
+            endDate: row.end_date ?? null,
+            progress: row.progress ?? null,
+            checklist: [],
+        });
+    });
+
+    if (deliverableIds.length > 0) {
+        const checklistResult = await client.query(
+            {
+                text: `
+                  SELECT id::text, deliverable_id::text, position, text, completed
+                  FROM report_deliverable_checklist
+                  WHERE deliverable_id = ANY($1::text[])
+                `,
+                values: [deliverableIds],
+            },
+        );
+        const checklistByDeliverable = new Map();
+        checklistResult.rows.forEach((row) => {
+            if (!checklistByDeliverable.has(row.deliverable_id)) {
+                checklistByDeliverable.set(row.deliverable_id, []);
+            }
+            checklistByDeliverable.get(row.deliverable_id).push({
+                id: row.id,
+                text: row.text,
+                completed: row.completed ?? false,
+            });
+        });
+        state.deliverables = state.deliverables.map((d) => ({
+            ...d,
+            checklist: checklistByDeliverable.get(d.id) ?? [],
+        }));
+    }
+
+    const kanbanResult = await client.query(
+        {
+            text: `
+              SELECT id::text, content, status, assignee, due_date, notes, created_at
+              FROM report_kanban_tasks
+              WHERE report_id = $1${reportIdCast}
+            `,
+            values: [value],
+        },
+    );
+    kanbanResult.rows.forEach((row) => {
+        state.kanbanTasks.push({
+            id: row.id,
+            content: row.content,
+            status: row.status,
+            assignee: row.assignee ?? null,
+            dueDate: row.due_date ?? null,
+            notes: row.notes ?? null,
+            createdAt: row.created_at ?? new Date().toISOString(),
+        });
+    });
+
+    return state;
+};
+
+export const replaceReportState = async (client, reportId, state) => {
+    const { value: reportIdValue, sqlType: reportIdSqlType } = classifyReportIdentifier(reportId);
+    const reportIdCast = `::${reportIdSqlType}`;
+
+    const resetTables = [
+        'report_status_items',
+        'report_challenge_items',
+        'report_next_step_items',
+        'report_main_table_rows',
+        'report_phases',
+        'report_milestones',
+        'report_deliverables',
+        'report_kanban_tasks',
+        'report_deliverable_checklist',
+    ];
+
+    await deleteItems(client, reportId, resetTables);
+
+    const insertListItems = async (items, insertFn) => {
+        const seen = new Set();
+        for (const [index, item] of (items ?? []).entries()) {
+            const itemId = item.id;
+            if (!itemId || seen.has(itemId)) continue;
+            seen.add(itemId);
+            await insertFn(client, reportId, { ...item, position: index });
+        }
+    };
+
+    await insertListItems(state.statusItems, insertStatusItem);
+    await insertListItems(state.challengeItems, insertChallengeItem);
+    await insertListItems(state.nextStepItems, insertNextStepItem);
+    await insertListItems(state.mainTableRows, insertMainTableRow);
+
+    for (const [index, risk] of (state.risks ?? []).entries()) {
+        if (!risk?.id) continue;
+        await insertRisk(client, reportId, {
+            id: risk.id,
+            position: index,
+            name: risk.name ?? risk.title ?? "",
+            probability: risk.s ?? risk.probability ?? 1,
+            consequence: risk.k ?? risk.impact ?? 1,
+        });
+    }
+
+    for (const phase of state.phases ?? []) {
+        if (!phase?.id) continue;
+        await insertPhase(client, reportId, {
+            id: phase.id,
+            label: phase.text ?? "",
+            start: phase.start ?? 0,
+            end: phase.end ?? 0,
+            highlight: phase.highlight ?? "",
+            workstreamId: phase.workstreamId ?? null,
+            startDate: phase.startDate ?? null,
+            endDate: phase.endDate ?? null,
+            status: phase.status ?? null,
+        });
+    }
+
+    for (const milestone of state.milestones ?? []) {
+        if (!milestone?.id) continue;
+        await insertMilestone(client, reportId, {
+            id: milestone.id,
+            label: milestone.text ?? "",
+            position: milestone.position ?? 0,
+            workstreamId: milestone.workstreamId ?? null,
+            dueDate: milestone.date ?? null,
+            status: milestone.status ?? null,
+        });
+    }
+
+    const deliverableIdSet = new Set();
+    for (const deliverable of state.deliverables ?? []) {
+        if (!deliverable?.id || deliverableIdSet.has(deliverable.id)) continue;
+        deliverableIdSet.add(deliverable.id);
+        await insertDeliverable(client, reportId, {
+            id: deliverable.id,
+            label: deliverable.text ?? "",
+            position: deliverable.position ?? 0,
+            milestoneId: deliverable.milestoneId ?? null,
+            status: deliverable.status ?? null,
+            ownerName: deliverable.owner ?? null,
+            ownerId: deliverable.ownerId ?? null,
+            description: deliverable.description ?? null,
+            notes: deliverable.notes ?? null,
+            startDate: deliverable.startDate ?? null,
+            endDate: deliverable.endDate ?? null,
+            progress: deliverable.progress ?? null,
+        });
+        for (const [idx, checklistItem] of (deliverable.checklist ?? []).entries()) {
+            if (!checklistItem?.id) continue;
+            await insertDeliverableChecklistItem(client, {
+                id: checklistItem.id,
+                deliverableId: deliverable.id,
+                position: idx,
+                text: checklistItem.text ?? "",
+                completed: checklistItem.completed ?? false,
+            });
+        }
+    }
+
+    for (const task of state.kanbanTasks ?? []) {
+        if (!task?.id) continue;
+        await insertKanbanTask(client, reportId, {
+            id: task.id,
+            content: task.content ?? "",
+            status: task.status ?? "todo",
+            assignee: task.assignee ?? null,
+            dueDate: task.dueDate ?? null,
+            notes: task.notes ?? null,
+            createdAt: task.createdAt ?? new Date().toISOString(),
+        });
+    }
 };
