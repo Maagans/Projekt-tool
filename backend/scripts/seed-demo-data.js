@@ -78,7 +78,7 @@ const employees = [
     key: 'ahmed-yasin',
     name: 'Ahmed Yasin',
     email: 'ahmed.yasin@demo.projekt',
-    location: 'Sano Skælskør',
+    location: 'Sano Sk├ªlsk├©r',
     maxCapacity: 37,
     department: 'Innovation Lab',
     jobTitle: 'Backend Developer',
@@ -88,7 +88,7 @@ const employees = [
     key: 'maria-jorgensen',
     name: 'Maria Jorgensen',
     email: 'maria.jorgensen@demo.projekt',
-    location: 'Sano Skælskør',
+    location: 'Sano Sk├ªlsk├©r',
     maxCapacity: 28,
     department: 'Customer Experience',
     jobTitle: 'UX Designer',
@@ -353,7 +353,7 @@ const reportTemplates = [
     ],
     nextStepItems: [
       'Forbered demo for HR-ledelsen i uge 6.',
-      'Planlæg hypercare-setup til pilotafdelingerne.',
+      'Planl├ªg hypercare-setup til pilotafdelingerne.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'yellow', note: 'Integrationer forsinket en uge.' },
@@ -395,7 +395,7 @@ const reportTemplates = [
     ],
     nextStepItems: [
       'Fasthold plan for data steward backfill.',
-      'Planlæg onboarding af supportteamet i marts.',
+      'Planl├ªg onboarding af supportteamet i marts.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Sprint 9 leverede alle features.' },
@@ -416,7 +416,7 @@ const reportTemplates = [
       { label: 'Finance live', position: 72 },
     ],
     deliverables: [
-      { label: 'Data katalog v1', position: 65, checklist: ['Godkendte domæner', 'Kvalitetsregler dokumenteret'] },
+      { label: 'Data katalog v1', position: 65, checklist: ['Godkendte dom├ªner', 'Kvalitetsregler dokumenteret'] },
       { label: 'Support model', position: 80, checklist: ['On-call rotations', 'Runbook v1'] },
     ],
     kanban: [
@@ -437,8 +437,8 @@ const reportTemplates = [
       'Supportorganisationen er ikke fuldt bemandet endnu.',
     ],
     nextStepItems: [
-      'Gennemfør sikkerhedsgennemgang med IT-sikkerhed.',
-      'Planlæg kommunikationskampagne til eksterne brugere.',
+      'Gennemf├©r sikkerhedsgennemgang med IT-sikkerhed.',
+      'Planl├ªg kommunikationskampagne til eksterne brugere.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Beta indeholder alle kernefunktioner.' },
@@ -780,7 +780,7 @@ const seedReports = async (client, projectIds, workstreamIds, projectRiskMap) =>
     const workstreams = workstreamIds.get(report.projectKey) ?? [];
     const pickStream = (index = 0) => workstreams[index % (workstreams.length || 1)]?.id ?? null;
 
-    const insertList = async (items, table, cols) => {
+    const insertList = async (items, table) => {
       for (let index = 0; index < (items ?? []).length; index += 1) {
         const item = items[index];
         const id = randomUUID();

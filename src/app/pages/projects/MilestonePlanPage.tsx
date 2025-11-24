@@ -51,13 +51,33 @@ export const MilestonePlanPage: React.FC = () => {
             };
         });
 
-        const phases: Phase[] = state.phases.map(p => ({
-            id: p.id,
-            name: p.text,
-            startDate: p.startDate || '',
-            endDate: p.endDate || '',
-            status: (p.status as Phase['status']) || 'Planned'
-        }));
+        const phases: Phase[] = state.phases.map(p => {
+            let startDate = p.startDate;
+            let endDate = p.endDate;
+
+            // Fallback: Calculate dates from percentages if missing
+            if ((!startDate || !endDate) && project.config.projectStartDate && project.config.projectEndDate) {
+                const projectStart = new Date(project.config.projectStartDate).getTime();
+                const projectEnd = new Date(project.config.projectEndDate).getTime();
+                const totalDuration = projectEnd - projectStart;
+
+                if (!startDate && p.start !== undefined) {
+                    startDate = new Date(projectStart + (totalDuration * p.start / 100)).toISOString().split('T')[0];
+                }
+                if (!endDate && p.end !== undefined) {
+                    endDate = new Date(projectStart + (totalDuration * p.end / 100)).toISOString().split('T')[0];
+                }
+            }
+
+            return {
+                id: p.id,
+                name: p.text,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                status: (p.status as Phase['status']) || 'Planned',
+                ...(p.highlight ? { color: p.highlight } : {})
+            };
+        });
 
         const workstreams: Workstream[] = project.workstreams || [];
 
@@ -114,7 +134,7 @@ export const MilestonePlanPage: React.FC = () => {
             text: phase.name,
             start: 0,
             end: 0,
-            highlight: 'blue',
+            highlight: phase.color || 'blue',
             startDate: phase.startDate || null,
             endDate: phase.endDate || null,
             status: phase.status,

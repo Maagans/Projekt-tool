@@ -1,7 +1,7 @@
 import { Router } from "express";
 import authMiddleware from "../authMiddleware.js";
 import requireCsrf from "../csrfMiddleware.js";
-import { validateTimeEntryRequest } from "../validators/workspaceValidators.js";
+import { validateTimeEntryRequest } from "../validators/timeEntryValidators.js";
 import {
   validateCreateProject,
   validateUpdateProject,

@@ -19,32 +19,6 @@ import {
   updateProjectRisk as updateProjectRiskRepo,
 } from "../../repositories/riskRepository.js";
 
-const SELECT_FIELDS = `
-  r.id::text AS id,
-  r.project_id::text AS project_id,
-  r.title,
-  r.description,
-  r.probability::int,
-  r.impact::int,
-  r.score::int,
-  r.mitigation_plan_a,
-  r.mitigation_plan_b,
-  r.owner_id::text AS owner_id,
-  e.name AS owner_name,
-  e.email AS owner_email,
-  r.follow_up_notes,
-  r.follow_up_frequency,
-  r.category,
-  r.last_follow_up_at,
-  r.due_date,
-  r.status,
-  r.is_archived,
-  r.created_by::text AS created_by,
-  r.updated_by::text AS updated_by,
-  r.created_at,
-  r.updated_at
-`;
-
 const mapRiskRow = (row) => {
   const normalizeDate = (value) => {
     if (!value) return null;

@@ -999,10 +999,15 @@ resourceAnalyticsService og API-controllerens svar.
   - Test (TDD): Unit-tests for repo (insert/update/archive), service-mock-tests for permissions/validation, Supertest for ruter.
   - Afhængigheder: ST-002 (config/validering).
 
-- [ ] LEG-002: Refaktorér timeEntriesService til repo-lag
+- [x] LEG-002: Refaktorér timeEntriesService til repo-lag
   - Formål: Eliminere `client.query` i `backend/services/projects/timeEntriesService.js`.
   - Ændringer: Nyt repository for time entries; service bruger repo + zod; håndtér lead lookup via repo.
-  - Test (TDD): Repo-tests (CRUD + conflicts), service-tests (validation/edge-cases), API-test for tidsregistrering.
+  - Kortlægning (current): `timeEntriesService` kalder direkte SQL for create/update/delete/list og slår employee/project/member op inline; ingen Zod-schemas; ruter bruger service direkte.
+  - TDD-plan:
+    1) Definér Zod-schemas for payloads (create/update/delete/list by project/member/week) og params.
+    2) Opret `backend/repositories/timeEntriesRepository.js` med CRUD + konflikt- og overlap-scenarier (transaktioner).
+    3) Service: brug repo + validation + permissions; ingen direkte SQL.
+    4) Tests: repo-unit (CRUD/overlap/rollback), service-mock (validation/permissions), Supertest på eksisterende time-entry routes.
   - Afhængigheder: ST-002.
 
 - [ ] LEG-003: Udskille projectMembers/Workspace til repos

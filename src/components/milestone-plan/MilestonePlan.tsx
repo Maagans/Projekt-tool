@@ -503,7 +503,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                 })}
                             </div>
                             {/* Phases */}
-                              <div className="h-10 relative w-full">
+                            <div className="h-10 relative w-full">
                                 {project.phases.map(phase => {
                                     const isDragging = dragState?.itemType === 'phase' && dragState?.phase?.id === phase.id;
                                     const optimistic = optimisticItems[phase.id];
@@ -511,8 +511,8 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                     const start = isDragging ? dragState!.currentStartMs : (optimistic ? optimistic.startMs : new Date(phase.startDate).getTime());
                                     const end = isDragging ? dragState!.currentEndMs : (optimistic ? optimistic.endMs : new Date(phase.endDate).getTime());
 
-                                    const left = ((Math.max(start, minDate) - minDate) / totalDuration) * 100;
-                                    const width = ((Math.min(end, maxDate) - Math.max(start, minDate)) / totalDuration) * 100;
+                                    const left = ((start - minDate) / totalDuration) * 100;
+                                    const width = ((end - start) / totalDuration) * 100;
 
                                     const phaseColor = phase.color || '#e2e8f0'; // Default slate-200
 
