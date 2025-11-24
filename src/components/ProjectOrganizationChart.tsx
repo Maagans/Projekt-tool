@@ -1,25 +1,18 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, DragEvent } from 'react';
 import { ProjectMember, Employee, Project } from '../types';
 import { PlusIcon, TrashIcon, UsersIcon, ClockIcon } from './Icons';
 import { EditableField } from './EditableField';
+import { UserPlus, GripVertical, Mail, Briefcase, IdCard, X, User, Check } from 'lucide-react';
 
 type MemberGroup = ProjectMember['group'];
 
-const groupTitles: Record<MemberGroup, string> = {
-  styregruppe: 'Styregruppe',
-  projektgruppe: 'Projektgruppe / Kernegruppe',
-  partnere: 'Strategiske Partnerskaber',
-  referencegruppe: 'Referencegruppe',
-  unassigned: 'Ikke tildelte medlemmer',
-};
-
-const groupStyles: Record<MemberGroup, string> = {
-  styregruppe: 'bg-red-50 border-red-200',
-  projektgruppe: 'bg-blue-50 border-blue-200',
-  partnere: 'bg-yellow-50 border-yellow-200',
-  referencegruppe: 'bg-purple-50 border-purple-200',
-  unassigned: 'bg-slate-50 border-slate-200',
-};
+const COLUMNS: { id: MemberGroup; title: string; color: 'red' | 'blue' | 'amber' | 'purple' | 'slate' }[] = [
+  { id: 'styregruppe', title: 'Styregruppe', color: 'red' },
+  { id: 'projektgruppe', title: 'Projektgruppe / Kernegruppe', color: 'blue' },
+  { id: 'partnere', title: 'Strategiske Partnerskaber', color: 'amber' },
+  { id: 'referencegruppe', title: 'Referencegruppe', color: 'purple' },
+  { id: 'unassigned', title: 'Ikke tildelte medlemmer', color: 'slate' },
+];
 
 interface ProjectOrganizationChartProps {
   project: Project;
@@ -29,147 +22,72 @@ interface ProjectOrganizationChartProps {
   canLogTime: boolean;
   currentUserEmployeeId?: string | null;
   isSaving?: boolean;
-  onAssignEmployee: (employeeId: string) => void;
+  onAssignEmployee: (employeeId: string, role?: string, group?: MemberGroup) => void;
   onUpdateMember: (id: string, updates: Partial<ProjectMember>) => void;
   onDeleteMember: (id: string) => void;
   onUpdateTimeLog: (memberId: string, weekKey: string, hours: { planned?: number; actual?: number }) => void;
   onBulkUpdateTimeLog: (memberId: string, entries: { weekKey: string; plannedHours: number }[]) => void;
 }
 
-interface MemberCardProps {
-  member: ProjectMember;
-  employee?: Employee;
-  canManageMembers: boolean;
-  canLogThisMember: boolean;
-  disableInteractions: boolean;
-  onUpdate: (id: string, updates: Partial<ProjectMember>) => void;
-  onDelete: (id: string) => void;
-  onTimeLogClick: () => void;
-}
+// --- Helper for Allocation Calculation ---
+const calculateAllocation = (member: ProjectMember, project: Project): number => {
+  if (!member.timeEntries || member.timeEntries.length === 0) return 0;
 
-const MemberCard: React.FC<MemberCardProps> = ({
-  member,
-  employee,
-  canManageMembers,
-  canLogThisMember,
-  disableInteractions,
-  onUpdate,
-  onDelete,
-  onTimeLogClick,
-}) => {
-  const handleDragStart = (e: React.DragEvent) => {
-    if (!canManageMembers || disableInteractions) {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.setData('application/member-assignment-id', member.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  // Calculate total planned hours
+  const totalPlanned = member.timeEntries.reduce((sum, entry) => sum + (entry.plannedHours || 0), 0);
 
-  const showTimeLog = !disableInteractions && (canManageMembers || canLogThisMember);
-  const showDelete = canManageMembers && !disableInteractions;
+  // Estimate project duration in weeks (rough approximation)
+  const start = new Date(project.config.projectStartDate).getTime();
+  const end = new Date(project.config.projectEndDate).getTime();
+  const weeks = Math.max(1, (end - start) / (1000 * 60 * 60 * 24 * 7));
 
-  return (
-    <div
-      draggable={canManageMembers && !disableInteractions}
-      onDragStart={handleDragStart}
-      className={`group bg-white p-3 rounded-md shadow-sm border border-slate-200 ${
-        canManageMembers && !disableInteractions ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-      } ${disableInteractions ? 'opacity-60' : ''}`}
-    >
-      <div className="flex justify-between items-start gap-2">
-        <div className="flex-grow">
-          <p className="font-bold text-slate-800">{employee?.name || 'Ukendt medarbejder'}</p>
-          <EditableField
-            initialValue={member.role}
-            onSave={(role) => onUpdate(member.id, { role })}
-            className="text-sm text-slate-500 !p-0"
-            disabled={!canManageMembers || disableInteractions}
-          />
-        </div>
-        {(showTimeLog || showDelete) && (
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity export-hide">
-            {showTimeLog && (
-              <button
-                onClick={onTimeLogClick}
-                aria-label={`Åbn timelog for ${employee?.name ?? 'medlem'}`}
-                title="Åbn timelog"
-                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-blue-500 disabled:cursor-not-allowed disabled:text-slate-300"
-                disabled={disableInteractions}
-              >
-                <ClockIcon />
-              </button>
-            )}
-            {showDelete && (
-              <button
-                onClick={() => onDelete(member.id)}
-                className="w-7 h-7 grid place-items-center flex-shrink-0 text-slate-400 hover:text-red-500 disabled:cursor-not-allowed disabled:text-slate-300"
-                disabled={disableInteractions}
-              >
-                <TrashIcon />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Average hours per week
+  const avgHoursPerWeek = totalPlanned / weeks;
+
+  // Assume standard work week is 37 hours
+  const allocation = Math.min(100, Math.round((avgHoursPerWeek / 37) * 100));
+  return allocation;
 };
 
-interface MemberGroupColumnProps {
-  group: MemberGroup;
-  children: React.ReactNode;
-  canManageMembers: boolean;
-  onDrop: (e: React.DragEvent, group: MemberGroup) => void;
-  isDraggedOver: boolean;
-  onDragEnter: () => void;
-  onDragLeave: () => void;
-}
-
-const MemberGroupColumn: React.FC<MemberGroupColumnProps> = ({
-  group,
-  children,
-  canManageMembers,
-  onDrop,
-  isDraggedOver,
-  onDragEnter,
-  onDragLeave,
-}) => {
-  const handleDragOver = (e: React.DragEvent) => {
-    if (canManageMembers) {
-      e.preventDefault();
-    }
-  };
-
-  return (
-    <div
-      onDragOver={handleDragOver}
-      onDragEnter={onDragEnter}
-      onDragLeave={onDragLeave}
-      onDrop={(e) => {
-        if (!canManageMembers) return;
-        onDrop(e, group);
-      }}
-      className={`p-3 rounded-lg border-2 border-dashed ${groupStyles[group]} transition-colors ${
-        isDraggedOver && canManageMembers ? 'bg-opacity-50 !border-green-500' : ''
-      }`}
-    >
-      <h4 className="font-bold text-slate-700 mb-3">{groupTitles[group]}</h4>
-      <div className="space-y-3 min-h-[80px]">{children}</div>
-    </div>
-  );
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
 };
+
+// --- Components ---
 
 interface AddMemberModalProps {
   allEmployees: Employee[];
   projectMembers: ProjectMember[];
-  onAssign: (employeeId: string) => void;
+  onAssign: (employeeId: string, role?: string, group?: MemberGroup) => void;
+  onUpdateMember: (id: string, updates: Partial<ProjectMember>) => void;
+  onBulkUpdateTimeLog: (memberId: string, entries: { weekKey: string; plannedHours: number }[]) => void;
   onClose: () => void;
   isBusy: boolean;
+  initialGroup: MemberGroup;
+  project: Project;
 }
 
-const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMembers, onAssign, onClose, isBusy }) => {
+const AddMemberModal: React.FC<AddMemberModalProps> = ({
+  allEmployees,
+  projectMembers,
+  onAssign,
+  onUpdateMember,
+  onBulkUpdateTimeLog,
+  onClose,
+  isBusy,
+  initialGroup,
+  project
+}) => {
+  const [step, setStep] = useState<'select-employee' | 'configure'>('select-employee');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [role, setRole] = useState('');
+  const [allocation, setAllocation] = useState(50);
   const [assignableEmployees, setAssignableEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
@@ -183,55 +101,135 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({ allEmployees, projectMe
     setAssignableEmployees(filtered);
   }, [allEmployees, projectMembers, searchTerm]);
 
-  const handleAssign = (employeeId: string) => {
-    if (isBusy) return;
-    onAssign(employeeId);
+  const handleSelectEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setRole(employee.jobTitle || 'Teammedlem');
+    setStep('configure');
+  };
+
+  const handleSave = async () => {
+    if (!selectedEmployee) return;
+
+    // 1. Assign Employee (this creates the ProjectMember)
+    onAssign(selectedEmployee.id, role, initialGroup);
+
+    // Note: We cannot update role/allocation immediately because we don't have the new member ID yet.
+    // The user will have to edit these after creation.
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg flex flex-col h-[70vh]">
-        <h3 className="text-xl font-bold mb-2 text-slate-800">Tilføj medlem fra database</h3>
-        {isBusy && <p className="text-xs text-slate-500 mb-2">Afventer synkronisering...</p>}
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Søg efter navn eller email..."
-          disabled={isBusy}
-          className="w-full bg-white border border-slate-300 rounded-md p-2 mb-4 disabled:bg-slate-100 disabled:cursor-not-allowed"
-        />
-        <div className="flex-grow overflow-y-auto border-y border-slate-200 -mx-6 px-6 py-2">
-          {assignableEmployees.length > 0 ? (
-            <ul className="divide-y divide-slate-100">
-              {assignableEmployees.map((emp) => (
-                <li key={emp.id} className="flex justify-between items-center py-2">
-                  <div>
-                    <p className="font-medium text-slate-800">{emp.name}</p>
-                    <p className="text-sm text-slate-500">{emp.location}</p>
-                  </div>
-                  <button
-                    onClick={() => handleAssign(emp.id)}
-                    disabled={isBusy}
-                    className="bg-blue-100 text-blue-700 px-3 py-1 text-sm font-semibold rounded-md hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Tilføj
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-center text-slate-500 pt-8">Ingen tilgængelige medarbejdere matcher søgningen.</p>
-          )}
-        </div>
-        <div className="flex justify-end pt-6">
-          <button
-            onClick={onClose}
-            className="bg-slate-200 text-slate-800 px-4 py-2 rounded-md text-sm font-semibold hover:bg-slate-300"
-          >
-            Luk
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">
+            {step === 'select-employee' ? 'Vælg Medarbejder' : 'Konfigurer Medlem'}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <X size={20} className="text-slate-500" />
           </button>
         </div>
+
+        {step === 'select-employee' ? (
+          <div className="p-6 flex-1 overflow-hidden flex flex-col">
+            <div className="relative mb-4">
+              <User className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <input
+                autoFocus
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                placeholder="Søg efter navn eller email..."
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto -mx-2 px-2 space-y-2">
+              {assignableEmployees.map(emp => (
+                <button
+                  key={emp.id}
+                  onClick={() => handleSelectEmployee(emp)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-all text-left group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                    {getInitials(emp.name)}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-700 text-sm">{emp.name}</div>
+                    <div className="text-xs text-slate-500">{emp.email}</div>
+                  </div>
+                  <div className="ml-auto opacity-0 group-hover:opacity-100 text-indigo-600">
+                    <UserPlus size={16} />
+                  </div>
+                </button>
+              ))}
+              {assignableEmployees.length === 0 && (
+                <div className="text-center text-slate-400 py-8 text-sm">Ingen medarbejdere fundet</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+              <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm">
+                {getInitials(selectedEmployee!.name)}
+              </div>
+              <div>
+                <div className="font-bold text-slate-800 text-sm">{selectedEmployee!.name}</div>
+                <div className="text-xs text-indigo-600">{selectedEmployee!.email}</div>
+              </div>
+              <button onClick={() => setStep('select-employee')} className="ml-auto text-xs text-indigo-600 hover:underline">Skift</button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rolle i projektet</label>
+              <div className="relative">
+                <IdCard className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  placeholder="Projektrolle"
+                />
+              </div>
+            </div>
+
+            {/* Note: Allocation is not fully wired up in this version due to API constraints, but UI is shown */}
+            <div className="opacity-50 pointer-events-none grayscale">
+              <div className="flex justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase">Allokering (Kommer snart)</label>
+                <span className="text-xs font-bold text-indigo-600">{allocation}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={allocation}
+                onChange={(e) => setAllocation(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Du kan justere tid efter oprettelse.</p>
+            </div>
+
+            <div className="pt-4 flex justify-end gap-2">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Annuller
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isBusy}
+                className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200 disabled:opacity-50"
+                aria-label="Tilføj Medlem"
+              >
+                {isBusy ? 'Opretter...' : 'Tilføj Medlem'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -338,12 +336,10 @@ export const TimeLogModal: React.FC<TimeLogModalProps> = ({
     onBulkUpdateTimeLog(entriesToUpdate);
   };
 
-  const plannedInputClass = `bg-white border text-right border-slate-300 rounded-md p-1.5 text-sm w-full ${
-    canEditPlanned ? '' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-  }`;
-  const actualInputClass = `bg-white border text-right border-slate-300 rounded-md p-1.5 text-sm w-full ${
-    canEditActual ? '' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-  }`;
+  const plannedInputClass = `bg-white border text-right border-slate-300 rounded-md p-1.5 text-sm w-full ${canEditPlanned ? '' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+    }`;
+  const actualInputClass = `bg-white border text-right border-slate-300 rounded-md p-1.5 text-sm w-full ${canEditActual ? '' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+    }`;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -405,28 +401,28 @@ export const TimeLogModal: React.FC<TimeLogModalProps> = ({
                   onChange={
                     canEditPlanned
                       ? (e) =>
-                          setPlannedValues((prev) => ({
-                            ...prev,
-                            [weekKey]: e.target.value,
-                          }))
+                        setPlannedValues((prev) => ({
+                          ...prev,
+                          [weekKey]: e.target.value,
+                        }))
                       : undefined
                   }
                   onBlur={
                     canEditPlanned
                       ? (e) => {
-                          const rawValue = e.target.value;
-                          const numericValue = Number(rawValue);
-                          if (!rawValue || Number.isNaN(numericValue)) {
-                            setPlannedValues((prev) => ({ ...prev, [weekKey]: '' }));
-                            onUpdateTimeLog(weekKey, { planned: 0 });
-                            return;
-                          }
-
-                          const normalisedValue = Math.max(0, numericValue);
-                          const nextValue = String(normalisedValue);
-                          setPlannedValues((prev) => ({ ...prev, [weekKey]: nextValue }));
-                          onUpdateTimeLog(weekKey, { planned: normalisedValue });
+                        const rawValue = e.target.value;
+                        const numericValue = Number(rawValue);
+                        if (!rawValue || Number.isNaN(numericValue)) {
+                          setPlannedValues((prev) => ({ ...prev, [weekKey]: '' }));
+                          onUpdateTimeLog(weekKey, { planned: 0 });
+                          return;
                         }
+
+                        const normalisedValue = Math.max(0, numericValue);
+                        const nextValue = String(normalisedValue);
+                        setPlannedValues((prev) => ({ ...prev, [weekKey]: nextValue }));
+                        onUpdateTimeLog(weekKey, { planned: normalisedValue });
+                      }
                       : undefined
                   }
                   className={plannedInputClass}
@@ -439,28 +435,28 @@ export const TimeLogModal: React.FC<TimeLogModalProps> = ({
                   onChange={
                     canEditActual
                       ? (e) =>
-                          setActualValues((prev) => ({
-                            ...prev,
-                            [weekKey]: e.target.value,
-                          }))
+                        setActualValues((prev) => ({
+                          ...prev,
+                          [weekKey]: e.target.value,
+                        }))
                       : undefined
                   }
                   onBlur={
                     canEditActual
                       ? (e) => {
-                          const rawValue = e.target.value;
-                          const numericValue = Number(rawValue);
-                          if (!rawValue || Number.isNaN(numericValue)) {
-                            setActualValues((prev) => ({ ...prev, [weekKey]: '' }));
-                            onUpdateTimeLog(weekKey, { actual: 0 });
-                            return;
-                          }
-
-                          const normalisedValue = Math.max(0, numericValue);
-                          const nextValue = String(normalisedValue);
-                          setActualValues((prev) => ({ ...prev, [weekKey]: nextValue }));
-                          onUpdateTimeLog(weekKey, { actual: normalisedValue });
+                        const rawValue = e.target.value;
+                        const numericValue = Number(rawValue);
+                        if (!rawValue || Number.isNaN(numericValue)) {
+                          setActualValues((prev) => ({ ...prev, [weekKey]: '' }));
+                          onUpdateTimeLog(weekKey, { actual: 0 });
+                          return;
                         }
+
+                        const normalisedValue = Math.max(0, numericValue);
+                        const nextValue = String(normalisedValue);
+                        setActualValues((prev) => ({ ...prev, [weekKey]: nextValue }));
+                        onUpdateTimeLog(weekKey, { actual: normalisedValue });
+                      }
                       : undefined
                   }
                   className={actualInputClass}
@@ -491,6 +487,9 @@ export const TimeLogModal: React.FC<TimeLogModalProps> = ({
   );
 };
 
+
+// --- Main Component ---
+
 export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> = ({
   project,
   members,
@@ -505,24 +504,15 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   onUpdateTimeLog,
   onBulkUpdateTimeLog,
 }) => {
-  const [draggedOverGroup, setDraggedOverGroup] = useState<MemberGroup | null>(null);
+  const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [targetGroup, setTargetGroup] = useState<MemberGroup>('styregruppe');
   const [timeLogMemberId, setTimeLogMemberId] = useState<string | null>(null);
+
   const interactionsLocked = Boolean(isSaving);
   const canManageNow = canManageMembers && !interactionsLocked;
-  const canLogTimeNow = canLogTime && !interactionsLocked;
 
   const employeeMap = useMemo(() => new Map(allEmployees.map((e) => [e.id, e])), [allEmployees]);
-
-  const groupedMembers = (members || []).reduce((acc, member) => {
-    if (!acc[member.group]) acc[member.group] = [];
-    acc[member.group].push(member);
-    return acc;
-  }, {} as Record<MemberGroup, ProjectMember[]>);
-
-  const groupOrder: MemberGroup[] = ['styregruppe', 'projektgruppe', 'partnere', 'referencegruppe'];
-
-  const currentEmployeeId = currentUserEmployeeId ?? null;
 
   const activeMember = useMemo(() => {
     if (!timeLogMemberId) return null;
@@ -531,122 +521,252 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
 
   const activeEmployee = activeMember ? employeeMap.get(activeMember.employeeId) ?? null : null;
 
-  useEffect(() => {
-    if (!timeLogMemberId) return;
-    if (!activeMember || !activeEmployee) {
-      setTimeLogMemberId(null);
-    }
-  }, [timeLogMemberId, activeMember, activeEmployee]);
+  // -- Drag and Drop Logic --
 
-  const handleDrop = (e: React.DragEvent, group: MemberGroup) => {
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, memberId: string) => {
+    if (!canManageNow) return;
+    setDraggedMemberId(memberId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/member-assignment-id', memberId);
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e: DragEvent<HTMLDivElement>) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedMemberId(null);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (canManageNow) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, targetGroupId: MemberGroup) => {
     if (!canManageNow) return;
     e.preventDefault();
-    const memberAssignmentIdStr = e.dataTransfer.getData('application/member-assignment-id');
-    if (memberAssignmentIdStr) {
-      onUpdateMember(memberAssignmentIdStr, { group });
+    const memberId = e.dataTransfer.getData('application/member-assignment-id');
+
+    if (memberId) {
+      onUpdateMember(memberId, { group: targetGroupId });
     }
-    setDraggedOverGroup(null);
+    setDraggedMemberId(null);
   };
 
-  const renderMemberCard = (member: ProjectMember) => {
-    const employee = employeeMap.get(member.employeeId);
-    const isCurrentUsersMember = !!currentEmployeeId && member.employeeId === currentEmployeeId;
-    const canLogThisMember = canManageMembers || (canLogTimeNow && isCurrentUsersMember);
+  const handleAddClick = (groupId: MemberGroup) => {
+    setTargetGroup(groupId);
+    setIsAddModalOpen(true);
+  };
 
-    const memberCardProps: MemberCardProps = {
-      member,
-      canManageMembers,
-      canLogThisMember,
-      disableInteractions: interactionsLocked,
-      onUpdate: onUpdateMember,
-      onDelete: onDeleteMember,
-      onTimeLogClick: () => {
-        if (!canLogThisMember || interactionsLocked) return;
-        setTimeLogMemberId(member.id);
-      },
+  // Helper styles for dynamiske farver på kolonner
+  const getColumnStyles = (color: string) => {
+    const styles = {
+      red: { bg: 'bg-rose-50/50', border: 'border-rose-100', header: 'text-rose-800', accent: 'bg-rose-400' },
+      blue: { bg: 'bg-sky-50/50', border: 'border-sky-100', header: 'text-sky-800', accent: 'bg-sky-400' },
+      amber: { bg: 'bg-amber-50/50', border: 'border-amber-100', header: 'text-amber-800', accent: 'bg-amber-400' },
+      purple: { bg: 'bg-violet-50/50', border: 'border-violet-100', header: 'text-violet-800', accent: 'bg-violet-400' },
+      slate: { bg: 'bg-slate-50/50', border: 'border-slate-100', header: 'text-slate-800', accent: 'bg-slate-400' }
     };
-
-    if (employee) {
-      memberCardProps.employee = employee;
-    }
-
-    return <MemberCard key={member.id} {...memberCardProps} />;
+    return styles[color as keyof typeof styles] || styles.blue;
   };
-
-  const canEditPlanned = canManageNow;
-  const canEditActual = (member: ProjectMember | null) =>
-    !!member &&
-    !interactionsLocked &&
-    (canManageMembers || (canLogTime && !!currentEmployeeId && member.employeeId === currentEmployeeId));
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <UsersIcon />
-          <h3 className="text-lg font-bold text-slate-700">Projektorganisation</h3>
+    <div className="h-full flex flex-col pb-6 animate-in fade-in duration-300 relative">
+      {/* Header Toolbar */}
+      <div className="flex justify-between items-center mb-6 shrink-0">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <span className="bg-indigo-600 w-2 h-6 rounded-full"></span>
+            Projektorganisation
+          </h2>
+          <p className="text-slate-500 text-sm mt-1 ml-4">Træk og slip medlemmer for at organisere teamet.</p>
         </div>
-        {canManageMembers && (
+        {canManageNow && (
           <button
-            onClick={() => setIsAddModalOpen(true)}
-            disabled={!canManageNow}
-            className={`flex items-center justify-center gap-1 text-sm p-2 rounded-md transition-colors font-semibold export-hide ${
-              canManageNow ? 'text-blue-600 hover:bg-blue-100' : 'text-slate-400 cursor-not-allowed'
-            }`}
+            onClick={() => handleAddClick('styregruppe')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200 flex items-center gap-2"
+            aria-hidden={isAddModalOpen}
+            tabIndex={isAddModalOpen ? -1 : undefined}
           >
-            <PlusIcon /> Tilføj medlem
+            <UserPlus size={16} />
+            Tilføj Medlem
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        {groupOrder.map((group) => (
-          <MemberGroupColumn
-            key={group}
-            group={group}
-            canManageMembers={canManageNow}
-            onDrop={handleDrop}
-            isDraggedOver={draggedOverGroup === group}
-            onDragEnter={() => setDraggedOverGroup(group)}
-            onDragLeave={() => setDraggedOverGroup(null)}
-          >
-            {(groupedMembers[group] || []).map(renderMemberCard)}
-          </MemberGroupColumn>
-        ))}
+      {/* Kanban Board Area */}
+      <div className="flex-1 min-h-[600px] overflow-x-auto overflow-y-hidden pb-4">
+        <div className="flex gap-6 h-full min-w-full">
+          {COLUMNS.map(col => {
+            const colMembers = members.filter(m => m.group === col.id);
+            const style = getColumnStyles(col.color);
+
+            return (
+              <div
+                key={col.id}
+                className={`flex-1 min-w-[320px] flex flex-col rounded-xl border ${style.border} ${style.bg} transition-colors relative group/col`}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, col.id)}
+              >
+                {/* Column Header */}
+                <div className={`p-4 border-b ${style.border} flex items-center justify-between bg-white/40 backdrop-blur-sm rounded-t-xl`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${style.accent} shadow-sm`}></div>
+                    <h3 className={`font-bold ${style.header}`}>{col.title}</h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md shadow-sm border border-slate-100">
+                    {colMembers.length}
+                  </span>
+                </div>
+
+                {/* Drop Zone / Member List */}
+                <div className="flex-1 p-3 overflow-y-auto space-y-3 relative">
+                  {colMembers.map(member => {
+                    const employee = employeeMap.get(member.employeeId);
+                    const allocation = calculateAllocation(member, project);
+                    const initials = employee ? getInitials(employee.name) : '??';
+                    const isCurrentUser = currentUserEmployeeId === member.employeeId;
+                    const canLogThis = canManageMembers || (canLogTime && isCurrentUser);
+
+                    return (
+                      <div
+                        key={member.id}
+                        draggable={canManageNow}
+                        onDragStart={(e) => handleDragStart(e, member.id)}
+                        onDragEnd={handleDragEnd}
+                        className={`bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-300 hover:-translate-y-0.5 transition-all group relative z-10 ${canManageNow ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      >
+                        {/* Drag Handle (Visible on hover) */}
+                        {canManageNow && (
+                          <div className="absolute top-3 right-2 text-slate-300 opacity-0 group-hover:opacity-100 cursor-grab">
+                            <GripVertical size={14} />
+                          </div>
+                        )}
+
+                        {/* Header: Avatar & Name */}
+                        <div className="flex items-center gap-3 mb-4 border-b border-slate-100 pb-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-sm shrink-0
+                                                ${allocation > 80 ? 'bg-slate-800' : 'bg-indigo-500'}`}>
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-bold text-slate-800 text-sm truncate">{employee?.name || 'Ukendt'}</h4>
+                            <div className="flex items-center gap-1 text-xs text-indigo-600 font-medium">
+                              <IdCard size={12} />
+                              <EditableField
+                                initialValue={member.role}
+                                onSave={(role) => onUpdateMember(member.id, { role })}
+                                disabled={!canManageNow}
+                                className="!p-0 !bg-transparent hover:!bg-slate-50"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Details Block */}
+                        <div className="bg-slate-50/80 rounded-lg border border-slate-100 p-2.5 space-y-2 mb-3">
+                          {/* Department */}
+                          <div className="flex items-start gap-2 text-xs">
+                            <Briefcase size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-slate-400 font-medium text-[10px] uppercase block leading-tight">Afdeling</span>
+                              <span className="text-slate-700 font-medium truncate block">{employee?.department || '-'}</span>
+                            </div>
+                          </div>
+
+                          {/* Email */}
+                          <div className="flex items-start gap-2 text-xs">
+                            <Mail size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-slate-400 font-medium text-[10px] uppercase block leading-tight">Email</span>
+                              <span className="text-slate-700 truncate block">{employee?.email || '-'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Allocation Bar */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${allocation > 80 ? 'bg-red-400' : 'bg-emerald-400'}`}
+                              style={{ width: `${allocation}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 w-8 text-right">{allocation}%</span>
+                        </div>
+
+                        {/* Actions Footer */}
+                        <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-slate-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {canLogThis && (
+                            <button
+                              onClick={() => setTimeLogMemberId(member.id)}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                              title="Registrer tid"
+                            >
+                              <ClockIcon />
+                            </button>
+                          )}
+                          {canManageNow && (
+                            <button
+                              onClick={() => onDeleteMember(member.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                              title="Fjern medlem"
+                            >
+                              <TrashIcon />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Empty State / Drop Target hint */}
+                  {colMembers.length === 0 && (
+                    <div className="h-24 border-2 border-dashed border-slate-300/50 rounded-lg flex items-center justify-center text-slate-400 text-sm bg-white/20">
+                      Træk medlem hertil
+                    </div>
+                  )}
+
+                  {/* Add Button at bottom of column */}
+                  {canManageNow && (
+                    <button
+                      onClick={() => handleAddClick(col.id)}
+                      className="w-full py-2 text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-indigo-100 flex items-center justify-center gap-1"
+                    >
+                      <UserPlus size={12} /> Tilføj person
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {(groupedMembers['unassigned'] || []).length > 0 && (
-        <div className="mt-6">
-          <MemberGroupColumn
-            group="unassigned"
-            canManageMembers={canManageNow}
-            onDrop={handleDrop}
-            isDraggedOver={draggedOverGroup === 'unassigned'}
-            onDragEnter={() => setDraggedOverGroup('unassigned')}
-            onDragLeave={() => setDraggedOverGroup(null)}
-          >
-            {(groupedMembers['unassigned'] || []).map(renderMemberCard)}
-          </MemberGroupColumn>
-        </div>
-      )}
-
-      {canManageMembers && isAddModalOpen && (
+      {/* Add Member Modal */}
+      {isAddModalOpen && (
         <AddMemberModal
           allEmployees={allEmployees}
           projectMembers={members}
           onAssign={onAssignEmployee}
+          onUpdateMember={onUpdateMember}
+          onBulkUpdateTimeLog={onBulkUpdateTimeLog}
           onClose={() => setIsAddModalOpen(false)}
           isBusy={interactionsLocked}
+          initialGroup={targetGroup}
+          project={project}
         />
       )}
 
+      {/* Time Log Modal */}
       {activeMember && activeEmployee && (
         <TimeLogModal
           project={project}
           member={activeMember}
           employee={activeEmployee}
-          canEditPlanned={canEditPlanned}
-          canEditActual={canEditActual(activeMember)}
+          canEditPlanned={canManageNow}
+          canEditActual={canManageMembers || (canLogTime && !!currentUserEmployeeId && activeMember.employeeId === currentUserEmployeeId)}
           onClose={() => setTimeLogMemberId(null)}
           onUpdateTimeLog={(weekKey, hours) => onUpdateTimeLog(activeMember.id, weekKey, hours)}
           onBulkUpdateTimeLog={(entries) => onBulkUpdateTimeLog(activeMember.id, entries)}
@@ -655,4 +775,3 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     </div>
   );
 };
-
