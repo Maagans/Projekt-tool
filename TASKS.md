@@ -970,7 +970,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Status 24/11: RP-002 gennemført med dokumenterede Supertest-scenarier og `npm test --prefix backend` → 19 filer/79 tests grønt (se den lokale log).
   - Afhængigheder: RP-001, ST-002 (config/validering), BE-007 (routerstruktur).
 
-- [ ] RP-003: Frontend API-klient og domænehooks for rapporter
+- [x] RP-003: Frontend API-klient og domænehooks for rapporter
   - Formål: Erstatte direkte workspace-mutationer med typed API-lag og React Query hooks.
   - Ændringer: Opret `src/api/report.ts` med Zod-parsere for list/detail + sektion-mutationer (timeline, risici, kanban, statusfelter) med udgangspunkt i `docs/rp-001-report-refactor.md` og RP-002-endpoints; nye hooks `useProjectReports`, `useReportDetail`, `useReportTimelineMutation`, `useReportRiskMatrix`, `useReportKanban`, `useReportStatusCards` (React Query + toasts).
   - Test (TDD):
@@ -989,6 +989,7 @@ resourceAnalyticsService og API-controllerens svar.
     3) `npm run lint` + `npm run test` + manuelt sanity (load rapport, opdater timeline/risiko/kanban).
   - Accept: Projekt-rapportside er opdelt i mindre komponenter uden direkte API-kald; hooks driver data; UI bevarer eksisterende funktionalitet eller bedre.
   - Afhængigheder: RP-003.
+
 
 
 
