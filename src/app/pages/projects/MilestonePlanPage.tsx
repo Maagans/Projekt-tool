@@ -142,7 +142,7 @@ export const MilestonePlanPage: React.FC = () => {
             startDate: project.config.projectStartDate,
             endDate: project.config.projectEndDate
         };
-    }, [project, latestReport]);
+    }, [project, latestReport, sanitizePhaseColor]);
 
     const projectMembers = useMemo(() => {
         if (!project || !project.projectMembers) return [];
