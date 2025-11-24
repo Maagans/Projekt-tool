@@ -78,7 +78,7 @@ const employees = [
     key: 'ahmed-yasin',
     name: 'Ahmed Yasin',
     email: 'ahmed.yasin@demo.projekt',
-    location: 'Sano Sk├ªlsk├©r',
+    location: 'Sano Skaelskoer',
     maxCapacity: 37,
     department: 'Innovation Lab',
     jobTitle: 'Backend Developer',
@@ -88,7 +88,7 @@ const employees = [
     key: 'maria-jorgensen',
     name: 'Maria Jorgensen',
     email: 'maria.jorgensen@demo.projekt',
-    location: 'Sano Sk├ªlsk├©r',
+    location: 'Sano Skaelskoer',
     maxCapacity: 28,
     department: 'Customer Experience',
     jobTitle: 'UX Designer',
@@ -353,7 +353,7 @@ const reportTemplates = [
     ],
     nextStepItems: [
       'Forbered demo for HR-ledelsen i uge 6.',
-      'Planl├ªg hypercare-setup til pilotafdelingerne.',
+      'Planlaeg hypercare-setup til pilotafdelingerne.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'yellow', note: 'Integrationer forsinket en uge.' },
@@ -365,17 +365,21 @@ const reportTemplates = [
       { name: 'Forandringsledelse undervurderes', probability: 2, consequence: 5 },
     ],
     phases: [
-      { label: 'Analyse', start: 0, end: 20, highlight: 'completed' },
-      { label: 'Design', start: 20, end: 55, highlight: 'completed' },
-      { label: 'Udvikling', start: 55, end: 85, highlight: 'active' },
+      { label: 'Analyse', start: 0, end: 15, highlight: 'completed' },
+      { label: 'Design', start: 15, end: 40, highlight: 'completed' },
+      { label: 'Udvikling', start: 40, end: 80, highlight: 'active' },
+      { label: 'Implementering', start: 80, end: 100, highlight: 'planned' },
     ],
     milestones: [
-      { label: 'HR uddannelse kickoff', position: 60 },
-      { label: 'Pilotafdeling live', position: 85 },
+      { label: 'HR uddannelse kickoff', position: 60, dueDate: '2025-10-01', status: 'On Track' },
+      { label: 'Pilotafdeling live', position: 82, dueDate: '2026-02-01', status: 'On Track' },
+      { label: 'National udrulning', position: 95, dueDate: '2026-04-15', status: 'On Track' },
     ],
     deliverables: [
-      { label: 'HR support playbook', position: 68, checklist: ['SLA udkast', 'FAQ draft'] },
-      { label: 'Pilot evaluering', position: 90, checklist: ['Interview skabelon', 'Rapport kladde'] },
+      { label: 'HR support playbook', position: 68, checklist: ['SLA udkast', 'FAQ draft'], startDate: '2025-08-15', endDate: '2025-10-15', status: 'In Progress' },
+      { label: 'Pilot evaluering', position: 88, checklist: ['Interview skabelon', 'Rapport kladde'], startDate: '2026-01-15', endDate: '2026-02-28', status: 'Pending' },
+      { label: 'Superbrugertraening', position: 92, checklist: ['Plan for 5 hold', 'Materialer klarmeldt'], startDate: '2026-02-10', endDate: '2026-03-10', status: 'Pending' },
+      { label: 'Go-live runbook', position: 96, checklist: ['Rollback plan', 'Cutover plan'], startDate: '2026-03-15', endDate: '2026-04-10', status: 'Pending' },
     ],
     kanban: [
       { content: 'Plan for HR supportteam', status: 'doing' },
@@ -395,7 +399,7 @@ const reportTemplates = [
     ],
     nextStepItems: [
       'Fasthold plan for data steward backfill.',
-      'Planl├ªg onboarding af supportteamet i marts.',
+      'Planlaeg onboarding af supportteamet i marts.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Sprint 9 leverede alle features.' },
@@ -407,17 +411,21 @@ const reportTemplates = [
       { name: 'Licensaftaler ikke paaplads', probability: 2, consequence: 3 },
     ],
     phases: [
-      { label: 'Analyse', start: 0, end: 25, highlight: 'completed' },
-      { label: 'Platform setup', start: 25, end: 60, highlight: 'completed' },
-      { label: 'Migration', start: 60, end: 90, highlight: 'active' },
+      { label: 'Analyse', start: 0, end: 20, highlight: 'completed' },
+      { label: 'Platform setup', start: 20, end: 55, highlight: 'completed' },
+      { label: 'Migration', start: 55, end: 85, highlight: 'active' },
+      { label: 'Hypercare', start: 85, end: 100, highlight: 'planned' },
     ],
     milestones: [
-      { label: 'Data landing zone', position: 28 },
-      { label: 'Finance live', position: 72 },
+      { label: 'Data landing zone', position: 25, dueDate: '2025-09-15', status: 'On Track' },
+      { label: 'Finance live', position: 60, dueDate: '2025-12-10', status: 'On Track' },
+      { label: 'Marketing live', position: 80, dueDate: '2026-02-15', status: 'On Track' },
     ],
     deliverables: [
-      { label: 'Data katalog v1', position: 65, checklist: ['Godkendte dom├ªner', 'Kvalitetsregler dokumenteret'] },
-      { label: 'Support model', position: 80, checklist: ['On-call rotations', 'Runbook v1'] },
+      { label: 'Data katalog v1', position: 58, checklist: ['Godkendte domaener', 'Kvalitetsregler dokumenteret'], startDate: '2025-08-01', endDate: '2025-10-15', status: 'In Progress' },
+      { label: 'Support model', position: 72, checklist: ['On-call rotations', 'Runbook v1'], startDate: '2025-11-01', endDate: '2025-12-15', status: 'Pending' },
+      { label: 'Driftsaftale BI', position: 78, checklist: ['SLA udkast', 'Release kalender'], startDate: '2025-11-15', endDate: '2026-01-05', status: 'Pending' },
+      { label: 'Governance charter', position: 90, checklist: ['Roller', 'Proces for nye datakilder'], startDate: '2025-12-10', endDate: '2026-02-01', status: 'Pending' },
     ],
     kanban: [
       { content: 'Data catalog review', status: 'doing' },
@@ -437,8 +445,8 @@ const reportTemplates = [
       'Supportorganisationen er ikke fuldt bemandet endnu.',
     ],
     nextStepItems: [
-      'Gennemf├©r sikkerhedsgennemgang med IT-sikkerhed.',
-      'Planl├ªg kommunikationskampagne til eksterne brugere.',
+      'Gennemfoer sikkerhedsgennemgang med IT-sikkerhed.',
+      'Planlaeg kommunikationskampagne til eksterne brugere.',
     ],
     mainTableRows: [
       { title: 'Leverancer', status: 'green', note: 'Beta indeholder alle kernefunktioner.' },
@@ -453,14 +461,18 @@ const reportTemplates = [
       { label: 'Discovery', start: 0, end: 20, highlight: 'completed' },
       { label: 'Design', start: 20, end: 40, highlight: 'completed' },
       { label: 'Udvikling', start: 40, end: 75, highlight: 'active' },
+      { label: 'Pilot & skalering', start: 75, end: 95, highlight: 'planned' },
     ],
     milestones: [
-      { label: 'Beta release', position: 70 },
-      { label: 'Officiel launch', position: 90 },
+      { label: 'Beta release', position: 70, dueDate: '2025-12-01', status: 'On Track' },
+      { label: 'Push consent klar', position: 78, dueDate: '2025-12-20', status: 'On Track' },
+      { label: 'Officiel launch', position: 92, dueDate: '2026-03-01', status: 'On Track' },
     ],
     deliverables: [
-      { label: 'Kommunikationspakke', position: 72 },
-      { label: 'Supportsetup', position: 88 },
+      { label: 'Kommunikationspakke', position: 72, checklist: ['Landing page', 'FAQ kladde'], startDate: '2025-10-20', endDate: '2025-12-05', status: 'In Progress' },
+      { label: 'Supportsetup', position: 88, checklist: ['1st line script', 'On-call plan'], startDate: '2026-01-05', endDate: '2026-02-15', status: 'Pending' },
+      { label: 'Samtykke flow', position: 76, checklist: ['Tekst godkendt', 'Logning klar'], startDate: '2025-11-20', endDate: '2025-12-20', status: 'In Progress' },
+      { label: 'Analytics dashboard', position: 80, checklist: ['Event plan', 'Funnel rapport'], startDate: '2025-11-15', endDate: '2026-01-15', status: 'Pending' },
     ],
     kanban: [
       { content: 'Implementer push consent flow', status: 'doing' },
@@ -469,6 +481,7 @@ const reportTemplates = [
     ],
   },
 ];
+
 
 const ensureDatabaseUrl = () => {
   if (!config.databaseUrl) {
@@ -868,9 +881,9 @@ const seedReports = async (client, projectIds, workstreamIds, projectRiskMap) =>
       await client.query(
         `
           INSERT INTO report_milestones (id, report_id, label, position_percentage, workstream_id, due_date, status)
-          VALUES ($1::uuid, $2, $3, $4, $5::uuid, NULL, NULL)
+          VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6::date, $7)
         `,
-        [milestoneId, reportId, milestone.label, milestone.position, workstreamId],
+        [milestoneId, reportId, milestone.label, milestone.position, workstreamId, milestone.dueDate ?? null, milestone.status ?? null],
       );
     }
 
@@ -883,9 +896,18 @@ const seedReports = async (client, projectIds, workstreamIds, projectRiskMap) =>
       await client.query(
         `
           INSERT INTO report_deliverables (id, report_id, label, position_percentage, milestone_id, status, owner_name, owner_employee_id, description, notes, start_date, end_date, progress)
-          VALUES ($1::uuid, $2, $3, $4, $5::uuid, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+          VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6, NULL, NULL, NULL, NULL, $7::date, $8::date, NULL)
         `,
-        [deliverableId, reportId, deliverable.label, deliverable.position, milestoneId],
+        [
+          deliverableId,
+          reportId,
+          deliverable.label,
+          deliverable.position,
+          milestoneId,
+          deliverable.status ?? null,
+          deliverable.startDate ?? null,
+          deliverable.endDate ?? null,
+        ],
       );
     }
 
