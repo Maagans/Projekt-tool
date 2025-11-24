@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+### Added
+- Backend report CRUD/API layer + validators (list/detail/create/update/delete) that follow RP-002 plan; includes `reportService`, controller + repository helpers, and Zod payload guards.
+
+### Changed
+- Added Supertest coverage for the new `/api/projects/:projectId/reports` + `/api/reports/:id` endpoints and documented the mapping in `docs/rp-001-report-refactor.md`.
+
 ## [1.9.0] - 2025-11-24
 ### Added
 - Ny MilestonePlan-fane (`/projects/:id/plan`) med dedikeret MilestonePlan-komponent, Gantt-/listevisning, modaler for workstreams/faser/milepæle/leverancer, `readOnly`-tilstand og lucide-ikoner (MP-002).

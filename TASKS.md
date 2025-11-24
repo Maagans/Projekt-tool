@@ -959,7 +959,7 @@ resourceAnalyticsService og API-controllerens svar.
   - Status 24/11: Mapping documented in docs/rp-001-report-refactor.md (dataflow + acceptance for RP-002..004).
   - Afhængigheder: Ingen.
 
-- [ ] RP-002: Backend ruter, validatorer og services for rapporter (AGENTS.md)
+- [x] RP-002: Backend ruter, validatorer og services for rapporter (AGENTS.md)
   - Formål: Flytte rapport-CRUD og sektioner til 3-lags arkitektur (Controller -> Service -> Repository) med Zod-validering og permissions.
   - Ændringer: Nye ruter `backend/routes/reports.js` (list/detail/create/update/delete), Zod-schemas i `backend/validators/reportSchemas.js`, service `reportService` med adgangskontrol/orkestrering, repo-filer (fx `reportRepository.js`/`reportSnapshotRepository.js`) med SQL kun; midlertidig feature-flag for legacy endpoints. Udgangspunkt: mapping/acceptance fra `docs/rp-001-report-refactor.md`.
   - Test (TDD):
@@ -967,6 +967,7 @@ resourceAnalyticsService og API-controllerens svar.
     2) Repo-unit-tests: insert/update timeline/deliverables/risici/kanban + rollback-scenarier.
     3) Service-tests: permissions + transaktioner (mock repo).
   - Accept: Ingen services med direkte SQL; alle payloads valideres med Zod; endpoints returnerer typed data og fejler korrekt på 400/403.
+  - Status 24/11: RP-002 gennemført med dokumenterede Supertest-scenarier og `npm test --prefix backend` → 19 filer/79 tests grønt (se den lokale log).
   - Afhængigheder: RP-001, ST-002 (config/validering), BE-007 (routerstruktur).
 
 - [ ] RP-003: Frontend API-klient og domænehooks for rapporter
