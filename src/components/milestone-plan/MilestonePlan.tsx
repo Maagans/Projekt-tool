@@ -25,6 +25,7 @@ interface MilestonePlanProps {
     onDeleteDeliverable: (milestoneId: string, deliverableId: string) => Promise<void>;
     onSaveWorkstream: (ws: Workstream) => void;
     onDeleteWorkstream: (id: string) => void;
+    readOnly?: boolean;
 }
 
 // Predefined palette for workstreams
@@ -53,6 +54,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     onDeleteDeliverable,
     onSaveWorkstream,
     onDeleteWorkstream,
+    readOnly = false,
     projectMembers = []
 }) => {
     const [viewMode, setViewMode] = useState<'list' | 'gantt'>('gantt');
@@ -258,6 +260,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     }, [dragState, totalDuration, onSaveDeliverable, onSavePhase]);
 
     const startDrag = (e: React.MouseEvent, type: 'move' | 'resize-left' | 'resize-right', d: Deliverable, milestoneId: string) => {
+        if (readOnly) return;
         e.stopPropagation();
         e.preventDefault();
         if (type !== 'move') e.stopPropagation();
@@ -278,6 +281,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     };
 
     const startPhaseDrag = (e: React.MouseEvent, type: 'move' | 'resize-left' | 'resize-right', phase: Phase) => {
+        if (readOnly) return;
         e.stopPropagation();
         e.preventDefault();
         if (type !== 'move') e.stopPropagation();
@@ -296,6 +300,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     };
 
     const handleMilestoneModalSave = async (milestoneData: Omit<Milestone, 'id'>) => {
+        if (readOnly) return;
         if (milestoneToEdit) {
             await onSaveMilestone({ ...milestoneData, id: milestoneToEdit.id });
         } else {
@@ -305,6 +310,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     };
 
     const handlePhaseModalSave = async (phaseData: Omit<Phase, 'id'>) => {
+        if (readOnly) return;
         if (phaseToEdit) {
             await onSavePhase({ ...phaseData, id: phaseToEdit.id });
         } else {
@@ -315,13 +321,14 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
 
     const handleDeliverableModalSave = async (updatedDeliverable: Deliverable, milestoneId?: string) => {
         const mId = milestoneId || deliverableToEdit?.milestoneId;
-        if (!mId) return;
+        if (readOnly || !mId) return;
         await onSaveDeliverable(mId, updatedDeliverable);
         setDeliverableToEdit(null);
         setIsGlobalAddDeliverable(false);
     };
 
     const handleInlineAddDeliverable = async (milestoneId: string) => {
+        if (readOnly) return;
         if (!newDeliverableText.trim()) return;
         setInlineSaving(true);
         try {
@@ -342,12 +349,13 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         }
     };
 
-    const openNewMilestone = () => { setMilestoneToEdit(null); setMilestoneModalOpen(true); };
-    const openEditMilestone = (m: Milestone) => { setMilestoneToEdit(m); setMilestoneModalOpen(true); };
-    const openDeliverableDetail = (milestoneId: string, deliverable: Deliverable) => { setDeliverableToEdit({ milestoneId, data: deliverable }); setDeliverableModalOpen(true); }
-    const openNewPhase = () => { setPhaseToEdit(null); setPhaseModalOpen(true); };
-    const openEditPhase = (p: Phase) => { setPhaseToEdit(p); setPhaseModalOpen(true); };
+    const openNewMilestone = () => { if (readOnly) return; setMilestoneToEdit(null); setMilestoneModalOpen(true); };
+    const openEditMilestone = (m: Milestone) => { if (readOnly) return; setMilestoneToEdit(m); setMilestoneModalOpen(true); };
+    const openDeliverableDetail = (milestoneId: string, deliverable: Deliverable) => { if (readOnly) return; setDeliverableToEdit({ milestoneId, data: deliverable }); setDeliverableModalOpen(true); }
+    const openNewPhase = () => { if (readOnly) return; setPhaseToEdit(null); setPhaseModalOpen(true); };
+    const openEditPhase = (p: Phase) => { if (readOnly) return; setPhaseToEdit(p); setPhaseModalOpen(true); };
     const openNewDeliverable = () => {
+        if (readOnly) return;
         setDeliverableToEdit({
             milestoneId: '',
             data: {

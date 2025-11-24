@@ -8,7 +8,7 @@ import { ProjectState, DeliverableChecklistItem } from '../../../types';
 
 export const MilestonePlanPage: React.FC = () => {
     const { projectId } = useParams<{ projectId: string }>();
-    const { projects, projectActions, employees } = useProjectManager();
+    const { projects, projectActions, employees, canManage } = useProjectManager();
 
     const project = useMemo(() => projects.find(p => p.id === projectId), [projects, projectId]);
 
@@ -276,14 +276,15 @@ export const MilestonePlanPage: React.FC = () => {
         <div className="p-6 flex flex-col flex-1 h-full w-full">
             <MilestonePlan
                 project={planProject}
-                onSavePhase={handleSavePhase}
-                onDeletePhase={handleDeletePhase}
-                onSaveMilestone={handleSaveMilestone}
-                onDeleteMilestone={handleDeleteMilestone}
-                onSaveDeliverable={handleSaveDeliverable}
-                onDeleteDeliverable={handleDeleteDeliverable}
-                onSaveWorkstream={handleSaveWorkstream}
-                onDeleteWorkstream={handleDeleteWorkstream}
+                readOnly={!canManage}
+                onSavePhase={canManage ? handleSavePhase : async () => {}}
+                onDeletePhase={canManage ? handleDeletePhase : async () => {}}
+                onSaveMilestone={canManage ? handleSaveMilestone : async () => {}}
+                onDeleteMilestone={canManage ? handleDeleteMilestone : async () => {}}
+                onSaveDeliverable={canManage ? handleSaveDeliverable : async () => {}}
+                onDeleteDeliverable={canManage ? handleDeleteDeliverable : async () => {}}
+                onSaveWorkstream={canManage ? handleSaveWorkstream : () => {}}
+                onDeleteWorkstream={canManage ? handleDeleteWorkstream : () => {}}
                 projectMembers={projectMembers}
             />
         </div>
