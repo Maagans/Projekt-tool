@@ -425,7 +425,7 @@ export const getReportState = async (client, reportId) => {
             notes: row.notes ?? null,
             startDate: row.start_date ?? null,
             endDate: row.end_date ?? null,
-            progress: row.progress ?? null,
+            progress: row.progress !== null && row.progress !== undefined ? Number(row.progress) : null,
             checklist: [],
         });
     });
