@@ -29,6 +29,9 @@ const ProjectSettingsPage = lazy(
 const ProjectRisksPage = lazy(
   () => import('./pages/projects/ProjectRisksPage').then((module) => ({ default: module.ProjectRisksPage })),
 );
+const MilestonePlanPage = lazy(
+  () => import('./pages/projects/MilestonePlanPage').then((module) => ({ default: module.MilestonePlanPage })),
+);
 
 const RouteLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -158,7 +161,7 @@ export const AppShell = () => {
           />
         )}
       >
-        <div className="p-4 sm:p-6 min-h-screen">
+        <div className="p-4 sm:p-6 min-h-screen flex flex-col">
           <Suspense fallback={<RouteLoader />}>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
@@ -169,6 +172,7 @@ export const AppShell = () => {
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
                 <Route index element={<ProjectOverviewPage />} />
                 <Route path="reports" element={<ProjectReportsPage />} />
+                <Route path="plan" element={<MilestonePlanPage />} />
                 <Route path="organization" element={<ProjectOrganizationPage />} />
                 {PROJECT_RISK_ANALYSIS_ENABLED && <Route path="risks" element={<ProjectRisksPage />} />}
                 <Route

@@ -36,6 +36,7 @@ export const ProjectLayout = () => {
     const baseTabs = [
       { key: 'overview', label: 'Overblik', path: '' },
       { key: 'reports', label: 'Rapporter', path: 'reports' },
+      { key: 'plan', label: 'Tidsplan', path: 'plan' },
       { key: 'organization', label: 'Projektorganisation', path: 'organization' },
     ];
     if (PROJECT_RISK_ANALYSIS_ENABLED) {
@@ -70,7 +71,7 @@ export const ProjectLayout = () => {
 
   return (
     <ProjectRouteContext.Provider value={{ project, projectManager }}>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 flex-1">
         <AppHeader
           title={project.config.projectName}
           user={currentUser}

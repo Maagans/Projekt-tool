@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.9.0] - 2025-11-24
+### Added
+- Ny MilestonePlan-fane (`/projects/:id/plan`) med dedikeret MilestonePlan-komponent, Gantt-/listevisning, modaler for workstreams/faser/milepæle/leverancer, `readOnly`-tilstand og lucide-ikoner (MP-002).
+- RTL/Vitest-dækning for MilestonePlan-flowet og nye modal-hooks samt opdateret ProjectLayout-route til planen.
+
+### Changed
+- Timeline/plan-arbejdsgange er samlet i MilestonePlan-komponenten og bundet til `projectActions`, så CRUD-resultater toastes og autosave/fejlmeldinger er konsistente.
+- Workstream- og rapport-synkronisering er udtrukket til dedikerede repositories, så milestone-plan logik følger Controller → Service → Repository-arkitekturen (REF-001).
+
 ## [1.8.1] - 2025-11-19
 ### Added
 - `Agents.md` og `Hardeningplan.md` dokumenterer layer-arkitektur og hardening-plan for nye features.

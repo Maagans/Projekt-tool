@@ -2,6 +2,8 @@ import { config } from '../config/index.js';
 import pool from '../db.js';
 import logger from '../logger.js';
 import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapacity, classifyReportIdentifier } from '../utils/helpers.js';
+import * as workstreamRepository from '../repositories/workstreamRepository.js';
+import * as reportRepository from '../repositories/reportRepository.js';
 
 export const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -675,7 +677,7 @@ export const buildWorkspaceForUser = async (user, clientOverride) => {
     const effectiveUser = await ensureEmployeeLinkForUser(executor, user);
     const workspace = await loadFullWorkspace(clientOverride);
     return applyWorkspacePermissions(workspace, effectiveUser);
-};export const getUserEditableProjects = (workspace, user) => {
+}; export const getUserEditableProjects = (workspace, user) => {
     const editable = new Set();
     if (!user) return editable;
     const employeeId = user.employeeId ?? null;
@@ -821,11 +823,7 @@ export const syncProjectWorkstreams = async (client, projectId, workstreamsPaylo
         return;
     }
 
-    const existingResult = await client.query(
-        'SELECT id::text FROM project_workstreams WHERE project_id = $1::uuid',
-        [projectId],
-    );
-    const existingIds = new Set(existingResult.rows.map((row) => row.id));
+    const existingIds = new Set(await workstreamRepository.getIdsByProjectId(client, projectId));
     const seenIds = new Set();
 
     const sanitized = workstreamsPayload
@@ -849,25 +847,15 @@ export const syncProjectWorkstreams = async (client, projectId, workstreamsPaylo
 
     for (const stream of sanitized) {
         seenIds.add(stream.id);
-        await client.query(
-            `
-            INSERT INTO project_workstreams (id, project_id, name, sort_order)
-            VALUES ($1::uuid, $2::uuid, $3, $4)
-            ON CONFLICT (id)
-            DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, updated_at = NOW()
-        `,
-            [stream.id, projectId, stream.name, stream.order],
-        );
+        await workstreamRepository.upsert(client, projectId, stream);
     }
 
     const idsToDelete = [...existingIds].filter((id) => !seenIds.has(id));
     if (idsToDelete.length > 0) {
-        await client.query('DELETE FROM project_workstreams WHERE project_id = $1::uuid AND id = ANY($2::uuid[])', [
-            projectId,
-            idsToDelete,
-        ]);
+        await workstreamRepository.deleteByIds(client, projectId, idsToDelete);
     }
 };
+
 const syncReportState = async (client, reportId, state, existingState = null) => {
     const safeState = state ?? {};
     const previousState = existingState ?? {};
@@ -889,9 +877,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         resetTables.push('report_risks');
     }
 
-    for (const table of resetTables) {
-        await client.query(`DELETE FROM ${table} WHERE report_id = $1${reportIdCast}`, [reportIdValue]);
-    }
+    await reportRepository.deleteItems(client, reportId, resetTables);
 
     const statusUsedIds = new Set((previousState.statusItems ?? []).map((item) => item?.id).filter(Boolean));
     const challengeUsedIds = new Set((previousState.challengeItems ?? []).map((item) => item?.id).filter(Boolean));
@@ -923,7 +909,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         return candidateId;
     };
 
-    const insertListItems = async (items, tableName, usedSet) => {
+    const insertListItems = async (items, insertFn, usedSet) => {
         const list = Array.isArray(items) ? items : [];
         for (let index = 0; index < list.length; index += 1) {
             const item = list[index];
@@ -934,13 +920,7 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
 
             for (let attempt = 0; attempt < 3; attempt += 1) {
                 try {
-                    await client.query(
-                        `
-                INSERT INTO ${tableName} (id, report_id, position, content)
-                VALUES ($1::uuid, $2${reportIdCast}, $3, $4)
-            `,
-                        [itemId, reportIdValue, index, content],
-                    );
+                    await insertFn(client, reportId, { id: itemId, position: index, content });
                     break;
                 } catch (error) {
                     if (error.code === '23505' && attempt < 2) {
@@ -955,9 +935,9 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         }
     };
 
-    await insertListItems(safeState.statusItems, 'report_status_items', statusUsedIds);
-    await insertListItems(safeState.challengeItems, 'report_challenge_items', challengeUsedIds);
-    await insertListItems(safeState.nextStepItems, 'report_next_step_items', nextStepUsedIds);
+    await insertListItems(safeState.statusItems, reportRepository.insertStatusItem, statusUsedIds);
+    await insertListItems(safeState.challengeItems, reportRepository.insertChallengeItem, challengeUsedIds);
+    await insertListItems(safeState.nextStepItems, reportRepository.insertNextStepItem, nextStepUsedIds);
 
     const mainRows = Array.isArray(safeState.mainTableRows) ? safeState.mainTableRows : [];
     for (let index = 0; index < mainRows.length; index += 1) {
@@ -968,13 +948,13 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         const status = ['green', 'yellow', 'red'].includes(row.status) ? row.status : 'green';
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                await client.query(
-                    `
-            INSERT INTO report_main_table_rows (id, report_id, position, title, status, note)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
-        `,
-                    [rowId, reportIdValue, index, row.title ?? '', status, row.note ?? null],
-                );
+                await reportRepository.insertMainTableRow(client, reportId, {
+                    id: rowId,
+                    position: index,
+                    title: row.title ?? '',
+                    status,
+                    note: row.note ?? null,
+                });
                 break;
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
@@ -999,13 +979,13 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             const consequence = Number.isFinite(risk.k) ? Math.max(1, Math.min(5, Number(risk.k))) : 1;
             for (let attempt = 0; attempt < 3; attempt += 1) {
                 try {
-                    await client.query(
-                        `
-                INSERT INTO report_risks (id, report_id, position, name, probability, consequence)
-                VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6)
-            `,
-                        [riskId, reportIdValue, index, risk.name ?? '', probability, consequence],
-                    );
+                    await reportRepository.insertRisk(client, reportId, {
+                        id: riskId,
+                        position: index,
+                        name: risk.name ?? '',
+                        probability,
+                        consequence,
+                    });
                     break;
                 } catch (error) {
                     if (error.code === '23505' && attempt < 2) {
@@ -1033,24 +1013,17 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         const phaseStatus = PHASE_STATUS_OPTIONS.has(phase.status) ? phase.status : null;
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                await client.query(
-                    `
-            INSERT INTO report_phases (id, report_id, label, start_percentage, end_percentage, highlight, workstream_id, start_date, end_date, status)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6, $7::uuid, $8::date, $9::date, $10)
-        `,
-                    [
-                        phaseId,
-                        reportIdValue,
-                        phase.text ?? '',
-                        start,
-                        end,
-                        phase.highlight ?? 'blue',
-                        workstreamId,
-                        startDate,
-                        endDate,
-                        phaseStatus,
-                    ],
-                );
+                await reportRepository.insertPhase(client, reportId, {
+                    id: phaseId,
+                    label: phase.text ?? '',
+                    start,
+                    end,
+                    highlight: phase.highlight ?? 'blue',
+                    workstreamId,
+                    startDate,
+                    endDate,
+                    status: phaseStatus,
+                });
                 break;
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
@@ -1077,13 +1050,14 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         const milestoneStatus = MILESTONE_STATUS_OPTIONS.has(milestone.status) ? milestone.status : null;
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                await client.query(
-                    `
-            INSERT INTO report_milestones (id, report_id, label, position_percentage, workstream_id, due_date, status)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5::uuid, $6::date, $7)
-        `,
-                    [milestoneId, reportIdValue, milestone.text ?? '', position, workstreamId, dueDate, milestoneStatus],
-                );
+                await reportRepository.insertMilestone(client, reportId, {
+                    id: milestoneId,
+                    label: milestone.text ?? '',
+                    position,
+                    workstreamId,
+                    dueDate,
+                    status: milestoneStatus,
+                });
                 break;
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
@@ -1120,27 +1094,20 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         const checklistItems = Array.isArray(deliverable.checklist) ? deliverable.checklist : [];
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                await client.query(
-                    `
-            INSERT INTO report_deliverables (id, report_id, label, position_percentage, milestone_id, status, owner_name, owner_employee_id, description, notes, start_date, end_date, progress)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5::uuid, $6, $7, $8::uuid, $9, $10, $11::date, $12::date, $13)
-        `,
-                    [
-                        deliverableId,
-                        reportIdValue,
-                        deliverable.text ?? '',
-                        position,
-                        milestoneRefId,
-                        deliverableStatus,
-                        ownerName,
-                        ownerId,
-                        description,
-                        notes,
-                        startDate,
-                        endDate,
-                        progress,
-                    ],
-                );
+                await reportRepository.insertDeliverable(client, reportId, {
+                    id: deliverableId,
+                    label: deliverable.text ?? '',
+                    position,
+                    milestoneId: milestoneRefId,
+                    status: deliverableStatus,
+                    ownerName,
+                    ownerId,
+                    description,
+                    notes,
+                    startDate,
+                    endDate,
+                    progress,
+                });
                 break;
             } catch (error) {
                 if (error.code === '23505' && attempt < 2) {
@@ -1159,19 +1126,13 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
             let checklistId = ensureStableId(item.id, deliverableChecklistUsedIds);
             for (let attempt = 0; attempt < 3; attempt += 1) {
                 try {
-                    await client.query(
-                        `
-                INSERT INTO report_deliverable_checklist (id, deliverable_id, position, text, completed)
-                VALUES ($1::uuid, $2::uuid, $3, $4, $5)
-            `,
-                        [
-                            checklistId,
-                            deliverableId,
-                            index,
-                            typeof item.text === 'string' ? item.text : '',
-                            item.completed === true,
-                        ],
-                    );
+                    await reportRepository.insertDeliverableChecklistItem(client, {
+                        id: checklistId,
+                        deliverableId,
+                        position: index,
+                        text: typeof item.text === 'string' ? item.text : '',
+                        completed: item.completed === true,
+                    });
                     break;
                 } catch (error) {
                     if (error.code === '23505' && attempt < 2) {
@@ -1185,44 +1146,37 @@ const syncReportState = async (client, reportId, state, existingState = null) =>
         }
     }
 
-        const tasks = Array.isArray(safeState.kanbanTasks) ? safeState.kanbanTasks : [];
-        for (const task of tasks) {
-            if (!task) continue;
-            let taskId = ensureStableId(task.id, taskUsedIds);
-            task.id = taskId;
-            const status = ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo';
-            const dueDate = toDateOnly(task.dueDate);
-            const createdAt = task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString();
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-                try {
-                    await client.query(
-                        `
-            INSERT INTO report_kanban_tasks (id, report_id, content, status, assignee, due_date, notes, created_at)
-            VALUES ($1::uuid, $2${reportIdCast}, $3, $4, $5, $6::date, $7, $8::timestamptz)
-        `,
-                        [
-                            taskId,
-                            reportIdValue,
-                            task.content ?? '',
-                            status,
-                            task.assignee ?? null,
-                            dueDate,
-                            task.notes ?? null,
-                            createdAt,
-                        ],
-                    );
-                    break;
-                } catch (error) {
-                    if (error.code === '23505' && attempt < 2) {
-                        taskUsedIds.delete(taskId);
-                        taskId = ensureStableId(null, taskUsedIds);
-                        task.id = taskId;
-                        continue;
-                    }
-                    throw error;
+    const tasks = Array.isArray(safeState.kanbanTasks) ? safeState.kanbanTasks : [];
+    for (const task of tasks) {
+        if (!task) continue;
+        let taskId = ensureStableId(task.id, taskUsedIds);
+        task.id = taskId;
+        const status = ['todo', 'doing', 'done'].includes(task.status) ? task.status : 'todo';
+        const dueDate = toDateOnly(task.dueDate);
+        const createdAt = task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString();
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                await reportRepository.insertKanbanTask(client, reportId, {
+                    id: taskId,
+                    content: task.content ?? '',
+                    status,
+                    assignee: task.assignee ?? null,
+                    dueDate,
+                    notes: task.notes ?? null,
+                    createdAt,
+                });
+                break;
+            } catch (error) {
+                if (error.code === '23505' && attempt < 2) {
+                    taskUsedIds.delete(taskId);
+                    taskId = ensureStableId(null, taskUsedIds);
+                    task.id = taskId;
+                    continue;
                 }
+                throw error;
             }
         }
+    }
 };
 
 const syncProjectMembers = async (client, projectId, membersPayload, existingProject = null) => {
@@ -1278,8 +1232,8 @@ const syncProjectMembers = async (client, projectId, membersPayload, existingPro
 
 export const syncProjectReports = async (client, projectId, reportsPayload, existingProject = null) => {
     const reportsArray = Array.isArray(reportsPayload) ? reportsPayload : [];
-    const existingResult = await client.query('SELECT id::text, week_key FROM reports WHERE project_id = $1::uuid', [projectId]);
-    const existingByWeek = new Map(existingResult.rows.map((row) => [row.week_key, row.id]));
+    const existingReports = await reportRepository.getReportsByProjectId(client, projectId);
+    const existingByWeek = new Map(existingReports.map((row) => [row.weekKey, row.id]));
     const existingWorkspaceReports = Array.isArray(existingProject?.reports) ? existingProject.reports : [];
     const existingWorkspaceReportByWeek = new Map(existingWorkspaceReports.map((report) => [report.weekKey, report]));
     const seenReportIds = new Set();
@@ -1289,40 +1243,19 @@ export const syncProjectReports = async (client, projectId, reportsPayload, exis
         const weekKey = report.weekKey;
         let reportId = existingByWeek.get(weekKey);
         if (!reportId) {
-            const insertResult = await client.query(
-                'INSERT INTO reports (project_id, week_key) VALUES ($1::uuid, $2) RETURNING id::text',
-                [projectId, weekKey],
-            );
-            reportId = insertResult.rows[0].id;
+            reportId = await reportRepository.createReport(client, projectId, weekKey);
             existingByWeek.set(weekKey, reportId);
         }
         seenReportIds.add(reportId);
         await syncReportState(client, reportId, report.state, existingWorkspaceReportByWeek.get(weekKey)?.state ?? null);
     }
 
-    const reportsToDelete = existingResult.rows
+    const reportsToDelete = existingReports
         .map((row) => row.id)
         .filter((id) => !seenReportIds.has(id));
+
     if (reportsToDelete.length > 0) {
-        const deleteBuckets = reportsToDelete.reduce((buckets, rawId) => {
-            const { value, sqlType } = classifyReportIdentifier(rawId);
-            buckets[sqlType].push(value);
-            return buckets;
-        }, { uuid: [], bigint: [] });
-
-        if (deleteBuckets.bigint.length > 0) {
-            await client.query(
-                'DELETE FROM reports WHERE project_id = $1::uuid AND id IN (SELECT value::bigint FROM unnest($2::text[]) AS value)',
-                [projectId, deleteBuckets.bigint],
-            );
-        }
-
-        if (deleteBuckets.uuid.length > 0) {
-            await client.query(
-                'DELETE FROM reports WHERE project_id = $1::uuid AND id IN (SELECT value::uuid FROM unnest($2::text[]) AS value)',
-                [projectId, deleteBuckets.uuid],
-            );
-        }
+        await reportRepository.deleteReports(client, projectId, reportsToDelete);
     }
 };
 
