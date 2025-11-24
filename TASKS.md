@@ -972,11 +972,12 @@ resourceAnalyticsService og API-controllerens svar.
 
 - [ ] RP-003: Frontend API-klient og domænehooks for rapporter
   - Formål: Erstatte direkte workspace-mutationer med typed API-lag og React Query hooks.
-  - Ændringer: Opret `src/api/report.ts` med Zod-parsere for list/detail + sektion-mutationer (timeline, risici, kanban, statusfelter); nye hooks `useProjectReports`, `useReportDetail`, `useReportTimelineMutation`, `useReportRiskMatrix`, `useReportKanban`, `useReportStatusCards` (React Query + toasts).
+  - Ændringer: Opret `src/api/report.ts` med Zod-parsere for list/detail + sektion-mutationer (timeline, risici, kanban, statusfelter) med udgangspunkt i `docs/rp-001-report-refactor.md` og RP-002-endpoints; nye hooks `useProjectReports`, `useReportDetail`, `useReportTimelineMutation`, `useReportRiskMatrix`, `useReportKanban`, `useReportStatusCards` (React Query + toasts).
   - Test (TDD):
     1) Zod-parser tests for responses og fejl.
     2) Hook-tests (Vitest/RTL/MSW): fetch success/error, optimistic update + rollback for timeline/kanban, error-toasts.
   - Accept: Hooks eksponerer typed data/mutationer; fejl giver toasts; ingen komponenter taler direkte til fetch/`projectActions`.
+  - Status 24/11: API-klient (src/api/report.ts) + hooks (useReports.ts) og tests tilføjet; frontend testkørsel blokeres her af EPERM (Vite/esbuild).
   - Afhængigheder: RP-002, DX-002 (React Query), ST-005 (strict TS).
 
 - [ ] RP-004: Opdel ProjectReportsPage i paneler og brug nye hooks
@@ -988,6 +989,10 @@ resourceAnalyticsService og API-controllerens svar.
     3) `npm run lint` + `npm run test` + manuelt sanity (load rapport, opdater timeline/risiko/kanban).
   - Accept: Projekt-rapportside er opdelt i mindre komponenter uden direkte API-kald; hooks driver data; UI bevarer eksisterende funktionalitet eller bedre.
   - Afhængigheder: RP-003.
+
+
+
+
 
 
 

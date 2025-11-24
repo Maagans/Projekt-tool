@@ -108,7 +108,7 @@ const sanitizeRiskPayload = (risk: ProjectRiskInput | ProjectRiskUpdateInput) =>
   return payload;
 };
 
-const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
+export const fetchWithAuth = async (path: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers);
   const method = options.method ?? 'GET';
 
