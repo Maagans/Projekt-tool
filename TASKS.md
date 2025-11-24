@@ -1,5 +1,4 @@
 ﻿## Fase P0 � Forberedelse & Hygiejne (lav risiko, stor effekt)
-
 - [x] REPO-001: Fjern dubletter og genererede filer
   - Form�l: Elimin�r filkollisioner og forvirring mellem `src/**` og rodkopier.
   - �ndringer: Slet/arkiv�r bl.a. `App.js`, `components/*.js`, `hooks/useProjectManager.js`, `index-1.tsx`, tom `index.tsx`, `types.js`, `metadata*.json` (eller flyt til `docs/`), `tmp_patch.py`, `setup-db.sql` (i roden), `-1.gitignore`.
@@ -945,6 +944,52 @@ resourceAnalyticsService og API-controllerens svar.
   - Accept: Rapportvisning viser korrekt timelineudsnit uden redigeringsmuligheder; konverterede projekter mister ikke historiske data.
   - PRD: ?.1 Kernerapportering, ? Stabilitet & dataintegritet.
   - Afh�ngigheder: MP-001, MP-002, eksisterende rapport-draftflow.
+
+
+
+
+
+## Fase P15 ? Projektrapporter (refaktor til 3-lag + hooks)
+
+- [x] RP-001: Kortlæg rapportflow og domæne-typer
+  - Formål: Få et fuldt overblik over rapportdata (timeline/deliverables, risici, kanban, statusfelter, snapshots) før vi refaktorerer.
+  - Ændringer: Dokumentér alle felter og kald i `ProjectReportsPage.tsx`, skitser domænemodeller (Report, Phase, Milestone, Deliverable, Risk, KanbanTask, StatusCard) og endpoints, definér acceptance for hvert modul (timeline, risk, kanban, statuskort, rapport-CRUD).
+  - Test (TDD): Ingen kode endnu; lever en tjekliste/diagram der bruges som acceptance for RP-002..004.
+  - Accept: Samlet notat/diagram over dataflow + acceptance-kriterier for hver sektion; identificer eksisterende afhængigheder til `projectActions`/workspace.
+  - Status 24/11: Mapping documented in docs/rp-001-report-refactor.md (dataflow + acceptance for RP-002..004).
+  - Afhængigheder: Ingen.
+
+- [ ] RP-002: Backend ruter, validatorer og services for rapporter (AGENTS.md)
+  - Formål: Flytte rapport-CRUD og sektioner til 3-lags arkitektur (Controller -> Service -> Repository) med Zod-validering og permissions.
+  - Ændringer: Nye ruter `backend/routes/reports.js` (list/detail/create/update/delete), Zod-schemas i `backend/validators/reportSchemas.js`, service `reportService` med adgangskontrol/orkestrering, repo-filer (fx `reportRepository.js`/`reportSnapshotRepository.js`) med SQL kun; midlertidig feature-flag for legacy endpoints. Udgangspunkt: mapping/acceptance fra `docs/rp-001-report-refactor.md`.
+  - Test (TDD):
+    1) Supertest: GET liste/detail 200, POST/PATCH/DELETE 200/400/403.
+    2) Repo-unit-tests: insert/update timeline/deliverables/risici/kanban + rollback-scenarier.
+    3) Service-tests: permissions + transaktioner (mock repo).
+  - Accept: Ingen services med direkte SQL; alle payloads valideres med Zod; endpoints returnerer typed data og fejler korrekt på 400/403.
+  - Afhængigheder: RP-001, ST-002 (config/validering), BE-007 (routerstruktur).
+
+- [ ] RP-003: Frontend API-klient og domænehooks for rapporter
+  - Formål: Erstatte direkte workspace-mutationer med typed API-lag og React Query hooks.
+  - Ændringer: Opret `src/api/report.ts` med Zod-parsere for list/detail + sektion-mutationer (timeline, risici, kanban, statusfelter); nye hooks `useProjectReports`, `useReportDetail`, `useReportTimelineMutation`, `useReportRiskMatrix`, `useReportKanban`, `useReportStatusCards` (React Query + toasts).
+  - Test (TDD):
+    1) Zod-parser tests for responses og fejl.
+    2) Hook-tests (Vitest/RTL/MSW): fetch success/error, optimistic update + rollback for timeline/kanban, error-toasts.
+  - Accept: Hooks eksponerer typed data/mutationer; fejl giver toasts; ingen komponenter taler direkte til fetch/`projectActions`.
+  - Afhængigheder: RP-002, DX-002 (React Query), ST-005 (strict TS).
+
+- [ ] RP-004: Opdel ProjectReportsPage i paneler og brug nye hooks
+  - Formål: Fjerne spaghetti og gå til ren komponentstruktur med props-baseret rendering.
+  - Ændringer: Split i `ReportPageShell`, `ReportHeader`, `ReportTimelinePanel`, `ReportRiskPanel`, `ReportKanbanPanel`, `ReportStatusCards`, `ReportWeekSelector`; hver bruger hooks fra RP-003; fjern legacy `projectActions`-koblinger for rapporter; introducer evt. feature-flag til cutover.
+  - Test (TDD):
+    1) RTL: hvert panel render + interaktion (valg af uge, add/edit timeline, select risk, kanban toggle/inspektør).
+    2) Integration: render samlet side med mocked hooks, verificer toasts og state-udveksling.
+    3) `npm run lint` + `npm run test` + manuelt sanity (load rapport, opdater timeline/risiko/kanban).
+  - Accept: Projekt-rapportside er opdelt i mindre komponenter uden direkte API-kald; hooks driver data; UI bevarer eksisterende funktionalitet eller bedre.
+  - Afhængigheder: RP-003.
+
+
+
 
 
 
