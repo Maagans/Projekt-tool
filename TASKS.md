@@ -945,6 +945,19 @@ resourceAnalyticsService og API-controllerens svar.
   - PRD: ?.1 Kernerapportering, ? Stabilitet & dataintegritet.
   - Afh�ngigheder: MP-001, MP-002, eksisterende rapport-draftflow.
 
+- [ ] MP-004: Rapport-tidslinje bruger Milep�lsplan som read-only snapshot
+  - Form�l: Eliminere dobbelt-kilder og spaghetti ved at vise rapportens tidslinje som et statisk snapshot af Milep�lsplanen (faser/milep�le/leverancer) uden workstreams.
+  - �ndringer:
+    1) Backend: nyt read-only endpoint (fx `/api/projects/:id/plan/snapshot`) der returnerer faser/milestones/deliverables fra Milep�lsplanen (uden workstreams) inkl. beregnede positioner/datoer; flag for generatedAt.
+    2) Rapport-UI: udskift timeline-datakilde med snapshot fra endpoint, vis snapshot-timestamp, fjern/disable al edit/draft-logik i rapportens timeline.
+    3) Fjern rehydrering af timeline-state i `replaceReportState` for disse felter eller bag feature-flag, s� rapporter ikke indsetter egne kopier.
+  - Test (TDD):
+    1) Backend Supertest: GET snapshot returnerer korrekt sorteret faser/milestones/deliverables for et projekt; 404/403 ved manglende adgang.
+    2) FE RTL: Rapport-siden renderer snapshot-data (mocks), viser readonly timeline og ingen CTA'er; fallback state n�r snapshot mangler.
+    3) Manuel QA: Opret/rediger plan i `/plan`, �bn rapport -> timeline matcher planen og kan ikke redigeres; regressionscheck p� pdf/export hvis relevant.
+  - Accept: Rapportens tidslinje er read-only, matcher Milep�lsplanens aktuelle data, og der skrives ikke timeline-data tilbage fra rapport-flowet.
+  - Afh�ngigheder: MP-001, MP-002 (plan data), RP-002/003 (rapport API), LEG-005 (ingen projektskrivning i workspace sync).
+
 
 
 

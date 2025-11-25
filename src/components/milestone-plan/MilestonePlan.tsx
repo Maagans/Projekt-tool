@@ -110,10 +110,11 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
 
     interface DragState {
         type: 'move' | 'resize-left' | 'resize-right';
-        itemType: 'deliverable' | 'phase';
+        itemType: 'deliverable' | 'phase' | 'milestone';
         itemId: string;
         deliverable?: Deliverable;
         phase?: Phase;
+        milestone?: Milestone;
         milestoneId?: string; // Only for deliverables
         startX: number;
         originalStartMs: number;
@@ -199,6 +200,11 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                 if (newEnd < newStart + 86400000) newEnd = newStart + 86400000;
             }
 
+            // Milestones are points; keep end aligned with start
+            if (dragState.itemType === 'milestone') {
+                newEnd = newStart;
+            }
+
             setDragState(prev => prev ? ({
                 ...prev,
                 currentStartMs: newStart,
@@ -245,6 +251,21 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                     }));
 
                     onSavePhase(updatedPhase);
+                } else if (dragState.itemType === 'milestone' && dragState.milestone) {
+                    const updatedMilestone = {
+                        ...dragState.milestone,
+                        date: formatDate(dragState.currentStartMs)
+                    };
+
+                    setOptimisticItems(prev => ({
+                        ...prev,
+                        [dragState.itemId]: {
+                            startMs: dragState.currentStartMs,
+                            endMs: dragState.currentStartMs
+                        }
+                    }));
+
+                    onSaveMilestone(updatedMilestone);
                 }
 
                 setDragState(null);
@@ -257,7 +278,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [dragState, totalDuration, onSaveDeliverable, onSavePhase]);
+    }, [dragState, totalDuration, onSaveDeliverable, onSavePhase, onSaveMilestone]);
 
     const startDrag = (e: React.MouseEvent, type: 'move' | 'resize-left' | 'resize-right', d: Deliverable, milestoneId: string) => {
         if (readOnly) return;
@@ -296,6 +317,24 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
             originalEndMs: new Date(phase.endDate).getTime(),
             currentStartMs: new Date(phase.startDate).getTime(),
             currentEndMs: new Date(phase.endDate).getTime()
+        });
+    };
+
+    const startMilestoneDrag = (e: React.MouseEvent, milestone: Milestone) => {
+        if (readOnly) return;
+        e.stopPropagation();
+        e.preventDefault();
+        const ms = new Date(milestone.date).getTime();
+        setDragState({
+            type: 'move',
+            itemType: 'milestone',
+            itemId: milestone.id,
+            milestone,
+            startX: e.clientX,
+            originalStartMs: ms,
+            originalEndMs: ms,
+            currentStartMs: ms,
+            currentEndMs: ms
         });
     };
 
@@ -720,9 +759,13 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                         })}
 
                                         {row.milestonesInWs.map(m => {
-                                            const mDate = new Date(m.date).getTime();
+                                            const baseMs = new Date(m.date).getTime();
+                                            const optimistic = optimisticItems[m.id];
+                                            const mDate = dragState?.itemType === 'milestone' && dragState.milestone?.id === m.id
+                                                ? dragState.currentStartMs
+                                                : (optimistic ? optimistic.startMs : baseMs);
                                             const left = ((mDate - minDate) / totalDuration) * 100;
-                                            const isOverdue = m.status === 'Delayed' || (new Date() > new Date(m.date) && m.status !== 'Completed');
+                                            const isOverdue = m.status === 'Delayed' || (new Date() > new Date(mDate) && m.status !== 'Completed');
 
                                             return (
                                                 <div
@@ -732,6 +775,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                                 >
                                                     <div className="absolute top-3 bottom-0 w-px border-l-2 border-dashed border-slate-400/50"></div>
                                                     <div
+                                                        onMouseDown={(e) => startMilestoneDrag(e, m)}
                                                         onClick={() => openEditMilestone(m)}
                                                         style={{
                                                             marginTop: '12px',
@@ -744,7 +788,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                                         style={{ marginTop: '-40px' }}
                                                         className="pointer-events-auto absolute bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity z-30 cursor-default shadow-lg font-medium"
                                                     >
-                                                        {m.title} ({new Date(m.date).toLocaleDateString('da-DK')})
+                                                        {m.title} ({new Date(mDate).toLocaleDateString('da-DK')})
                                                     </div>
                                                 </div>
                                             );

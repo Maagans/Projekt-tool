@@ -68,19 +68,49 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   const {
     projectStartDate, projectEndDate,
     phases, milestones, deliverables, calculateDateFromPosition, calculatePositionFromDate, monthMarkers, todayPosition,
-    addTimelineItem, updateTimelineItem, deleteTimelineItem
+  addTimelineItem, updateTimelineItem, deleteTimelineItem
   } = props;
-  const isTimelineEmpty = phases.length === 0 && milestones.length === 0 && deliverables.length === 0;
+  const clampPercent = useCallback((value: number | null | undefined) => {
+    if (!Number.isFinite(value ?? null)) return 0;
+    return Math.max(0, Math.min(100, value as number));
+  }, []);
+  const getPositionFromDateString = useCallback(
+    (date?: string | null) => {
+      if (!date) return null;
+      const pos = calculatePositionFromDate(date);
+      return Number.isFinite(pos) ? clampPercent(pos) : null;
+    },
+    [calculatePositionFromDate, clampPercent],
+  );
+  const normalizedMilestones = useMemo(
+    () =>
+      milestones.map((m) => {
+        const fallback = getPositionFromDateString(m.date) ?? 0;
+        const position = Number.isFinite(m.position) ? clampPercent(m.position) : fallback;
+        return { ...m, position };
+      }),
+    [milestones, getPositionFromDateString, clampPercent],
+  );
+  const normalizedDeliverables = useMemo(() => {
+    return deliverables.map((d) => {
+      const fallback = getPositionFromDateString(d.startDate ?? d.endDate ?? projectStartDate) ?? 0;
+      const position = Number.isFinite(d.position) ? clampPercent(d.position) : fallback;
+      return { ...d, position };
+    });
+  }, [deliverables, getPositionFromDateString, clampPercent, projectStartDate]);
+  const isTimelineEmpty = phases.length === 0 && normalizedMilestones.length === 0 && normalizedDeliverables.length === 0;
   const timelineRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pendingScrollRatioRef = useRef<number | null>(null);
   const [zoomLevel, setZoomLevel] = useState<TimelineZoom>('quarter');
   const zoomScale = ZOOM_LEVELS[zoomLevel].scale;
   const { layout: deliverableLayouts, laneCount: deliverableLaneCount } = useMemo(() => {
-    if (deliverables.length === 0) {
+    if (normalizedDeliverables.length === 0) {
       return { layout: {}, laneCount: 0 };
     }
-    const sorted = [...deliverables].sort((a, b) => a.position - b.position);
+    // Fallback: if project dates are invalid, keep a minimal width to avoid collapsing
+    const safePosition = (value: number) => (Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0);
+    const sorted = [...normalizedDeliverables].sort((a, b) => safePosition(a.position) - safePosition(b.position));
     const layout: Record<string, { lane: number }> = {};
     const laneEndPositions: number[] = [];
     const minCardWidthPercent = 8;
@@ -88,8 +118,9 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     const halfWidth = estimatedCardWidth / 2;
 
     sorted.forEach((deliverable) => {
-      const start = Math.max(0, deliverable.position - halfWidth);
-      const end = Math.min(100, deliverable.position + halfWidth);
+      const pos = safePosition(deliverable.position);
+      const start = Math.max(0, pos - halfWidth);
+      const end = Math.min(100, pos + halfWidth);
       let laneIndex = laneEndPositions.findIndex((laneEnd) => start >= laneEnd + DELIVERABLE_BUFFER_PERCENT);
       if (laneIndex === -1) {
         laneIndex = laneEndPositions.length;
@@ -100,8 +131,8 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
       layout[deliverable.id] = { lane: laneIndex };
     });
 
-    return { layout, laneCount: laneEndPositions.length || (deliverables.length > 0 ? 1 : 0) };
-  }, [deliverables, zoomScale]);
+    return { layout, laneCount: laneEndPositions.length || (normalizedDeliverables.length > 0 ? 1 : 0) };
+  }, [normalizedDeliverables, zoomScale]);
   const [selectedItem, setSelectedItem] = useState<TimelineSelection | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
   const suppressClickRef = useRef(false);
@@ -110,14 +141,14 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   const deliverableTopOffsetRem = 1.25;
 
   const deliverableSectionHeightRem = useMemo(() => {
-    const laneCount = deliverableLaneCount > 0 ? deliverableLaneCount : (deliverables.length > 0 ? 1 : 0);
+    const laneCount = deliverableLaneCount > 0 ? deliverableLaneCount : (normalizedDeliverables.length > 0 ? 1 : 0);
     if (laneCount === 0) {
       return 10;
     }
     const highestTop = deliverableTopOffsetRem + (laneCount - 1) * deliverableLaneSpacingRem;
     const cardAllowance = 9;
     return highestTop + cardAllowance;
-  }, [deliverableLaneCount, deliverables.length]);
+  }, [deliverableLaneCount, normalizedDeliverables.length]);
 
   const timelineHeightRem = useMemo(
     () => Math.max(MIN_TIMELINE_HEIGHT_REM, TIMELINE_BASE_HEIGHT_REM + deliverableSectionHeightRem),
@@ -383,12 +414,12 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
       return phase ? { type: 'phase', item: phase } : null;
     }
     if (selectedItem.type === 'milestone') {
-      const milestone = milestones.find((m) => m.id === selectedItem.id);
+      const milestone = normalizedMilestones.find((m) => m.id === selectedItem.id);
       return milestone ? { type: 'milestone', item: milestone } : null;
     }
-    const deliverable = deliverables.find((d) => d.id === selectedItem.id);
+    const deliverable = normalizedDeliverables.find((d) => d.id === selectedItem.id);
     return deliverable ? { type: 'deliverable', item: deliverable } : null;
-  }, [selectedItem, phases, milestones, deliverables]);
+  }, [selectedItem, phases, normalizedMilestones, normalizedDeliverables]);
 
   useEffect(() => {
     if (selectedItem && !selectedInspectorItem) {
@@ -407,7 +438,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
     let item: Phase | Milestone | Deliverable | undefined;
     if (type === 'phase') item = phases.find(i => i.id === id);
     else if (type === 'milestone') item = milestones.find(i => i.id === id);
-    else item = deliverables.find(i => i.id === id);
+    else item = normalizedDeliverables.find(i => i.id === id);
 
     if (!item) return;
 
@@ -589,10 +620,12 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           <div className="absolute w-full h-full pt-16">
             {/* Milestones */}
             <div className="relative h-20">
-              {milestones.map((m) => {
+              {normalizedMilestones.map((m) => {
                 const isSelected = selectedItem?.type === 'milestone' && selectedItem.id === m.id;
                 const milestonePreview = dragPreview?.type === 'milestone' && dragPreview.id === m.id ? dragPreview.position : null;
-                const milestonePosition = milestonePreview ?? m.position;
+                const milestonePosition = Number.isFinite(milestonePreview)
+                  ? milestonePreview
+                  : (Number.isFinite(m.position) ? m.position : 0);
                 return (
                   <div
                     key={m.id}
@@ -654,7 +687,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
 
             {/* Deliverables */}
             <div className="relative" style={{ height: `${deliverableSectionHeightRem}rem` }}>
-                {deliverables.map((d) => {
+                {normalizedDeliverables.map((d) => {
                     const layout = deliverableLayouts[d.id];
                     const laneIndex = layout ? layout.lane : 0;
                     const topRem = deliverableTopOffsetRem + laneIndex * deliverableLaneSpacingRem;

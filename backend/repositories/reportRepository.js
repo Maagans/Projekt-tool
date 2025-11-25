@@ -505,6 +505,7 @@ export const replaceReportState = async (client, reportId, state) => {
         'report_challenge_items',
         'report_next_step_items',
         'report_main_table_rows',
+        'report_risks',
         'report_phases',
         'report_milestones',
         'report_deliverables',

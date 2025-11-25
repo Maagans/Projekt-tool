@@ -79,3 +79,7 @@ export const insert = async (data) => {
 6. **Frontend:** wire up via `src/api.ts` and consume through typed hooks/components.
 
 > ⚠️ Do **not** refactor legacy monolithic services (e.g., `projectService.js`) unless explicitly requested. Apply these rules to **newly written** code.
+
+## 4. Note on workspaceService (LEG-005)
+- `workspaceService` er nu read-only for projekter: projekt-CRUD (navn/status/dato/budget mv.) må kun ske via projekt-ruterne og `projectsService`/`projectRepository`.
+- Workstreams, projektmedlemmer og rapporter kan stadig sync'es via workspace, men må ikke oprette/opdatere projekter direkte med SQL i service-laget.

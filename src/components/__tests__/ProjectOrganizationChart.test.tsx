@@ -56,7 +56,7 @@ describe('TimeLogModal', () => {
         employee={employee}
         canEditPlanned
         canEditActual
-        onClose={() => {}}
+        onClose={() => { }}
         onUpdateTimeLog={onUpdateTimeLog}
         onBulkUpdateTimeLog={onBulkUpdateTimeLog}
       />,
@@ -105,7 +105,7 @@ describe('TimeLogModal', () => {
         employee={employee}
         canEditPlanned
         canEditActual
-        onClose={() => {}}
+        onClose={() => { }}
         onUpdateTimeLog={vi.fn()}
         onBulkUpdateTimeLog={vi.fn()}
       />,
@@ -143,7 +143,7 @@ describe('TimeLogModal', () => {
         employee={employee}
         canEditPlanned
         canEditActual
-        onClose={() => {}}
+        onClose={() => { }}
         onUpdateTimeLog={vi.fn()}
         onBulkUpdateTimeLog={vi.fn()}
       />,
@@ -190,7 +190,8 @@ describe('ProjectOrganizationChart', () => {
       <ProjectOrganizationChart {...defaultProps} members={membersInitial} />,
     );
 
-    await user.click(screen.getByRole('button', { name: /åbn timelog/i }));
+    // Update selector to match new button title
+    await user.click(screen.getByRole('button', { name: /registrer tid/i }));
 
     const plannedCell = screen.getByTestId('timelog-total-planned');
     const actualCell = screen.getByTestId('timelog-total-actual');
@@ -236,7 +237,7 @@ describe('ProjectOrganizationChart', () => {
       <ProjectOrganizationChart {...defaultProps} members={members} />,
     );
 
-    await user.click(screen.getByRole('button', { name: /åbn timelog/i }));
+    await user.click(screen.getByRole('button', { name: /registrer tid/i }));
     expect(screen.getByText('Timeregistrering')).toBeInTheDocument();
 
     rerender(<ProjectOrganizationChart {...defaultProps} members={[]} />);
@@ -246,13 +247,45 @@ describe('ProjectOrganizationChart', () => {
     });
   });
 
-  it('viser knap med teksten "Tilføj medlem"', () => {
+  it('viser knap med teksten "Tilføj Medlem"', () => {
     render(<ProjectOrganizationChart {...createDefaultProps()} members={[]} />);
-    expect(screen.getByRole('button', { name: /Tilføj medlem/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Tilføj Medlem/i })).toBeInTheDocument();
   });
 
-  it('deaktiverer styringsknapper når synkronisering er i gang', () => {
+  it('skjuler styringsknapper når synkronisering er i gang', () => {
     render(<ProjectOrganizationChart {...createDefaultProps()} isSaving members={[]} />);
-    expect(screen.getByRole('button', { name: /Tilføj medlem/ })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Tilføj Medlem/i })).not.toBeInTheDocument();
+  });
+
+  it('kalder onAssignEmployee med rolle og gruppe når et nyt medlem tilføjes', async () => {
+    const user = userEvent.setup();
+    const onAssignEmployee = vi.fn();
+    const props = {
+      ...createDefaultProps(),
+      onAssignEmployee,
+      allEmployees: [
+        { id: 'e1', name: 'Ny Medarbejder', email: 'ny@example.com', location: 'Sano Aarhus' },
+      ],
+      members: [],
+    };
+
+    render(<ProjectOrganizationChart {...props} />);
+
+    // 1. Open modal
+    await user.click(screen.getByRole('button', { name: /Tilføj Medlem/i }));
+
+    // 2. Select employee
+    await user.click(screen.getByText('Ny Medarbejder'));
+
+    // 3. Enter role
+    const roleInput = screen.getByPlaceholderText('Projektrolle');
+    await user.clear(roleInput);
+    await user.type(roleInput, 'Arkitekt');
+
+    // 4. Save
+    await user.click(screen.getByRole('button', { name: /Tilføj Medlem/i }));
+
+    // 5. Assert
+    expect(onAssignEmployee).toHaveBeenCalledWith('e1', 'Arkitekt', 'styregruppe');
   });
 });

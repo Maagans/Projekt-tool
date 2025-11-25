@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, DragEvent } from 'react';
 import { ProjectMember, Employee, Project } from '../types';
-import { PlusIcon, TrashIcon, UsersIcon, ClockIcon } from './Icons';
+import { TrashIcon, ClockIcon } from './Icons';
 import { EditableField } from './EditableField';
-import { UserPlus, GripVertical, Mail, Briefcase, IdCard, X, User, Check } from 'lucide-react';
+import { UserPlus, GripVertical, Mail, Briefcase, IdCard, X, User } from 'lucide-react';
 
 type MemberGroup = ProjectMember['group'];
 
@@ -76,12 +76,12 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   allEmployees,
   projectMembers,
   onAssign,
-  onUpdateMember,
-  onBulkUpdateTimeLog,
+  onUpdateMember: _onUpdateMember,
+  onBulkUpdateTimeLog: _onBulkUpdateTimeLog,
   onClose,
   isBusy,
   initialGroup,
-  project
+  project: _project
 }) => {
   const [step, setStep] = useState<'select-employee' | 'configure'>('select-employee');
   const [searchTerm, setSearchTerm] = useState('');
@@ -504,7 +504,6 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
   onUpdateTimeLog,
   onBulkUpdateTimeLog,
 }) => {
-  const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [targetGroup, setTargetGroup] = useState<MemberGroup>('styregruppe');
   const [timeLogMemberId, setTimeLogMemberId] = useState<string | null>(null);
@@ -525,7 +524,6 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>, memberId: string) => {
     if (!canManageNow) return;
-    setDraggedMemberId(memberId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('application/member-assignment-id', memberId);
     e.currentTarget.style.opacity = '0.5';
@@ -533,7 +531,6 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
 
   const handleDragEnd = (e: DragEvent<HTMLDivElement>) => {
     e.currentTarget.style.opacity = '1';
-    setDraggedMemberId(null);
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -551,7 +548,6 @@ export const ProjectOrganizationChart: React.FC<ProjectOrganizationChartProps> =
     if (memberId) {
       onUpdateMember(memberId, { group: targetGroupId });
     }
-    setDraggedMemberId(null);
   };
 
   const handleAddClick = (groupId: MemberGroup) => {

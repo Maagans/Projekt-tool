@@ -284,9 +284,9 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           projects: previous.projects.map((project) =>
             project.id === variables.projectId
               ? {
-                  ...project,
-                  projectMembers: [...project.projectMembers.filter((projMember) => projMember.id !== member.id), member],
-                }
+                ...project,
+                projectMembers: [...project.projectMembers.filter((projMember) => projMember.id !== member.id), member],
+              }
               : project,
           ),
         };
@@ -317,11 +317,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           projects: previous.projects.map((project) =>
             project.id === variables.projectId
               ? {
-                  ...project,
-                  projectMembers: project.projectMembers.map((member) =>
-                    member.id === updatedMember.id ? { ...member, ...updatedMember } : member,
-                  ),
-                }
+                ...project,
+                projectMembers: project.projectMembers.map((member) =>
+                  member.id === updatedMember.id ? { ...member, ...updatedMember } : member,
+                ),
+              }
               : project,
           ),
         };
@@ -349,9 +349,9 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           projects: previous.projects.map((project) =>
             project.id === variables.projectId
               ? {
-                  ...project,
-                  projectMembers: project.projectMembers.filter((member) => member.id !== variables.memberId),
-                }
+                ...project,
+                projectMembers: project.projectMembers.filter((member) => member.id !== variables.memberId),
+              }
               : project,
           ),
         };
@@ -624,9 +624,9 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           prevProjects.map((project) =>
             assignedProjectIds.has(project.id)
               ? {
-                  ...project,
-                  projectMembers: project.projectMembers.filter((member) => member.employeeId !== id),
-                }
+                ...project,
+                projectMembers: project.projectMembers.filter((member) => member.employeeId !== id),
+              }
               : project,
           ),
         );
@@ -897,7 +897,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   );
 
   const assignEmployeeToProject = useCallback(
-    (projectId: string, employeeId: string) => {
+    (projectId: string, employeeId: string, role?: string, group?: ProjectMember['group']) => {
       const project = projects.find((candidate) => candidate.id === projectId);
       if (!project) {
         return;
@@ -910,8 +910,8 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       const newMember: ProjectMember = {
         id: generateId(),
         employeeId,
-        role: 'Ny rolle',
-        group: 'unassigned',
+        role: role ?? 'Ny rolle',
+        group: group ?? 'unassigned',
         timeEntries: [],
         isProjectLead: false,
       };
@@ -944,11 +944,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           project.id !== projectId
             ? project
             : {
-                ...project,
-                projectMembers: project.projectMembers.map((member) =>
-                  member.id === memberId ? { ...member, ...updates } : member,
-                ),
-              },
+              ...project,
+              projectMembers: project.projectMembers.map((member) =>
+                member.id === memberId ? { ...member, ...updates } : member,
+              ),
+            },
         ),
       );
 
@@ -979,9 +979,9 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           project.id !== projectId
             ? project
             : {
-                ...project,
-                projectMembers: project.projectMembers.filter((member) => member.id !== memberId),
-              },
+              ...project,
+              projectMembers: project.projectMembers.filter((member) => member.id !== memberId),
+            },
         ),
       );
 
@@ -1065,11 +1065,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
               project.id !== projectId
                 ? project
                 : {
-                    ...project,
-                    projectMembers: project.projectMembers.map((member) =>
-                      member.id === memberId ? { ...member, timeEntries: response.member!.timeEntries } : member,
-                    ),
-                  },
+                  ...project,
+                  projectMembers: project.projectMembers.map((member) =>
+                    member.id === memberId ? { ...member, timeEntries: response.member!.timeEntries } : member,
+                  ),
+                },
             ),
           );
         })
@@ -1512,12 +1512,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 deliverable.id !== deliverableId
                   ? deliverable
                   : {
-                      ...deliverable,
-                      checklist: [
-                        ...(deliverable.checklist ?? []),
-                        { id: generateId(), text: (text ?? 'Nyt punkt').trim() || 'Nyt punkt', completed: false },
-                      ],
-                    },
+                    ...deliverable,
+                    checklist: [
+                      ...(deliverable.checklist ?? []),
+                      { id: generateId(), text: (text ?? 'Nyt punkt').trim() || 'Nyt punkt', completed: false },
+                    ],
+                  },
               ),
             })),
           updateItem: (deliverableId: string, itemId: string, nextText: string) =>
@@ -1527,11 +1527,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 deliverable.id !== deliverableId
                   ? deliverable
                   : {
-                      ...deliverable,
-                      checklist: (deliverable.checklist ?? []).map((item) =>
-                        item.id === itemId ? { ...item, text: nextText.trim() || item.text } : item,
-                      ),
-                    },
+                    ...deliverable,
+                    checklist: (deliverable.checklist ?? []).map((item) =>
+                      item.id === itemId ? { ...item, text: nextText.trim() || item.text } : item,
+                    ),
+                  },
               ),
             })),
           toggleItem: (deliverableId: string, itemId: string) =>
@@ -1541,11 +1541,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 deliverable.id !== deliverableId
                   ? deliverable
                   : {
-                      ...deliverable,
-                      checklist: (deliverable.checklist ?? []).map((item) =>
-                        item.id === itemId ? { ...item, completed: !item.completed } : item,
-                      ),
-                    },
+                    ...deliverable,
+                    checklist: (deliverable.checklist ?? []).map((item) =>
+                      item.id === itemId ? { ...item, completed: !item.completed } : item,
+                    ),
+                  },
               ),
             })),
           deleteItem: (deliverableId: string, itemId: string) =>
@@ -1555,9 +1555,9 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 deliverable.id !== deliverableId
                   ? deliverable
                   : {
-                      ...deliverable,
-                      checklist: (deliverable.checklist ?? []).filter((item) => item.id !== itemId),
-                    },
+                    ...deliverable,
+                    checklist: (deliverable.checklist ?? []).filter((item) => item.id !== itemId),
+                  },
               ),
             })),
         },
@@ -1654,7 +1654,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             const nextWeekKey = getWeekKey(date);
 
             if (!allPossibleWeeksSet.has(nextWeekKey)) {
-              alert('N��ste uge er uden for projektets tidsramme.');
+              alert('Nste uge er uden for projektets tidsramme.');
               return null;
             }
             if (existingWeeks.has(nextWeekKey)) {
@@ -1687,16 +1687,16 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
                 p.id !== projectId
                   ? p
                   : (() => {
-                      const filtered = p.reports.filter((report) => report.weekKey !== weekKeyToDelete);
-                      if (filtered.length === p.reports.length) {
-                        return p;
-                      }
-                      nextReports = filtered;
-                      return {
-                        ...p,
-                        reports: filtered,
-                      };
-                    })(),
+                    const filtered = p.reports.filter((report) => report.weekKey !== weekKeyToDelete);
+                    if (filtered.length === p.reports.length) {
+                      return p;
+                    }
+                    nextReports = filtered;
+                    return {
+                      ...p,
+                      reports: filtered,
+                    };
+                  })(),
               ),
             );
             if (nextReports) {
@@ -1711,7 +1711,8 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           },
         },
         organizationManager: {
-          assignEmployee: (employeeId: string) => assignEmployeeToProject(projectId, employeeId),
+          assignEmployee: (employeeId: string, role?: string, group?: ProjectMember['group']) =>
+            assignEmployeeToProject(projectId, employeeId, role, group),
           updateMember: (memberId: string, updates: Partial<ProjectMember>) =>
             updateProjectMember(projectId, memberId, updates),
           deleteMember: (memberId: string) => deleteProjectMember(projectId, memberId),
