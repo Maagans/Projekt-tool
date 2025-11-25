@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import { randomUUID } from "crypto";
 import { createAppError } from "../utils/errors.js";
 import { withTransaction } from "../utils/transactions.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
@@ -11,6 +12,7 @@ import {
   replaceReportState,
   deleteReport as repoDeleteReport,
 } from "../repositories/reportRepository.js";
+import { listPlanByProject } from "../repositories/projectPlanRepository.js";
 
 const assertAuthenticated = (user) => {
   if (!user) {
@@ -81,6 +83,70 @@ const fetchReportOrThrow = async (client, reportId) => {
   return report;
 };
 
+const buildPlanSnapshotState = async (client, projectId) => {
+  const plan = await listPlanByProject(client, projectId);
+  const mapId = new Map();
+  const remap = (id) => {
+    if (!id) return randomUUID();
+    if (!mapId.has(id)) {
+      mapId.set(id, randomUUID());
+    }
+    return mapId.get(id);
+  };
+
+  const phases =
+    plan.phases?.map((p) => ({
+      id: remap(p.id),
+      text: p.label ?? "",
+      start: p.startPercentage ?? 0,
+      end: p.endPercentage ?? 0,
+      highlight: p.highlight ?? "",
+      workstreamId: p.workstreamId ?? null,
+      startDate: p.startDate ?? null,
+      endDate: p.endDate ?? null,
+      status: p.status ?? null,
+    })) ?? [];
+
+  const milestones =
+    plan.milestones?.map((m, index) => ({
+      id: remap(m.id),
+      text: m.label ?? "",
+      position: m.position ?? index,
+      workstreamId: m.workstreamId ?? null,
+      date: m.dueDate ?? null,
+      status: m.status ?? null,
+    })) ?? [];
+
+  const deliverables =
+    plan.deliverables?.map((d, index) => ({
+      id: remap(d.id),
+      text: d.label ?? "",
+      position: d.position ?? index,
+      milestoneId: d.milestoneId ? remap(d.milestoneId) : null,
+      status: d.status ?? null,
+      owner: d.ownerName ?? null,
+      ownerId: d.ownerEmployeeId ?? null,
+      description: d.description ?? null,
+      notes: d.notes ?? null,
+      startDate: d.startDate ?? null,
+      endDate: d.endDate ?? null,
+      progress: d.progress ?? null,
+      checklist: (d.checklist ?? []).map((item, itemIndex) => ({
+        id: remap(item.id),
+        text: item.text ?? "",
+        completed: item.completed ?? false,
+        position: itemIndex,
+      })),
+    })) ?? [];
+
+  return { phases, milestones, deliverables };
+};
+
+const stripPlanFields = (state = {}) => {
+  const { phases, milestones, deliverables, workstreams, ...rest } = state;
+  return rest;
+};
+
 export const listProjectReports = async (projectId, user) => {
   return withTransaction(async (client) => {
     assertAuthenticated(user);
@@ -113,8 +179,22 @@ export const createReport = async (projectId, payload, user) => {
       throw createAppError("weekKey is required.", 400);
     }
 
+    const planState = await buildPlanSnapshotState(client, projectId);
+    const baseState = {
+      statusItems: [],
+      challengeItems: [],
+      nextStepItems: [],
+      mainTableRows: [],
+      risks: [],
+      kanbanTasks: [],
+      ...state,
+      phases: planState.phases,
+      milestones: planState.milestones,
+      deliverables: planState.deliverables,
+    };
+
     const newId = await repoCreateReport(client, projectId, weekKey);
-    await replaceReportState(client, newId, state);
+    await replaceReportState(client, newId, baseState);
     const createdState = await getReportState(client, newId);
     return { id: newId, projectId, weekKey, state: createdState };
   }, { client: pool });
@@ -131,7 +211,16 @@ export const updateReport = async (reportId, payload, user) => {
       await updateReportWeekKey(client, reportId, weekKey);
     }
     if (state) {
-      await replaceReportState(client, reportId, state);
+      const currentState = await getReportState(client, reportId);
+      const merged = {
+        ...currentState,
+        ...stripPlanFields(state),
+        phases: currentState.phases ?? [],
+        milestones: currentState.milestones ?? [],
+        deliverables: currentState.deliverables ?? [],
+        workstreams: currentState.workstreams ?? [],
+      };
+      await replaceReportState(client, reportId, merged);
     }
     const updatedState = await getReportState(client, reportId);
     return { id: report.id, projectId: report.projectId, weekKey: weekKey ?? report.weekKey, state: updatedState };

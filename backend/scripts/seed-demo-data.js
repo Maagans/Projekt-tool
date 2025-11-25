@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+﻿import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { randomUUID } from 'crypto';
 import { config } from '../config/index.js';
@@ -25,6 +25,10 @@ const TABLES_TO_RESET = [
   'report_challenge_items',
   'report_status_items',
   'reports',
+  'project_deliverable_checklist',
+  'project_deliverables',
+  'project_milestones',
+  'project_phases',
   'project_risk_history',
   'project_risks',
   'project_workstreams',
@@ -32,6 +36,21 @@ const TABLES_TO_RESET = [
   'project_members',
   'projects',
 ];
+
+const truncateExistingTables = async (client, tableNames) => {
+  for (const table of tableNames) {
+    await client.query(
+      `
+      DO $$
+      BEGIN
+        IF to_regclass('${table}') IS NOT NULL THEN
+          EXECUTE 'TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE';
+        END IF;
+      END$$;
+    `,
+    );
+  }
+};
 
 const employees = [
   {
@@ -747,6 +766,112 @@ const seedProjectRisks = async (client, projectIds, employeeIds) => {
   return riskMap;
 };
 
+const seedProjectPlan = async (client, projectIds, workstreamIds) => {
+  for (const [projectKey, projectId] of projectIds.entries()) {
+    const template = [...reportTemplates]
+      .filter((item) => item.projectKey === projectKey)
+      .sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0];
+
+    // Guard deletes if tables exist (for first-time runs before migration)
+    const tableExists = async (name) => {
+      const res = await client.query(`SELECT to_regclass($1) AS reg`, [name]);
+      return Boolean(res.rows[0]?.reg);
+    };
+    if (await tableExists('project_deliverable_checklist')) {
+      await client.query(
+        `
+          DELETE FROM project_deliverable_checklist
+          WHERE deliverable_id IN (SELECT id FROM project_deliverables WHERE project_id = $1::uuid)
+        `,
+        [projectId],
+      );
+    }
+    if (await tableExists('project_deliverables')) {
+      await client.query('DELETE FROM project_deliverables WHERE project_id = $1::uuid', [projectId]);
+    }
+    if (await tableExists('project_milestones')) {
+      await client.query('DELETE FROM project_milestones WHERE project_id = $1::uuid', [projectId]);
+    }
+    if (await tableExists('project_phases')) {
+      await client.query('DELETE FROM project_phases WHERE project_id = $1::uuid', [projectId]);
+    }
+
+    if (!template) {
+      continue;
+    }
+
+    const streams = workstreamIds.get(projectKey) ?? [];
+    const pickStream = (index = 0) => streams[index % (streams.length || 1)]?.id ?? null;
+
+    // Phases
+    for (let index = 0; index < (template.phases ?? []).length; index += 1) {
+      const phase = template.phases[index];
+      await client.query(
+        `
+          INSERT INTO project_phases (
+            id, project_id, workstream_id, label, start_percentage, end_percentage, highlight, status, sort_order
+          )
+          VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, NULL, $8)
+        `,
+        [randomUUID(), projectId, pickStream(index), phase.label, phase.start, phase.end, phase.highlight ?? null, index],
+      );
+    }
+
+    // Milestones
+    const milestoneIds = [];
+    for (let index = 0; index < (template.milestones ?? []).length; index += 1) {
+      const milestone = template.milestones[index];
+      const milestoneId = randomUUID();
+      milestoneIds.push(milestoneId);
+      await client.query(
+        `
+          INSERT INTO project_milestones (
+            id, project_id, workstream_id, label, position_percentage, due_date, status
+          )
+          VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6::date, $7)
+        `,
+        [milestoneId, projectId, pickStream(index), milestone.label, milestone.position, milestone.dueDate ?? null, milestone.status ?? null],
+      );
+    }
+
+    // Deliverables + checklist
+    for (let index = 0; index < (template.deliverables ?? []).length; index += 1) {
+      const deliverable = template.deliverables[index];
+      const deliverableId = randomUUID();
+      const milestoneId = milestoneIds[index % (milestoneIds.length || 1)] ?? null;
+      await client.query(
+        `
+          INSERT INTO project_deliverables (
+            id, project_id, milestone_id, label, position_percentage, status, owner_name, owner_employee_id, description, notes, start_date, end_date, progress
+          )
+          VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, NULL, NULL, NULL, NULL, $7::date, $8::date, NULL)
+        `,
+        [
+          deliverableId,
+          projectId,
+          milestoneId,
+          deliverable.label,
+          deliverable.position,
+          deliverable.status ?? null,
+          deliverable.startDate ?? null,
+          deliverable.endDate ?? null,
+        ],
+      );
+
+      for (let idx = 0; idx < (deliverable.checklist ?? []).length; idx += 1) {
+        const itemText = deliverable.checklist[idx];
+        await client.query(
+          `
+            INSERT INTO project_deliverable_checklist (id, deliverable_id, position, text, completed)
+            VALUES ($1::uuid, $2::uuid, $3, $4, false)
+          `,
+          [randomUUID(), deliverableId, idx, itemText],
+        );
+      }
+    }
+  }
+};
+
 const seedReports = async (client, projectIds, workstreamIds, projectRiskMap) => {
   for (const report of reportTemplates) {
     const projectId = projectIds.get(report.projectKey);
@@ -961,7 +1086,7 @@ const seedDemoData = async () => {
     await client.query('BEGIN');
 
     if (SHOULD_RESET) {
-      await client.query(`TRUNCATE ${TABLES_TO_RESET.join(', ')} RESTART IDENTITY CASCADE`);
+      await truncateExistingTables(client, TABLES_TO_RESET);
     }
 
     await setWorkspaceBaseline(client);
@@ -969,6 +1094,7 @@ const seedDemoData = async () => {
     await upsertDemoUsers(client, employeeIds);
     const projectIds = await upsertProjects(client);
     const workstreamIds = await upsertProjectWorkstreams(client, projectIds);
+    await seedProjectPlan(client, projectIds, workstreamIds);
     const memberIds = await upsertProjectMembers(client, projectIds, employeeIds);
     await upsertTimeEntries(client, memberIds);
     const projectRiskMap = await seedProjectRisks(client, projectIds, employeeIds);
@@ -997,3 +1123,6 @@ seedDemoData().catch((error) => {
   console.error('Uventet fejl under seed:', error);
   process.exit(1);
 });
+
+
+

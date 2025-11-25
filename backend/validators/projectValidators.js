@@ -229,3 +229,12 @@ export const validateProjectMemberIdentifier = (req, res, next) => {
   req.validatedParams = paramsParsed.data;
   return next();
 };
+
+export const validateProjectIdentifier = (req, res, next) => {
+  const parsed = projectIdentifierSchema.safeParse(req.params ?? {});
+  if (!parsed.success) {
+    return respondValidationError(res, 'Invalid project identifier.', parsed.error.issues);
+  }
+  req.validatedParams = parsed.data;
+  return next();
+};

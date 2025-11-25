@@ -55,6 +55,10 @@ DROP TABLE IF EXISTS report_main_table_rows CASCADE;
 DROP TABLE IF EXISTS report_challenge_items CASCADE;
 DROP TABLE IF EXISTS report_status_items CASCADE;
 DROP TABLE IF EXISTS report_next_step_items CASCADE;
+DROP TABLE IF EXISTS project_deliverable_checklist CASCADE;
+DROP TABLE IF EXISTS project_deliverables CASCADE;
+DROP TABLE IF EXISTS project_milestones CASCADE;
+DROP TABLE IF EXISTS project_phases CASCADE;
 DROP TABLE IF EXISTS project_member_time_entries CASCADE;
 DROP TABLE IF EXISTS project_workstreams CASCADE;
 DROP TABLE IF EXISTS project_members CASCADE;
@@ -126,6 +130,75 @@ CREATE TABLE project_workstreams (
 );
 CREATE UNIQUE INDEX project_workstreams_unique_name_per_project ON project_workstreams(project_id, name);
 CREATE INDEX project_workstreams_project_sort_idx ON project_workstreams(project_id, sort_order);
+
+CREATE TABLE project_phases (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    workstream_id UUID REFERENCES project_workstreams(id) ON DELETE SET NULL,
+    label TEXT NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    start_percentage NUMERIC(5,2),
+    end_percentage NUMERIC(5,2),
+    highlight TEXT,
+    status TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_project_phases_status CHECK (status IS NULL OR status IN ('Planned','Active','Completed')),
+    CONSTRAINT chk_project_phases_start_pct CHECK (start_percentage IS NULL OR (start_percentage >= 0 AND start_percentage <= 100)),
+    CONSTRAINT chk_project_phases_end_pct CHECK (end_percentage IS NULL OR (end_percentage >= 0 AND end_percentage <= 100))
+);
+CREATE INDEX project_phases_project_sort_idx ON project_phases(project_id, sort_order);
+CREATE INDEX project_phases_workstream_idx ON project_phases(workstream_id);
+
+CREATE TABLE project_milestones (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    workstream_id UUID REFERENCES project_workstreams(id) ON DELETE SET NULL,
+    label TEXT NOT NULL,
+    due_date DATE,
+    position_percentage NUMERIC(5,2),
+    status TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_project_milestones_status CHECK (status IS NULL OR status IN ('Pending','On Track','Delayed','Completed')),
+    CONSTRAINT chk_project_milestones_position CHECK (position_percentage IS NULL OR (position_percentage >= 0 AND position_percentage <= 100))
+);
+CREATE INDEX project_milestones_project_idx ON project_milestones(project_id, due_date);
+CREATE INDEX project_milestones_workstream_idx ON project_milestones(workstream_id);
+
+CREATE TABLE project_deliverables (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    milestone_id UUID REFERENCES project_milestones(id) ON DELETE SET NULL,
+    label TEXT NOT NULL,
+    position_percentage NUMERIC(5,2),
+    status TEXT,
+    owner_name TEXT,
+    owner_employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+    description TEXT,
+    notes TEXT,
+    start_date DATE,
+    end_date DATE,
+    progress NUMERIC(5,2),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_project_deliverables_status CHECK (status IS NULL OR status IN ('Pending','In Progress','Completed')),
+    CONSTRAINT chk_project_deliverables_position CHECK (position_percentage IS NULL OR (position_percentage >= 0 AND position_percentage <= 100)),
+    CONSTRAINT chk_project_deliverables_progress CHECK (progress IS NULL OR (progress >= 0 AND progress <= 100))
+);
+CREATE INDEX project_deliverables_project_idx ON project_deliverables(project_id);
+CREATE INDEX project_deliverables_milestone_idx ON project_deliverables(milestone_id);
+
+CREATE TABLE project_deliverable_checklist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    deliverable_id UUID NOT NULL REFERENCES project_deliverables(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    text TEXT NOT NULL,
+    completed BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX project_deliverable_checklist_deliverable_idx ON project_deliverable_checklist(deliverable_id, position);
 
 
 CREATE TABLE project_member_time_entries (

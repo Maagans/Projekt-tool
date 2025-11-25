@@ -6,6 +6,7 @@ import {
     deleteProjectMemberRecord,
 } from '../services/projects/projectMembersService.js';
 import { buildWorkspaceForUser } from '../services/workspaceService.js';
+import { getProjectPlanSnapshot, replaceProjectPlan } from '../services/projects/projectPlanService.js';
 
 export const createProject = async (req, res, next) => {
     try {
@@ -81,6 +82,27 @@ export const deleteProjectMember = async (req, res, next) => {
 
         const result = await deleteProjectMemberRecord(projectId, memberId, req.user);
         res.json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getProjectPlan = async (req, res, next) => {
+    try {
+        const { projectId } = req.validatedParams ?? req.params ?? {};
+        const snapshot = await getProjectPlanSnapshot(projectId, req.user);
+        res.json({ success: true, snapshot });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const upsertProjectPlan = async (req, res, next) => {
+    try {
+        const { projectId } = req.validatedParams ?? req.params ?? {};
+        const payload = req.validatedBody ?? req.body ?? {};
+        const plan = await replaceProjectPlan(projectId, payload, req.user);
+        res.json({ success: true, plan });
     } catch (error) {
         next(error);
     }

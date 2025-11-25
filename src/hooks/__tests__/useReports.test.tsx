@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useProjectReports, useReportTimelineMutation, reportKeys } from '../useReports';
+import { useProjectReports, useReportKanban, reportKeys } from '../useReports';
 import type { ReportDetail } from '../../api/report';
 
 vi.mock('../../api/report', () => {
@@ -48,7 +48,7 @@ describe('useReports hooks', () => {
     });
   });
 
-  it('updates timeline state and caches report detail', async () => {
+  it('updates kanban state and caches report detail', async () => {
     const initial: ReportDetail = {
       id: 'rep-1',
       projectId: 'project-1',
@@ -59,10 +59,10 @@ describe('useReports hooks', () => {
         nextStepItems: [],
         mainTableRows: [],
         risks: [],
+        kanbanTasks: [],
         phases: [],
         milestones: [],
         deliverables: [],
-        kanbanTasks: [],
         workstreams: [],
       },
     };
@@ -72,17 +72,15 @@ describe('useReports hooks', () => {
       ...initial,
       state: {
         ...initial.state,
-        phases: [
+        kanbanTasks: [
           {
-            id: 'p1',
-            text: 'Plan',
-            start: 0,
-            end: 10,
-            highlight: '',
-            workstreamId: null,
-            startDate: null,
-            endDate: null,
-            status: null,
+            id: 'k1',
+            content: 'Test task',
+            status: 'todo',
+            assignee: null,
+            dueDate: null,
+            notes: null,
+            createdAt: '2024-01-01T00:00:00.000Z',
           },
         ],
       },
@@ -90,27 +88,24 @@ describe('useReports hooks', () => {
 
     mockedUpdate.mockResolvedValue(updated);
 
-    const { result } = renderHook(() => useReportTimelineMutation(), {
+    const { result } = renderHook(() => useReportKanban(), {
       wrapper: createWrapper(queryClient),
     });
 
     await result.current.mutateAsync({
       reportId: 'rep-1',
-      phases: updated.state.phases,
-      milestones: [],
-      deliverables: [],
-      workstreams: [],
+      kanbanTasks: updated.state.kanbanTasks,
     });
 
     expect(reportApi.updateReport).toHaveBeenCalledWith(
       'rep-1',
       expect.objectContaining({
         state: expect.objectContaining({
-          phases: updated.state.phases,
+          kanbanTasks: updated.state.kanbanTasks,
         }),
       }),
     );
     const cached = queryClient.getQueryData<ReportDetail>(reportKeys.detail('rep-1'));
-    expect(cached?.state.phases).toHaveLength(1);
+    expect(cached?.state.kanbanTasks).toHaveLength(1);
   });
 });

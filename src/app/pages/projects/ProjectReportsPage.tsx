@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { KanbanBoard } from '../../../components/KanbanBoard';
 import { Timeline } from '../../../components/Timeline';
@@ -25,31 +25,16 @@ import {
   Risk,
   Workstream,
 } from '../../../types';
-import {
-  TimelineItemType,
-  TimelineUpdatePayload,
-  cloneStateWithNewIds,
-  generateId,
-  getInitialProjectState,
-  getWeekKey,
-} from '../../../hooks/projectManager/utils';
+import { cloneStateWithNewIds, generateId, getInitialProjectState, getWeekKey } from '../../../hooks/projectManager/utils';
 import { useProjectRisks as useCuratedProjectRisks } from '../../../hooks/useProjectRisks';
 import { api } from '../../../api';
 import { useProjectRouteContext } from './ProjectLayout';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 import { reportApi } from '../../../api/report';
-import {
-  reportKeys,
-  useProjectReports,
-  useReportDetail,
-  useReportKanban,
-  useReportRiskMatrix,
-  useReportStatusCards,
-  useReportTimelineMutation,
-} from '../../../hooks/useReports';
+import { planApi } from '../../../api/plan';
+import { reportKeys, useProjectReports, useReportDetail, useReportKanban, useReportRiskMatrix, useReportStatusCards } from '../../../hooks/useReports';
 import type { ReportSummary } from '../../../api/report';
 
-const DEFAULT_PHASE_WIDTH = 10;
 
 const parseDateOnlyToUtcDate = (value?: string | null): Date | null => {
   if (!value) {
@@ -284,6 +269,71 @@ const cloneReportStateForCreate = (baseState?: ProjectState, workstreams?: Works
   return cloneStateWithNewIds({ ...seeded, workstreams: canonicalStreams });
 };
 
+const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSnapshot>>, project: Project) => {
+  const idMap = new Map<string, string>();
+  const remap = (id?: string | null) => {
+    if (!id) return generateId();
+    if (!idMap.has(id)) idMap.set(id, generateId());
+    return idMap.get(id)!;
+  };
+
+  const phases =
+    plan.phases?.map((p) => ({
+      id: remap(p.id),
+      text: p.label,
+      start: p.startPercentage ?? 0,
+      end: p.endPercentage ?? 0,
+      highlight: p.highlight ?? '',
+      workstreamId: p.workstreamId ?? null,
+      startDate: p.startDate ?? null,
+      endDate: p.endDate ?? null,
+      status: p.status ?? null,
+    })) ?? [];
+
+  const milestones =
+    plan.milestones?.map((m, idx) => ({
+      id: remap(m.id),
+      text: m.label,
+      position: m.position ?? idx,
+      workstreamId: m.workstreamId ?? null,
+      date: m.dueDate ?? null,
+      status: m.status ?? null,
+    })) ?? [];
+
+  const milestoneLookup = new Map<string, string>();
+  plan.milestones?.forEach((m) => milestoneLookup.set(m.id, remap(m.id)));
+
+  const deliverables =
+    plan.deliverables?.map((d, idx) => ({
+      id: remap(d.id),
+      text: d.label,
+      position: d.position ?? idx,
+      milestoneId: d.milestoneId ? milestoneLookup.get(d.milestoneId) ?? null : null,
+      status: d.status ?? null,
+      owner: d.ownerName ?? null,
+      ownerId: d.ownerEmployeeId ?? null,
+      description: d.description ?? null,
+      notes: d.notes ?? null,
+      startDate: d.startDate ?? null,
+      endDate: d.endDate ?? null,
+      progress: d.progress ?? null,
+      checklist: (d.checklist ?? []).map((i, iIdx) => ({
+        id: remap(i.id),
+        text: i.text ?? '',
+        completed: !!i.completed,
+        position: iIdx,
+      })),
+    })) ?? [];
+
+  return {
+    ...getInitialProjectState(),
+    phases,
+    milestones,
+    deliverables,
+    workstreams: project.workstreams ?? [],
+  } satisfies ProjectState;
+};
+
 type WeekSelectorProps = {
   reports: ReportSummary[];
   activeReportId: string | null;
@@ -500,48 +550,12 @@ type TimelinePanelProps = {
   projectStartDate: string;
   projectEndDate: string;
   helpers: ReturnType<typeof buildTimelineHelpers>;
-  onChange: (updater: (state: ProjectState) => ProjectState) => void;
-  onSave: () => void;
-  onDiscard: () => void;
-  isDirty: boolean;
-  canEdit: boolean;
-  isSaving: boolean;
 };
 
-const TimelinePanel = ({
-  state,
-  projectStartDate,
-  projectEndDate,
-  helpers,
-  onChange,
-  onSave,
-  onDiscard,
-  isDirty,
-  canEdit,
-  isSaving,
-}: TimelinePanelProps) => (
+const TimelinePanel = ({ state, projectStartDate, projectEndDate, helpers }: TimelinePanelProps) => (
   <div className="lg:col-span-2">
     <div className="relative rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      {isDirty && (
-        <div className="flex flex-wrap items-center justify-end gap-2 pb-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tidslinje ikke gemt</span>
-          <button
-            type="button"
-            onClick={onDiscard}
-            className="rounded border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Fortryd
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className={`rounded px-3 py-1 text-xs font-semibold text-white ${isSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'}`}
-          >
-            Gem tidslinje
-          </button>
-        </div>
-      )}
+      <div className="text-xs text-slate-500 mb-2">Tidslinje snapshot (read-only)</div>
       <Timeline
         projectStartDate={projectStartDate}
         projectEndDate={projectEndDate}
@@ -552,61 +566,10 @@ const TimelinePanel = ({
         calculatePositionFromDate={helpers.calculatePositionFromDate}
         monthMarkers={helpers.getMonthMarkers()}
         todayPosition={helpers.getTodayPosition()}
-        addTimelineItem={(type, position) => {
-          if (!canEdit) return;
-          onChange((current) => {
-            if (type === 'phase') {
-              const newPhase: Phase = {
-                id: generateId(),
-                text: 'Ny fase',
-                start: Math.max(0, Math.min(100, position)),
-                end: Math.min(100, Math.max(position + DEFAULT_PHASE_WIDTH, position)),
-                highlight: 'blue',
-              };
-              return { ...current, phases: [...current.phases, newPhase] };
-            }
-            if (type === 'milestone') {
-              const newMilestone: Milestone = { id: generateId(), text: 'Ny milepæl', position: Math.max(0, Math.min(100, position)) };
-              return { ...current, milestones: [...current.milestones, newMilestone] };
-            }
-            const newDeliverable: Deliverable = { id: generateId(), text: 'Ny leverance', position: Math.max(0, Math.min(100, position)) };
-            return { ...current, deliverables: [...current.deliverables, newDeliverable] };
-          });
-        }}
-        updateTimelineItem={(itemType: TimelineItemType, id: string, payload: TimelineUpdatePayload) => {
-          if (!canEdit) return;
-          onChange((current) => {
-            if (itemType === 'phase') {
-              return { ...current, phases: current.phases.map((phase) => (phase.id === id ? { ...phase, ...(payload as Partial<Phase>) } : phase)) };
-            }
-            if (itemType === 'milestone') {
-              return {
-                ...current,
-                milestones: current.milestones.map((milestone) =>
-                  milestone.id === id ? { ...milestone, ...(payload as Partial<Milestone>) } : milestone,
-                ),
-              };
-            }
-            return {
-              ...current,
-              deliverables: current.deliverables.map((deliverable) =>
-                deliverable.id === id ? { ...deliverable, ...(payload as Partial<Deliverable>) } : deliverable,
-              ),
-            };
-          });
-        }}
-        deleteTimelineItem={(type, id) => {
-          if (!canEdit) return;
-          onChange((current) => {
-            if (type === 'phase') {
-              return { ...current, phases: current.phases.filter((item) => item.id !== id) };
-            }
-            if (type === 'milestone') {
-              return { ...current, milestones: current.milestones.filter((item) => item.id !== id) };
-            }
-            return { ...current, deliverables: current.deliverables.filter((item) => item.id !== id) };
-          });
-        }}
+        addTimelineItem={() => {}}
+        updateTimelineItem={() => {}}
+        deleteTimelineItem={() => {}}
+        readOnly
       />
     </div>
   </div>
@@ -1081,6 +1044,7 @@ export const ProjectReportsPage = () => {
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
   const [isNewReportModalOpen, setIsNewReportModalOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (reports.length === 0) {
@@ -1098,40 +1062,31 @@ export const ProjectReportsPage = () => {
 
   const { report: activeReport, query: reportQuery } = useReportDetail(activeReportId);
 
-  const [timelineDraft, setTimelineDraft] = useState<ProjectState | null>(null);
-  const [isTimelineDirty, setIsTimelineDirty] = useState(false);
-  const previousReportIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (activeReport && !isTimelineDirty) {
-      setTimelineDraft(activeReport.state);
-    }
-  }, [activeReport, isTimelineDirty]);
-
-  useEffect(() => {
-    if (activeReport?.id !== previousReportIdRef.current) {
-      setTimelineDraft(activeReport?.state ?? null);
-      setIsTimelineDirty(false);
-      previousReportIdRef.current = activeReport?.id ?? null;
-    }
-  }, [activeReport?.id, activeReport?.state]);
+  const timelineSnapshot = activeReport?.state
+    ? {
+        phases: activeReport.state.phases ?? [],
+        milestones: activeReport.state.milestones ?? [],
+        deliverables: activeReport.state.deliverables ?? [],
+      }
+    : null;
 
   const availableWeeks = useMemo(
     () => getAvailableWeeks(project.config.projectStartDate, project.config.projectEndDate, reports.map((r) => r.weekKey)),
     [project.config.projectEndDate, project.config.projectStartDate, reports],
   );
 
-  const timelineMutation = useReportTimelineMutation();
   const statusMutation = useReportStatusCards();
   const kanbanMutation = useReportKanban();
   const riskMutation = useReportRiskMatrix();
 
   const createReportMutation = useMutation({
     mutationFn: async (weekKey: string) => {
-      const seedState = cloneReportStateForCreate(activeReport?.state ?? getInitialProjectState(), project.workstreams ?? []);
+      const snapshot = await planApi.getSnapshot(projectId);
+      const seedState = buildReportStateFromPlan(snapshot, project);
       return reportApi.createReport(projectId, { weekKey, state: seedState });
     },
     onSuccess: (created) => {
+      setCreateError(null);
       queryClient.setQueryData<ReportSummary[]>(reportKeys.project(projectId), (prev = []) =>
         [...prev.filter((item) => item.id !== created.id), { id: created.id, projectId: created.projectId, weekKey: created.weekKey }].sort((a, b) =>
           b.weekKey.localeCompare(a.weekKey),
@@ -1140,6 +1095,11 @@ export const ProjectReportsPage = () => {
       queryClient.setQueryData(reportKeys.detail(created.id), created);
       setActiveReportId(created.id);
       setIsNewReportModalOpen(false);
+    },
+    onError: (error: any) => {
+      const message = error?.message ?? 'Kunne ikke oprette rapporten. Tjek forbindelse og CSRF.';
+      setCreateError(message);
+      console.error('createReport failed', error);
     },
   });
 
@@ -1185,7 +1145,6 @@ export const ProjectReportsPage = () => {
   });
 
   const isBusy =
-    timelineMutation.isPending ||
     statusMutation.isPending ||
     kanbanMutation.isPending ||
     riskMutation.isPending ||
@@ -1194,39 +1153,6 @@ export const ProjectReportsPage = () => {
     createReportMutation.isPending ||
     deleteReportMutation.isPending ||
     reportQuery.isFetching;
-
-  const handleTimelineDraftChange = useCallback(
-    (updater: (state: ProjectState) => ProjectState) => {
-      setTimelineDraft((current) => {
-        if (!current) return current;
-        const next = updater(current);
-        setIsTimelineDirty(true);
-        return next;
-      });
-    },
-    [],
-  );
-
-  const handleSaveTimeline = useCallback(() => {
-    if (!activeReport?.id || !timelineDraft) return;
-    timelineMutation.mutate({
-      reportId: activeReport.id,
-      phases: timelineDraft.phases,
-      milestones: timelineDraft.milestones,
-      deliverables: timelineDraft.deliverables,
-      workstreams: timelineDraft.workstreams ?? [],
-    });
-    setIsTimelineDirty(false);
-  }, [activeReport?.id, timelineDraft, timelineMutation]);
-
-  const handleDiscardTimeline = useCallback(() => {
-    if (activeReport) {
-      setTimelineDraft(activeReport.state);
-    } else {
-      setTimelineDraft(null);
-    }
-    setIsTimelineDirty(false);
-  }, [activeReport]);
 
   const handleStatusChange = useCallback(
     (payload: Partial<Pick<ProjectState, 'statusItems' | 'challengeItems' | 'nextStepItems' | 'mainTableRows'>>) => {
@@ -1247,7 +1173,7 @@ export const ProjectReportsPage = () => {
   const handleMainTableStatus = useCallback(
     (rowId: string) => {
       if (!activeReport?.id) return;
-      const currentRows = activeReport.state.mainTableRows ?? [];
+      const currentRows = activeReport.state?.mainTableRows ?? [];
       const nextRows: MainTableRow[] = currentRows.map((row) => {
         if (row.id !== rowId) return row;
         const nextStatus = row.status === 'green' ? 'yellow' : row.status === 'yellow' ? 'red' : 'green';
@@ -1255,17 +1181,17 @@ export const ProjectReportsPage = () => {
       });
       handleStatusChange({ mainTableRows: nextRows });
     },
-    [activeReport?.id, activeReport?.state.mainTableRows, handleStatusChange],
+    [activeReport?.id, activeReport?.state?.mainTableRows, handleStatusChange],
   );
 
   const handleMainTableNote = useCallback(
     (rowId: string, note: string) => {
       if (!activeReport?.id) return;
-      const currentRows = activeReport.state.mainTableRows ?? [];
+      const currentRows = activeReport.state?.mainTableRows ?? [];
       const nextRows = currentRows.map((row) => (row.id === rowId ? { ...row, note } : row));
       handleStatusChange({ mainTableRows: nextRows });
     },
-    [activeReport?.id, activeReport?.state.mainTableRows, handleStatusChange],
+    [activeReport?.id, activeReport?.state?.mainTableRows, handleStatusChange],
   );
 
   const handleKanbanUpdate = useCallback(
@@ -1349,14 +1275,14 @@ export const ProjectReportsPage = () => {
           <ReportWeekSelector
             reports={reports}
             activeReportId={activeReportId}
-            onSelect={(id) => {
-              setIsTimelineDirty(false);
-              setActiveReportId(id);
-            }}
+            onSelect={(id) => setActiveReportId(id)}
             onCreateWeek={() => setIsNewReportModalOpen(true)}
             onCreateNext={() => {
               const next = findNextWeekKey(reports, project.config.projectEndDate) ?? availableWeeks[0];
-              if (!next) return;
+              if (!next) {
+                setCreateError('Ingen ledige uger inden for projektets periode.');
+                return;
+              }
               createReportMutation.mutate(next);
             }}
             onDelete={(id) => deleteReportMutation.mutate(id)}
@@ -1366,6 +1292,11 @@ export const ProjectReportsPage = () => {
           />
           {activeReport && activeSummary ? (
             <main id="report-content" className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 w-full">
+              {createError && (
+                <div className="lg:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {createError}
+                </div>
+              )}
               <div className="lg:col-span-2">
                 <ProjectReportHeader
                   projectName={project.config.projectName}
@@ -1373,32 +1304,37 @@ export const ProjectReportsPage = () => {
                   projectStartDate={project.config.projectStartDate}
                   projectEndDate={project.config.projectEndDate}
                   reportWeekKey={activeSummary.weekKey}
-                  isTimelineDirty={isTimelineDirty}
+
                   stats={reportStats}
                 />
               </div>
               <StatusPanels
                 state={activeReport.state}
-                canEdit={canManage && !isBusy && !isTimelineDirty}
+                canEdit={canManage && !isBusy}
                 onChange={handleStatusChange}
                 onCycleStatus={handleMainTableStatus}
                 onUpdateNote={handleMainTableNote}
               />
-              {timelineDraft && (
-                <TimelinePanel
-                  state={timelineDraft}
-                  projectStartDate={project.config.projectStartDate ?? ''}
-                  projectEndDate={project.config.projectEndDate ?? ''}
-                  helpers={timelineHelpers}
-                  onChange={handleTimelineDraftChange}
-                  onSave={handleSaveTimeline}
-                  onDiscard={handleDiscardTimeline}
-                  isDirty={isTimelineDirty}
-                  canEdit={canManage}
-                  isSaving={isBusy}
-                />
+              {timelineSnapshot && (
+                <>
+                  <div className="lg:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    Snapshot fra rapporten (uge {formatWeekLabel(activeSummary.weekKey)}) – tidslinjen er read-only her og afspejler planen på oprettelsestidspunktet. Opdatér tidsplanen under fanen "Tidsplan".
+                  </div>
+                  <TimelinePanel
+                    state={{
+                      ...getInitialProjectState(),
+                      phases: timelineSnapshot.phases,
+                      milestones: timelineSnapshot.milestones,
+                      deliverables: timelineSnapshot.deliverables,
+                      workstreams: project.workstreams ?? [],
+                    }}
+                    projectStartDate={project.config.projectStartDate ?? ''}
+                    projectEndDate={project.config.projectEndDate ?? ''}
+                    helpers={timelineHelpers}
+                  />
+                </>
               )}
-              <KanbanPanel tasks={activeReport.state.kanbanTasks ?? []} canEdit={canManage && !isBusy && !isTimelineDirty} onUpdate={handleKanbanUpdate} />
+              <KanbanPanel tasks={activeReport.state.kanbanTasks ?? []} canEdit={canManage && !isBusy} onUpdate={handleKanbanUpdate} />
               <RiskPanel
                 projectId={projectId}
                 reportId={activeReport.id ?? null}
@@ -1408,7 +1344,6 @@ export const ProjectReportsPage = () => {
                 curatedRisks={curatedRisks}
                 onAttachRisks={(riskIds) => attachRisksMutation.mutate(riskIds)}
                 onUpdateSnapshot={(snapshotId, probability, impact) => {
-                  setIsTimelineDirty(false);
                   updateSnapshotMutation.mutate({ snapshotId, probability, impact });
                 }}
                 onUpdateLegacyRisks={handleLegacyRiskUpdate}
@@ -1438,4 +1373,6 @@ export const ProjectReportsPage = () => {
 };
 
 export default ProjectReportsPage;
+
+
 

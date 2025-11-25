@@ -945,18 +945,26 @@ resourceAnalyticsService og API-controllerens svar.
   - PRD: ?.1 Kernerapportering, ? Stabilitet & dataintegritet.
   - Afh�ngigheder: MP-001, MP-002, eksisterende rapport-draftflow.
 
-- [ ] MP-004: Rapport-tidslinje bruger Milep�lsplan som read-only snapshot
-  - Form�l: Eliminere dobbelt-kilder og spaghetti ved at vise rapportens tidslinje som et statisk snapshot af Milep�lsplanen (faser/milep�le/leverancer) uden workstreams.
-  - �ndringer:
-    1) Backend: nyt read-only endpoint (fx `/api/projects/:id/plan/snapshot`) der returnerer faser/milestones/deliverables fra Milep�lsplanen (uden workstreams) inkl. beregnede positioner/datoer; flag for generatedAt.
-    2) Rapport-UI: udskift timeline-datakilde med snapshot fra endpoint, vis snapshot-timestamp, fjern/disable al edit/draft-logik i rapportens timeline.
-    3) Fjern rehydrering af timeline-state i `replaceReportState` for disse felter eller bag feature-flag, s� rapporter ikke indsetter egne kopier.
+- [ ] MP-004: Rapport-tidslinje bruger Milepælsplan som read-only snapshot
+  - Formål: Adskille Live Plan (master) fra rapport-historik. Live Plan redigeres i `/plan` (project_workstreams + faser/milepæle/leverancer), rapporter gemmer et statisk snapshot pr. uge.
+  - Ændringer:
+    1) Backend snapshot endpoint: `GET /api/projects/:id/plan/snapshot` returnerer Live Plan (phases/milestones/deliverables) direkte fra projekt-tabellerne; read-only; uden workstreams; inkluderer generatedAt/start/end.
+    2) Rapport-oprettelse: Når en rapport oprettes, seedes dens timeline ved at kopiere Live Plan ind i report_*-tabeller (historisk snapshot). Gamle rapporter bevarer deres data.
+    3) Rapport-visning: Rapporter viser kun deres gemte snapshot (ingen live-data). Timeline-panelet i rapport-UI er read-only; ingen draft/save/discard.
+    4) Plan-fanen: Fortsat redigerbar Live Plan; snapshot-endpoint bruges til status/seed af nye rapporter – ikke til at overskrive historik.
   - Test (TDD):
-    1) Backend Supertest: GET snapshot returnerer korrekt sorteret faser/milestones/deliverables for et projekt; 404/403 ved manglende adgang.
-    2) FE RTL: Rapport-siden renderer snapshot-data (mocks), viser readonly timeline og ingen CTA'er; fallback state n�r snapshot mangler.
-    3) Manuel QA: Opret/rediger plan i `/plan`, �bn rapport -> timeline matcher planen og kan ikke redigeres; regressionscheck p� pdf/export hvis relevant.
-  - Accept: Rapportens tidslinje er read-only, matcher Milep�lsplanens aktuelle data, og der skrives ikke timeline-data tilbage fra rapport-flowet.
-  - Afh�ngigheder: MP-001, MP-002 (plan data), RP-002/003 (rapport API), LEG-005 (ingen projektskrivning i workspace sync).
+    1) Backend Supertest: snapshot-endpoint returnerer Live Plan; 403/404 korrekt; create-report kopierer snapshot (report_phases/milestones/deliverables matcher Live Plan på oprettelsestidspunktet).
+    2) FE RTL: Rapport-siden renderer historisk state (mock report-detail) read-only; ny rapport seedes fra snapshot (mock); ingen edit-CTA’er.
+    3) Manuel QA: Rediger plan i `/plan`; gamle rapporter uændrede; ny rapport afspejler plan på oprettelsestidspunktet.
+  - Accept: Rapporter bevarer historik; Live Plan vises via snapshot-endpoint; rapport-tidslinjen er read-only og skrives kun ved rapport-oprettelse.
+  - Afhængigheder: MP-001, MP-002 (plan data), RP-002/003 (rapport API), LEG-005 (ingen projektskrivning i workspace sync), LEG-006 (på sigt read-only workspaceService).
+- Legacy-oprydning (to-do):
+    - Stram reportValidators: forbyd/strip `phases/milestones/deliverables/workstreams` i create/update; kun narrativ/kanban/risks må opdateres.
+    - reportService.updateReport: ignorer planfelter i payload, frys snapshot-felter, opdater kun status/risks/kanban.
+    - FE: `cloneReportStateForCreate` skal hente plan-snapshot via planApi til ny rapport (ikke kopiere tidligere rapport-state).
+    - Cleanup-script: re-snapshot demo-rapporter fra `project_*` plan, så demo-data ikke viser legacy leverancer/milepæle.
+    - Fjern gamle timeline-mutation endpoints/UI permanent når ovenstående er lukket.
+
 
 
 
@@ -1045,6 +1053,11 @@ resourceAnalyticsService og API-controllerens svar.
     4) Tests: Supertest for projekt-CRUD med timezone-sensitive datoer (status-skift må ikke ændre start/end); unit-test for repo-dato-normalisering; regression på workspace-load (read) og at sync ikke muterer projekter.
   - Afhængigheder: LEG-002/003 (projektrepo/relationer), AGENTS.md 3-lags krav.
 
+[ ] LEG-006: WorkspaceService som ren read-orchestrator
+  - Formål: Fjerne skrivende ansvar fra workspaceService og sikre 3-lags separation; workspace skal kun læse/aggregere data.
+  - Ændringer: Identificer write-kald i workspaceService; flyt/afbryd dem; eksponer kun read/aggregation endpoints; opdater tests og AGENTS.md note.
+  - Test (TDD): Unit tests for workspaceService (kun reads), regression på workspaceRoutes; evt. mocks for repos.
+  - Accept: workspaceService foretager ingen writes; alle mutationer går via dedikerede services/repos; dokumenteret i AGENTS.md.
 
 
 

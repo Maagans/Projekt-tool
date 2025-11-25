@@ -78,20 +78,8 @@ const projectStateSchema = z.object({
   nextStepItems: z.array(listItemSchema).optional().default([]),
   mainTableRows: z.array(mainTableRowSchema).optional().default([]),
   risks: z.array(z.any()).optional().default([]), // risk snapshots håndteres særskilt
-  phases: z.array(phaseSchema).optional().default([]),
-  milestones: z.array(milestoneSchema).optional().default([]),
-  deliverables: z.array(deliverableSchema).optional().default([]),
+  // Planfelter (phases/milestones/deliverables/workstreams) er read-only og sættes fra plan-snapshot i backend
   kanbanTasks: z.array(kanbanTaskSchema).optional().default([]),
-  workstreams: z
-    .array(
-      z.object({
-        id: z.string().uuid(),
-        name: z.string().min(1),
-        order: z.number().int().nonnegative(),
-      }),
-    )
-    .optional()
-    .default([]),
 });
 
 const projectParamsSchema = z.object({

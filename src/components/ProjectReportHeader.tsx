@@ -35,7 +35,6 @@ type ProjectReportHeaderProps = {
   projectStartDate?: string;
   projectEndDate?: string;
   reportWeekKey: string | null;
-  isTimelineDirty: boolean;
   stats: {
     risks: number;
     milestones: number;
@@ -51,7 +50,6 @@ export const ProjectReportHeader = ({
   projectStartDate,
   projectEndDate,
   reportWeekKey,
-  isTimelineDirty,
   stats,
 }: ProjectReportHeaderProps) => {
   const statusMeta = STATUS_META[projectStatus];
@@ -70,11 +68,6 @@ export const ProjectReportHeader = ({
           <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
             {statusMeta.label}
           </span>
-          {isTimelineDirty && (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              Tidslinje ikke gemt
-            </span>
-          )}
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{dateRange}</span>
         </div>
       </div>

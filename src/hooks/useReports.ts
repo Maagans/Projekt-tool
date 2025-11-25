@@ -21,11 +21,12 @@ const mergeState = (current: ReportState, patch: Partial<ReportState>): ReportSt
   nextStepItems: patch.nextStepItems ?? current.nextStepItems ?? [],
   mainTableRows: patch.mainTableRows ?? current.mainTableRows ?? [],
   risks: patch.risks ?? current.risks ?? [],
-  phases: patch.phases ?? current.phases ?? [],
-  milestones: patch.milestones ?? current.milestones ?? [],
-  deliverables: patch.deliverables ?? current.deliverables ?? [],
+  // Planfelter er read-only snapshots fra backend; vi bevarer current
+  phases: current.phases ?? [],
+  milestones: current.milestones ?? [],
+  deliverables: current.deliverables ?? [],
   kanbanTasks: patch.kanbanTasks ?? current.kanbanTasks ?? [],
-  workstreams: patch.workstreams ?? current.workstreams ?? [],
+  workstreams: current.workstreams ?? [],
 });
 
 export const useProjectReports = (projectId: string | null) => {
@@ -81,39 +82,7 @@ const useReportStateMutation = () => {
   });
 };
 
-export const useReportTimelineMutation = () => {
-  const queryClient = useQueryClient();
-  const baseMutation = useReportStateMutation();
-
-  return useMutation({
-    mutationFn: async ({
-      reportId,
-      phases,
-      milestones,
-      deliverables,
-      workstreams,
-    }: {
-      reportId: string;
-      phases: Phase[];
-      milestones: Milestone[];
-      deliverables: Deliverable[];
-      workstreams?: Workstream[];
-    }) => {
-      const current = queryClient.getQueryData<ReportDetail>(reportKeys.detail(reportId));
-      const loaded = ensureReportLoaded(reportId, current);
-      const nextState = mergeState(loaded.state, {
-        phases,
-        milestones,
-        deliverables,
-        workstreams: workstreams ?? [],
-      });
-      return baseMutation.mutateAsync({ reportId, state: nextState });
-    },
-    onSuccess: () => {
-      // handled in base mutation onSuccess
-    },
-  });
-};
+// Timeline mutation er fjernet (rapport-tidslinje er read-only snapshots)
 
 export const useReportRiskMatrix = () => {
   const queryClient = useQueryClient();

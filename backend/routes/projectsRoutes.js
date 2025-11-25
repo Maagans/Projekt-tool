@@ -9,6 +9,7 @@ import {
   validateAddProjectMember,
   validateUpdateProjectMember,
   validateProjectMemberIdentifier,
+  validateProjectIdentifier,
 } from '../validators/projectValidators.js';
 import {
   createProject,
@@ -18,6 +19,8 @@ import {
   addProjectMember,
   updateProjectMember,
   deleteProjectMember,
+  getProjectPlan,
+  upsertProjectPlan,
 } from "../controllers/projectsController.js";
 
 const router = Router();
@@ -41,5 +44,7 @@ router.delete(
   deleteProjectMember,
 );
 router.post('/:projectId/time-entries', authMiddleware, requireCsrf, validateTimeEntryRequest, updateTimeEntries);
+router.get('/:projectId/plan/snapshot', authMiddleware, validateProjectIdentifier, getProjectPlan);
+router.put('/:projectId/plan', authMiddleware, requireCsrf, validateProjectIdentifier, upsertProjectPlan);
 
 export default router;

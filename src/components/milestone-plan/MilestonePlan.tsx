@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Milestone, Project, Phase, Deliverable, Workstream } from '../../types/milestone-plan';
-import { CheckCircle2, Circle, Clock, AlertTriangle, Calendar, Trash2, Layers, Plus, X, Check, Edit2, User, List, GanttChart, HelpCircle, Palette, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, AlertTriangle, Calendar, Trash2, Layers, Plus, X, Check, Edit2, User, List, GanttChart, HelpCircle, Palette, ArrowRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { NewMilestoneModal } from './modals/NewMilestoneModal';
 import { NewPhaseModal } from './modals/NewPhaseModal';
 import { DeliverableDetailModal } from './modals/DeliverableDetailModal';
@@ -78,6 +78,9 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     // State for Workstream Colors
     const [wsColors, setWsColors] = useState<Record<string, string>>({});
     const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
+
+    // Zoom State
+    const [zoomLevel, setZoomLevel] = useState(1);
 
 
 
@@ -170,8 +173,10 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     }
 
     const totalDuration = Math.max(maxDate - minDate, 24 * 60 * 60 * 1000);
+    const PIXELS_PER_DAY = 6; // Approx 180px per month
+    const baseCanvasWidth = Math.max(CANVAS_WIDTH, (totalDuration / (1000 * 60 * 60 * 24)) * PIXELS_PER_DAY);
+    const canvasWidth = baseCanvasWidth * zoomLevel;
 
-    // Clear optimistic state when real project data updates
     useEffect(() => {
         setOptimisticItems({});
     }, [project]);
@@ -181,7 +186,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         if (!dragState) return;
 
         const handleMouseMove = (e: MouseEvent) => {
-            const timelineWidth = CANVAS_WIDTH - LEFT_COL_WIDTH;
+            const timelineWidth = canvasWidth - LEFT_COL_WIDTH;
             const msPerPixel = totalDuration / timelineWidth;
             const pixelDelta = e.clientX - dragState.startX;
             const msDelta = pixelDelta * msPerPixel;
@@ -499,7 +504,6 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         const now = new Date().getTime();
         const currentLeft = ((now - minDate) / totalDuration) * 100;
         const isCurrentTimeVisible = now >= minDate && now <= maxDate;
-
         return (
             <div className="flex flex-col relative bg-white rounded-xl border border-slate-200 shadow-sm select-none flex-1 h-full">
                 {/* Legend */}
@@ -509,10 +513,6 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                         <span><strong>Fase:</strong> Tidsperiode</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-indigo-500 rotate-45 transform"></div>
-                        <span><strong>Milepæl:</strong> Deadline</span>
-                    </div>
-                    <div className="flex items-center gap-2">
                         <div className="w-6 h-2 bg-emerald-200 rounded border border-emerald-300 flex justify-center items-center"><span className="w-1 h-full bg-emerald-300"></span></div>
                         <span><strong>Aktivitet:</strong> Træk kanter for at ændre tid</span>
                     </div>
@@ -520,15 +520,15 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                         <div className="w-0.5 h-4 border-l-2 border-dashed border-red-500"></div>
                         <span><strong>I dag:</strong> Nutid</span>
                     </div>
-                </div>
+                </div >
 
                 {/* Header (Sticky) */}
-                <div
+                < div
                     ref={headerRef}
                     className="overflow-hidden border-b border-slate-200 bg-white z-30 shadow-sm"
                     style={{ position: 'sticky', top: STICKY_TOP_OFFSET }}
                 >
-                    <div style={{ minWidth: '100%', width: CANVAS_WIDTH }} className="flex">
+                    <div style={{ minWidth: '100%', width: canvasWidth }} className="flex">
                         <div
                             className="shrink-0 border-r border-slate-200 flex items-end pb-2 pl-4 z-[35] bg-white shadow-[4px_0_16px_rgba(0,0,0,0.02)]"
                             style={{ width: LEFT_COL_WIDTH, position: 'sticky', left: 0 }}
@@ -616,15 +616,15 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                             )}
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {/* Body Container */}
-                <div
+                < div
                     ref={bodyRef}
                     onScroll={handleBodyScroll}
                     className="overflow-x-auto pb-4 flex-1"
                 >
-                    <div style={{ minWidth: '100%', width: CANVAS_WIDTH }}>
+                    <div style={{ minWidth: '100%', width: canvasWidth }}>
                         <div>
                             {rows.map((row, _idx) => (
                                 <div
@@ -811,12 +811,12 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                             )}
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {activeColorPicker && (
                     <div className="fixed inset-0 z-40" onClick={() => setActiveColorPicker(null)}></div>
                 )}
-            </div>
+            </div >
         );
     };
 
@@ -840,6 +840,35 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                 <HelpCircle size={16} />
                                 <span>Guide</span>
                             </button>
+
+                            {viewMode === 'gantt' && (
+                                <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 border border-slate-200 mr-2">
+                                    <button
+                                        onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
+                                        className="p-1 hover:bg-white rounded text-slate-500 hover:text-indigo-600 transition-colors"
+                                        title="Zoom ud"
+                                    >
+                                        <ZoomOut size={16} />
+                                    </button>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="2"
+                                        step="0.1"
+                                        value={zoomLevel}
+                                        onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                                        className="w-24 h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                    />
+                                    <button
+                                        onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
+                                        className="p-1 hover:bg-white rounded text-slate-500 hover:text-indigo-600 transition-colors"
+                                        title="Zoom ind"
+                                    >
+                                        <ZoomIn size={16} />
+                                    </button>
+                                    <span className="text-xs font-mono text-slate-400 w-8 text-right">{Math.round(zoomLevel * 100)}%</span>
+                                </div>
+                            )}
 
                             <div className="bg-slate-100 p-1 rounded-lg flex">
                                 <button

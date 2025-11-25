@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Phase, Milestone, Deliverable } from '../types';
 import { EditableField } from './EditableField';
 import { TimelineInspectorPanel, TimelineInspectorSelection } from './TimelineInspectorPanel';
@@ -16,14 +16,15 @@ interface TimelineProps {
   addTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', position: number) => void;
   updateTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: string, updates: Partial<Phase | Milestone | Deliverable>) => void;
   deleteTimelineItem: (type: 'phase' | 'milestone' | 'deliverable', id: string) => void;
+  readOnly?: boolean;
 }
 
 type TimelineZoom = 'year' | 'quarter' | 'month';
 
 const ZOOM_LEVELS: Record<TimelineZoom, { label: string; scale: number }> = {
-  year: { label: 'Ã…r', scale: 1 },
+  year: { label: 'År', scale: 1 },
   quarter: { label: 'Kvartal', scale: 1.4 },
-  month: { label: 'MÃ¥ned', scale: 2 },
+  month: { label: 'Måned', scale: 2 },
 };
 
 const ZOOM_SEQUENCE: TimelineZoom[] = ['year', 'quarter', 'month'];
@@ -68,7 +69,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   const {
     projectStartDate, projectEndDate,
     phases, milestones, deliverables, calculateDateFromPosition, calculatePositionFromDate, monthMarkers, todayPosition,
-  addTimelineItem, updateTimelineItem, deleteTimelineItem
+  addTimelineItem, updateTimelineItem, deleteTimelineItem, readOnly = false
   } = props;
   const clampPercent = useCallback((value: number | null | undefined) => {
     if (!Number.isFinite(value ?? null)) return 0;
@@ -391,11 +392,15 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
 
 
   const handleAddItem = (type: 'phase' | 'milestone' | 'deliverable') => {
+    if (readOnly) return;
     addTimelineItem(type, 45); // Add near center, easier to grab
   };
 
   const handleSelectItem = useCallback(
     (selection: TimelineSelection | null) => {
+      if (readOnly) {
+        return;
+      }
       if (suppressClickRef.current) {
         suppressClickRef.current = false;
         return;
@@ -430,6 +435,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   const [draggedItem, setDraggedItem] = useState<{type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end', initialX: number, initialPos: number, initialWidth?: number} | null>(null);
 
   const handleDragStart = (e: React.MouseEvent, type: 'phase' | 'milestone' | 'deliverable', id: string, mode: 'move' | 'resize-end') => {
+    if (readOnly) return;
     e.preventDefault();
     e.stopPropagation();
     suppressClickRef.current = false;
@@ -584,7 +590,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           {isTimelineEmpty && (
             <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white/90 px-6 py-8 text-center text-sm text-slate-500">
-                Tidslinjen er tom. Brug knapperne for at tilfÃ¸je din fÃ¸rste fase, milepÃ¦l eller leverance.
+                Tidslinjen er tom. Brug knapperne for at tilføje din første fase, milepæl eller leverance.
               </div>
             </div>
           )}
@@ -631,7 +637,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                     key={m.id}
                     className={`absolute cursor-move ${isSelected ? 'z-20' : 'z-10'}`}
                     style={{ left: `${milestonePosition}%`, bottom: '0.5rem' }}
-                    onMouseDown={(e) => handleDragStart(e, 'milestone', m.id, 'move')}
+                    onMouseDown={readOnly ? undefined : (e) => handleDragStart(e, 'milestone', m.id, 'move')}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleSelectItem({ type: 'milestone', id: m.id });
@@ -639,7 +645,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                   >
                     <div className="flex flex-col items-center -translate-x-1/2 timeline-item-centered">
                       <div className={`bg-white px-2 py-1 rounded-md shadow text-xs whitespace-nowrap mb-2 ${isSelected ? 'ring-2 ring-purple-300' : ''}`}>
-                        <EditableField initialValue={m.text} onSave={(text) => updateTimelineItem('milestone', m.id, { text })} className="!p-0" />
+                        <EditableField disabled={readOnly} initialValue={m.text} onSave={(text) => updateTimelineItem('milestone', m.id, { text })} className="!p-0" />
                       </div>
                       <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[9px] ${isSelected ? 'border-b-purple-600' : 'border-b-purple-500'}`} title={calculateDateFromPosition(milestonePosition)}></div>
                       <div className={`w-px h-6 ${isSelected ? 'bg-purple-600' : 'bg-purple-500'}`}></div>
@@ -669,15 +675,15 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                   >
                     <div
                       className={`h-8 rounded ${color.bg} border-l-4 ${color.border} flex items-center px-2 cursor-move z-10 absolute top-1/2 -translate-y-1/2 w-full timeline-phase-bar ${isSelected ? 'ring-2 ring-offset-1 ring-slate-600' : ''}`}
-                      onMouseDown={(e) => handleDragStart(e, 'phase', phase.id, 'move')}
+                      onMouseDown={readOnly ? undefined : (e) => handleDragStart(e, 'phase', phase.id, 'move')}
                       title={`${phase.text} (${calculateDateFromPosition(phaseStart)} - ${calculateDateFromPosition(phaseEnd)})`}
                     >
                       <div className="flex-grow w-full overflow-hidden whitespace-nowrap">
-                        <EditableField initialValue={phase.text} onSave={(text) => updateTimelineItem('phase', phase.id, { text })} className="text-sm font-semibold !p-0 bg-transparent truncate" />
+                        <EditableField disabled={readOnly} initialValue={phase.text} onSave={(text) => updateTimelineItem('phase', phase.id, { text })} className="text-sm font-semibold !p-0 bg-transparent truncate" />
                       </div>
                       <div
                         className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-20 export-hide"
-                        onMouseDown={(e) => handleDragStart(e, 'phase', phase.id, 'resize-end')}
+                        onMouseDown={readOnly ? undefined : (e) => handleDragStart(e, 'phase', phase.id, 'resize-end')}
                       />
                     </div>
                   </div>
@@ -709,7 +715,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                             key={d.id}
                             className={`absolute cursor-move transition-all duration-300 ${isHovered || isSelected ? 'z-30 scale-[1.02]' : 'z-10'}`}
                             style={{ left: `${deliverablePosition}%`, top: `${topRem}rem` }}
-                            onMouseDown={(e) => handleDragStart(e, 'deliverable', d.id, 'move')}
+                            onMouseDown={readOnly ? undefined : (e) => handleDragStart(e, 'deliverable', d.id, 'move')}
                             onMouseEnter={() => setHoveredDeliverableId(d.id)}
                             onMouseLeave={() => setHoveredDeliverableId((current) => (current === d.id ? null : current))}
                             onClick={(event) => {
@@ -728,6 +734,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                                     className={`bg-white px-3 py-2 rounded-md shadow text-xs leading-snug mt-2 max-w-[14rem] min-h-[3rem] text-center whitespace-normal break-words flex flex-col items-center gap-1 ${isHovered || isSelected ? 'ring-2 ring-teal-200 shadow-lg' : ''}`}
                                 >
                                     <EditableField
+                                        disabled={readOnly}
                                         initialValue={d.text}
                                         onSave={(textValue) => updateTimelineItem('deliverable', d.id, { text: textValue })}
                                         className="!p-0 w-full"
@@ -746,31 +753,29 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           </div>
 
         </div>
+      </div>
     </div>
-  </div>
 
-  <TimelineInspectorPanel
-    selection={selectedInspectorItem}
-    calculateDateFromPosition={calculateDateFromPosition}
-    calculatePositionFromDate={calculatePositionFromDate}
-    updateTimelineItem={updateTimelineItem}
-    deleteTimelineItem={deleteTimelineItem}
-    onClearSelection={() => setSelectedItem(null)}
-    phaseColors={phaseColors}
-  />
+    {!readOnly && (
+      <TimelineInspectorPanel
+        selection={selectedInspectorItem}
+        calculateDateFromPosition={calculateDateFromPosition}
+        calculatePositionFromDate={calculatePositionFromDate}
+        updateTimelineItem={updateTimelineItem}
+        deleteTimelineItem={deleteTimelineItem}
+        onClearSelection={() => setSelectedItem(null)}
+        phaseColors={phaseColors}
+      />
+    )}
 
-  <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-center gap-4 export-hide">
-      <span className="text-sm font-semibold text-slate-600">TilfÃ¸j til tidslinje:</span>
-      <button onClick={() => handleAddItem("phase")} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full hover:bg-blue-200">Fase</button>
-      <button onClick={() => handleAddItem("milestone")} className="text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full hover:bg-purple-200">MilepÃ¦l</button>
-      <button onClick={() => handleAddItem("deliverable")} className="text-sm bg-teal-100 text-teal-800 px-3 py-1 rounded-full hover:bg-teal-200">Leverance</button>
-    </div>
+    {!readOnly && (
+      <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-center gap-4 export-hide">
+        <span className="text-sm font-semibold text-slate-600">Tilføj til tidslinje:</span>
+        <button onClick={() => handleAddItem("phase")} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full hover:bg-blue-200">Fase</button>
+        <button onClick={() => handleAddItem("milestone")} className="text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full hover:bg-purple-200">Milepæl</button>
+        <button onClick={() => handleAddItem("deliverable")} className="text-sm bg-teal-100 text-teal-800 px-3 py-1 rounded-full hover:bg-teal-200">Leverance</button>
+      </div>
+    )}
   </div>
   );
 };
-
-
-
-
-
-
