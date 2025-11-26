@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+ï»¿import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Phase, Milestone, Deliverable } from '../types';
 import { EditableField } from './EditableField';
 import { TimelineInspectorPanel, TimelineInspectorSelection } from './TimelineInspectorPanel';
@@ -22,9 +22,9 @@ interface TimelineProps {
 type TimelineZoom = 'year' | 'quarter' | 'month';
 
 const ZOOM_LEVELS: Record<TimelineZoom, { label: string; scale: number }> = {
-  year: { label: 'År', scale: 1 },
+  year: { label: 'Ã…r', scale: 1 },
   quarter: { label: 'Kvartal', scale: 1.4 },
-  month: { label: 'Måned', scale: 2 },
+  month: { label: 'MÃ¥ned', scale: 2 },
 };
 
 const ZOOM_SEQUENCE: TimelineZoom[] = ['year', 'quarter', 'month'];
@@ -590,7 +590,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
           {isTimelineEmpty && (
             <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white/90 px-6 py-8 text-center text-sm text-slate-500">
-                Tidslinjen er tom. Brug knapperne for at tilføje din første fase, milepæl eller leverance.
+                Tidslinjen er tom. Brug knapperne for at tilfÃ¸je din fÃ¸rste fase, milepÃ¦l eller leverance.
               </div>
             </div>
           )}
@@ -770,9 +770,9 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
 
     {!readOnly && (
       <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-center gap-4 export-hide">
-        <span className="text-sm font-semibold text-slate-600">Tilføj til tidslinje:</span>
+        <span className="text-sm font-semibold text-slate-600">TilfÃ¸j til tidslinje:</span>
         <button onClick={() => handleAddItem("phase")} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full hover:bg-blue-200">Fase</button>
-        <button onClick={() => handleAddItem("milestone")} className="text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full hover:bg-purple-200">Milepæl</button>
+        <button onClick={() => handleAddItem("milestone")} className="text-sm bg-purple-100 text-purple-800 px-3 py-1 rounded-full hover:bg-purple-200">MilepÃ¦l</button>
         <button onClick={() => handleAddItem("deliverable")} className="text-sm bg-teal-100 text-teal-800 px-3 py-1 rounded-full hover:bg-teal-200">Leverance</button>
       </div>
     )}

@@ -5,6 +5,7 @@ import { normalizeEmail, ensureUuid, isValidUuid, toDateOnly, toNonNegativeCapac
 import * as workstreamRepository from '../repositories/workstreamRepository.js';
 import * as reportRepository from '../repositories/reportRepository.js';
 import * as projectMembersRepository from '../repositories/projectMembersRepository.js';
+import { createAppError } from '../utils/errors.js';
 
 export const WORKSPACE_SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -21,10 +22,6 @@ const normalizeMirrorValue = (value) => {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
 };
-
-const PHASE_STATUS_OPTIONS = new Set(['Planned', 'Active', 'Completed']);
-const MILESTONE_STATUS_OPTIONS = new Set(['Pending', 'On Track', 'Delayed', 'Completed']);
-const DELIVERABLE_STATUS_OPTIONS = new Set(['Pending', 'In Progress', 'Completed']);
 
 const cloneWorkstreamsForState = (streams = []) => (
     Array.isArray(streams)
@@ -819,7 +816,7 @@ const syncTimeEntries = async (client, projectMemberId, timeEntriesPayload) => {
         `, [projectMemberId, entry.weekKey, planned, actual]);
     }
 };
-export const syncProjectWorkstreams = async (client, projectId, workstreamsPayload) => {
+const syncProjectWorkstreams = async (client, projectId, workstreamsPayload) => {
     if (!Array.isArray(workstreamsPayload)) {
         return;
     }
@@ -1225,7 +1222,7 @@ const syncProjectMembers = async (client, projectId, membersPayload, existingPro
     }
 };
 
-export const syncProjectReports = async (client, projectId, reportsPayload, existingProject = null) => {
+const syncProjectReports = async (client, projectId, reportsPayload, existingProject = null) => {
     const reportsArray = Array.isArray(reportsPayload) ? reportsPayload : [];
     const existingReports = await reportRepository.getReportsByProjectId(client, projectId);
     const existingByWeek = new Map(existingReports.map((row) => [row.weekKey, row.id]));
@@ -1288,161 +1285,8 @@ const syncProjects = async (client, projectsPayload, user, editableProjectIds, e
     }
 };
 
-export const persistWorkspace = async (workspaceData, user) => {
-    if (!workspaceData || !user) throw new Error('Invalid payload');
-    if (user.role !== 'Administrator' && user.role !== 'Projektleder') {
-        const error = new Error('Forbidden');
-        error.statusCode = 403;
-        throw error;
-    }
-
-    logDebug('persistWorkspace', 'Begin', {
-        userId: user.id,
-        role: user.role,
-        employeeId: user.employeeId ?? null,
-        projectCount: Array.isArray(workspaceData.projects) ? workspaceData.projects.length : 0,
-        employeeCount: Array.isArray(workspaceData.employees) ? workspaceData.employees.length : 0,
-    });
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const effectiveUser = await ensureEmployeeLinkForUser(client, user);
-        logDebug('persistWorkspace', 'Effective user', {
-            userId: effectiveUser?.id ?? null,
-            role: effectiveUser?.role ?? null,
-            employeeId: effectiveUser?.employeeId ?? null,
-        });
-        const currentWorkspace = await loadFullWorkspace(client);
-        const editableProjectIds = getUserEditableProjects(currentWorkspace, effectiveUser);
-        logDebug('persistWorkspace', 'Editable projects resolved', { editableProjectIds: Array.from(editableProjectIds) });
-
-        const existingProjectById = new Map((currentWorkspace.projects || []).map((project) => [project.id, project]));
-
-        const projectsArray = Array.isArray(workspaceData.projects) ? workspaceData.projects : [];
-        for (const project of projectsArray) {
-            if (!project) continue;
-            const originalProjectId = project.id;
-            const projectId = ensureUuid(project.id);
-            project.id = projectId;
-
-            logDebug('persistWorkspace', 'Evaluate project', {
-                projectId,
-                originalProjectId,
-                name: project?.config?.projectName ?? '',
-                allowedInitially: editableProjectIds.has(projectId) || editableProjectIds.has(originalProjectId),
-            });
-
-            if (!editableProjectIds.has(projectId) && !editableProjectIds.has(originalProjectId)) {
-                const employeeId = effectiveUser.employeeId ?? null;
-                if (effectiveUser.role === 'Projektleder' && employeeId) {
-                    const memberList = Array.isArray(project.projectMembers) ? project.projectMembers : [];
-                    logDebug('persistWorkspace', 'Project members snapshot', {
-                        projectId,
-                        employeeId,
-                        members: memberList.map((member) => ({
-                            id: member?.id ?? null,
-                            employeeId: member?.employeeId ?? null,
-                            role: member?.role ?? null,
-                            isProjectLead: member?.isProjectLead ?? null,
-                            group: member?.group ?? null,
-                        })),
-                    });
-
-                    let isLead = memberList.some((member) => member?.employeeId === employeeId
-                        && (member.isProjectLead || (member.role ?? '').toLowerCase().includes('leder')));
-
-                    if (!isLead) {
-                        const memberRecord = memberList.find((member) => member?.employeeId === employeeId);
-
-                        if (memberRecord) {
-                            const roleText = (memberRecord.role ?? '').toLowerCase();
-                            if (roleText.includes('projektleder') || roleText.includes('project manager') || roleText.includes('leder')) {
-                                memberRecord.isProjectLead = true;
-                                isLead = true;
-                                logDebug('persistWorkspace', 'Promoting projectleder to lead', { projectId, employeeId, reason: 'role-match' });
-                            } else {
-                                logDebug('persistWorkspace', 'Projektleder member lacks lead role flag', {
-                                    projectId,
-                                    employeeId,
-                                    role: memberRecord.role ?? null,
-                                });
-                                if (!memberRecord.isProjectLead) {
-                                    memberRecord.isProjectLead = true;
-                                    isLead = true;
-                                    logDebug('persistWorkspace', 'Promoting projectleder to lead', { projectId, employeeId, reason: 'fallback-promote' });
-                                }
-                            }
-                        } else {
-                            logDebug('persistWorkspace', 'Projektleder not found among project members', { projectId, employeeId });
-                            const newMember = {
-                                id: ensureUuid(),
-                                employeeId,
-                                role: 'Projektleder',
-                                group: 'projektgruppe',
-                                isProjectLead: true,
-                                timeEntries: [],
-                            };
-                            memberList.push(newMember);
-                            project.projectMembers = memberList;
-                            isLead = true;
-                            logDebug('persistWorkspace', 'Added projectleder to project members', { projectId, employeeId });
-                        }
-                    }
-
-                    if (isLead) {
-                        editableProjectIds.add(projectId);
-                        logDebug('persistWorkspace', 'Granting lead permissions', { projectId, employeeId });
-                    } else {
-                        logDebug('persistWorkspace', 'Projektleder is not lead on project', {
-                            projectId,
-                            employeeId,
-                            memberEmployeeIds: memberList.map((member) => member?.employeeId).filter(Boolean),
-                        });
-                    }
-                } else {
-                    logDebug('persistWorkspace', 'Skipping project for user', { projectId, role: effectiveUser.role, employeeId });
-                }
-            }
-
-            logDebug('persistWorkspace', 'Project permission final', { projectId, allowed: editableProjectIds.has(projectId) });
-        }
-
-        await syncEmployees(client, workspaceData.employees, workspaceData.projects, effectiveUser, editableProjectIds);
-        await syncProjects(client, workspaceData.projects, effectiveUser, editableProjectIds, existingProjectById);
-
-        if (
-            workspaceData?.settings &&
-            Object.prototype.hasOwnProperty.call(workspaceData.settings, 'pmoBaselineHoursWeek')
-        ) {
-            const baselineValue = toNonNegativeCapacity(workspaceData.settings.pmoBaselineHoursWeek);
-            logDebug('persistWorkspace', 'Persist baseline', { baselineValue });
-            await client.query(
-                `
-                INSERT INTO workspace_settings (id, pmo_baseline_hours_week, updated_at, updated_by)
-                VALUES ($1::uuid, $2::numeric, NOW(), $3::uuid)
-                ON CONFLICT (id)
-                DO UPDATE
-                SET pmo_baseline_hours_week = EXCLUDED.pmo_baseline_hours_week,
-                    updated_at = NOW(),
-                    updated_by = EXCLUDED.updated_by;
-            `,
-                [WORKSPACE_SETTINGS_SINGLETON_ID, baselineValue, effectiveUser?.id ?? null],
-            );
-        }
-
-        logDebug('persistWorkspace', 'Sync completed', { editableProjectIds: Array.from(editableProjectIds) });
-
-        await client.query('COMMIT');
-        logDebug('persistWorkspace', 'Commit successful', { userId: effectiveUser.id });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        logDebug('persistWorkspace', 'Error during persist', { message: error?.message, stack: error?.stack });
-        throw error;
-    } finally {
-        client.release();
-        logDebug('persistWorkspace', 'Client released');
-    }
+export const persistWorkspace = async () => {
+    throw createAppError('Workspace persistence is disabled. Use project/plan/report services for writes.', 410);
 };
 
 

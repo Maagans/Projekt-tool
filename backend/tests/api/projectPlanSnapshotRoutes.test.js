@@ -176,6 +176,7 @@ beforeEach(() => {
   membershipAllowed = true;
   storedReportState = null;
   vi.clearAllMocks();
+  listPlanByProject.mockResolvedValue(samplePlan);
 });
 
 describe("Project plan snapshot routes", () => {
@@ -249,5 +250,63 @@ describe("Report creation seeds plan snapshot", () => {
     expect(res.body.report.state.phases).toHaveLength(samplePlan.phases.length);
     expect(res.body.report.state.milestones).toHaveLength(samplePlan.milestones.length);
     expect(res.body.report.state.deliverables).toHaveLength(samplePlan.deliverables.length);
+  });
+
+  it("derives positions from dates when percentages are missing", async () => {
+    const csrf = "csrf-token";
+    const positionlessPlan = {
+      ...samplePlan,
+      phases: [
+        {
+          ...samplePlan.phases[0],
+          startPercentage: null,
+          endPercentage: null,
+          startDate: "2024-03-01",
+          endDate: "2024-06-01",
+        },
+      ],
+      milestones: [
+        {
+          ...samplePlan.milestones[0],
+          position: null,
+          dueDate: "2024-04-15",
+        },
+      ],
+      deliverables: [
+        {
+          ...samplePlan.deliverables[0],
+          position: null,
+          milestoneId: samplePlan.milestones[0].id,
+          startDate: "2024-05-01",
+          endDate: "2024-05-31",
+        },
+      ],
+    };
+    listPlanByProject.mockResolvedValueOnce(positionlessPlan);
+
+    const res = await request(app)
+      .post(`/api/projects/${projectId}/reports`)
+      .set("Cookie", [
+        buildAuthCookie({ id: "user-5", role: "Administrator" }),
+        buildCsrfCookie(csrf),
+      ])
+      .set("x-csrf-token", csrf)
+      .send({ weekKey: "2024-W06" });
+
+    const pctBetween = (dateStr) => {
+      const start = Date.UTC(2024, 0, 1);
+      const end = Date.UTC(2024, 11, 31);
+      const [y, m, d] = dateStr.split("-").map((part) => Number.parseInt(part, 10));
+      const target = Date.UTC(y, m - 1, d);
+      return ((target - start) / (end - start)) * 100;
+    };
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(storedReportState.phases[0].start).toBeCloseTo(pctBetween("2024-03-01"), 3);
+    expect(storedReportState.phases[0].end).toBeCloseTo(pctBetween("2024-06-01"), 3);
+    expect(storedReportState.milestones[0].position).toBeCloseTo(pctBetween("2024-04-15"), 3);
+    expect(storedReportState.deliverables[0].position).toBeCloseTo(pctBetween("2024-05-01"), 3);
+    expect(storedReportState.startDate).toBe("2024-01-01");
+    expect(storedReportState.endDate).toBe("2024-12-31");
   });
 });

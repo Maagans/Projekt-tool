@@ -261,10 +261,10 @@ const cloneReportStateForCreate = (baseState?: ProjectState, workstreams?: Works
   const canonicalStreams =
     workstreams && workstreams.length > 0
       ? workstreams.map((stream, index) => ({
-          id: stream.id ?? generateId(),
-          name: stream.name ?? `Workstream ${index + 1}`,
-          order: typeof stream.order === 'number' ? stream.order : index,
-        }))
+        id: stream.id ?? generateId(),
+        name: stream.name ?? `Workstream ${index + 1}`,
+        order: typeof stream.order === 'number' ? stream.order : index,
+      }))
       : seeded.workstreams ?? [];
   return cloneStateWithNewIds({ ...seeded, workstreams: canonicalStreams });
 };
@@ -277,53 +277,104 @@ const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSna
     return idMap.get(id)!;
   };
 
+  // Derive et tidsinterval, så vi kan beregne positioner ud fra datoer, hvis procentfelter mangler.
+  const dateCandidates: Date[] = [];
+  const collectDate = (value?: string | null) => {
+    const parsed = parseDateOnlyToUtcDate(value ?? undefined);
+    if (parsed) dateCandidates.push(parsed);
+  };
+  plan.phases?.forEach((p) => {
+    collectDate(p.startDate);
+    collectDate(p.endDate);
+  });
+  plan.milestones?.forEach((m) => collectDate(m.dueDate));
+  plan.deliverables?.forEach((d) => {
+    collectDate(d.startDate);
+    collectDate(d.endDate);
+  });
+  const derivedStart = dateCandidates.length ? new Date(Math.min(...dateCandidates.map((d) => d.getTime()))) : null;
+  const derivedEnd = dateCandidates.length ? new Date(Math.max(...dateCandidates.map((d) => d.getTime()))) : null;
+
+  // Calculate effective range: Union of project config range and item range
+  const configStart = parseDateOnlyToUtcDate(project.config.projectStartDate);
+  const configEnd = parseDateOnlyToUtcDate(project.config.projectEndDate);
+
+  const effectiveStart = configStart && derivedStart
+    ? new Date(Math.min(configStart.getTime(), derivedStart.getTime()))
+    : (configStart ?? derivedStart);
+
+  const effectiveEnd = configEnd && derivedEnd
+    ? new Date(Math.max(configEnd.getTime(), derivedEnd.getTime()))
+    : (configEnd ?? derivedEnd);
+
+  const rangeStart = effectiveStart;
+  const rangeEnd = effectiveEnd;
+
+  const calcPosFromDate = (date?: string | null) => {
+    const target = parseDateOnlyToUtcDate(date ?? undefined);
+    if (!rangeStart || !rangeEnd || !target || rangeEnd <= rangeStart) return null;
+    const ratio = (target.getTime() - rangeStart.getTime()) / (rangeEnd.getTime() - rangeStart.getTime());
+    return clampPercentage(ratio * 100);
+  };
+
   const phases =
-    plan.phases?.map((p) => ({
-      id: remap(p.id),
-      text: p.label,
-      start: p.startPercentage ?? 0,
-      end: p.endPercentage ?? 0,
-      highlight: p.highlight ?? '',
-      workstreamId: p.workstreamId ?? null,
-      startDate: p.startDate ?? null,
-      endDate: p.endDate ?? null,
-      status: p.status ?? null,
-    })) ?? [];
+    plan.phases?.map((p) => {
+      const start = calcPosFromDate(p.startDate) ?? p.startPercentage ?? 0;
+      const end = calcPosFromDate(p.endDate ?? p.startDate) ?? p.endPercentage ?? start;
+      return {
+        id: remap(p.id),
+        text: p.label,
+        start,
+        end,
+        highlight: p.highlight ?? '',
+        workstreamId: p.workstreamId ?? null,
+        startDate: p.startDate ?? null,
+        endDate: p.endDate ?? null,
+        status: p.status ?? null,
+      };
+    }) ?? [];
 
   const milestones =
-    plan.milestones?.map((m, idx) => ({
-      id: remap(m.id),
-      text: m.label,
-      position: m.position ?? idx,
-      workstreamId: m.workstreamId ?? null,
-      date: m.dueDate ?? null,
-      status: m.status ?? null,
-    })) ?? [];
+    plan.milestones?.map((m, idx) => {
+      const position = calcPosFromDate(m.dueDate) ?? m.position ?? idx;
+      return {
+        id: remap(m.id),
+        text: m.label,
+        position,
+        workstreamId: m.workstreamId ?? null,
+        date: m.dueDate ?? null,
+        status: m.status ?? null,
+      };
+    }) ?? [];
 
   const milestoneLookup = new Map<string, string>();
   plan.milestones?.forEach((m) => milestoneLookup.set(m.id, remap(m.id)));
 
   const deliverables =
-    plan.deliverables?.map((d, idx) => ({
-      id: remap(d.id),
-      text: d.label,
-      position: d.position ?? idx,
-      milestoneId: d.milestoneId ? milestoneLookup.get(d.milestoneId) ?? null : null,
-      status: d.status ?? null,
-      owner: d.ownerName ?? null,
-      ownerId: d.ownerEmployeeId ?? null,
-      description: d.description ?? null,
-      notes: d.notes ?? null,
-      startDate: d.startDate ?? null,
-      endDate: d.endDate ?? null,
-      progress: d.progress ?? null,
-      checklist: (d.checklist ?? []).map((i, iIdx) => ({
-        id: remap(i.id),
-        text: i.text ?? '',
-        completed: !!i.completed,
-        position: iIdx,
-      })),
-    })) ?? [];
+    plan.deliverables?.map((d, idx) => {
+      const anchorDate = d.startDate ?? d.endDate ?? plan.milestones?.find((m) => m.id === d.milestoneId)?.dueDate ?? null;
+      const position = calcPosFromDate(anchorDate) ?? d.position ?? idx;
+      return {
+        id: remap(d.id),
+        text: d.label,
+        position,
+        milestoneId: d.milestoneId ? milestoneLookup.get(d.milestoneId) ?? null : null,
+        status: d.status ?? null,
+        owner: d.ownerName ?? null,
+        ownerId: d.ownerEmployeeId ?? null,
+        description: d.description ?? null,
+        notes: d.notes ?? null,
+        startDate: d.startDate ?? null,
+        endDate: d.endDate ?? null,
+        progress: d.progress ?? null,
+        checklist: (d.checklist ?? []).map((i, iIdx) => ({
+          id: remap(i.id),
+          text: i.text ?? '',
+          completed: !!i.completed,
+          position: iIdx,
+        })),
+      };
+    }) ?? [];
 
   return {
     ...getInitialProjectState(),
@@ -331,6 +382,8 @@ const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSna
     milestones,
     deliverables,
     workstreams: project.workstreams ?? [],
+    startDate: rangeStart?.toISOString().split('T')[0] ?? null,
+    endDate: rangeEnd?.toISOString().split('T')[0] ?? null,
   } satisfies ProjectState;
 };
 
@@ -364,9 +417,8 @@ const ReportWeekSelector = ({
 
   return (
     <aside
-      className={`w-full flex-shrink-0 rounded-lg bg-white shadow-sm flex flex-col export-hide self-stretch transition-all duration-200 ${
-        collapsed ? 'lg:w-20 items-center p-3' : 'lg:w-64 p-4'
-      }`}
+      className={`w-full flex-shrink-0 rounded-lg bg-white shadow-sm flex flex-col export-hide self-stretch transition-all duration-200 ${collapsed ? 'lg:w-20 items-center p-3' : 'lg:w-64 p-4'
+        }`}
     >
       <div className={`flex w-full items-center ${collapsed ? 'justify-center' : 'justify-between'} ${collapsed ? 'mb-0' : 'mb-3'}`}>
         {!collapsed && <h3 className="text-lg font-bold text-slate-700">Rapporter</h3>}
@@ -398,11 +450,10 @@ const ReportWeekSelector = ({
                 <li key={report.id}>
                   <button
                     onClick={() => onSelect(report.id!)}
-                    className={`flex h-10 w-12 items-center justify-center rounded-xl border text-xs font-semibold ${
-                      report.id === activeReportId
-                        ? 'border-blue-500 bg-blue-500 text-white'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
+                    className={`flex h-10 w-12 items-center justify-center rounded-xl border text-xs font-semibold ${report.id === activeReportId
+                      ? 'border-blue-500 bg-blue-500 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      }`}
                     title={`Åbn rapport for ${formatWeekLabel(report.weekKey)}`}
                   >
                     {formatWeekLabel(report.weekKey, 'short')}
@@ -418,9 +469,8 @@ const ReportWeekSelector = ({
             <button
               onClick={onCreateWeek}
               disabled={disabled}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${
-                disabled ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-              }`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${disabled ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                }`}
               title="Opret ny specifik ugerapport"
             >
               <PlusIcon /> Ny
@@ -428,9 +478,8 @@ const ReportWeekSelector = ({
             <button
               onClick={onCreateNext}
               disabled={disabled}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${
-                disabled ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-green-100 text-green-600 hover:bg-green-200'
-              }`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md p-2 text-sm font-semibold transition-colors ${disabled ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-green-100 text-green-600 hover:bg-green-200'
+                }`}
               title="Opret rapport for næste uge"
             >
               <StepForwardIcon /> Næste
@@ -442,9 +491,8 @@ const ReportWeekSelector = ({
                 <li key={report.id} className="group relative">
                   <button
                     onClick={() => onSelect(report.id!)}
-                    className={`flex items-center gap-3 rounded-md p-2 text-left text-sm font-medium ${
-                      report.id === activeReportId ? 'bg-blue-500 text-white' : 'hover:bg-slate-100'
-                    }`}
+                    className={`flex items-center gap-3 rounded-md p-2 text-left text-sm font-medium ${report.id === activeReportId ? 'bg-blue-500 text-white' : 'hover:bg-slate-100'
+                      }`}
                   >
                     <CalendarIcon />
                     {report.weekKey}
@@ -455,9 +503,8 @@ const ReportWeekSelector = ({
                       onDelete(report.id!);
                     }}
                     disabled={disabled}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 ${
-                      disabled ? 'cursor-not-allowed text-slate-300' : 'text-slate-400 hover:text-red-500'
-                    } opacity-0 transition-opacity group-hover:opacity-100`}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 ${disabled ? 'cursor-not-allowed text-slate-300' : 'text-slate-400 hover:text-red-500'
+                      } opacity-0 transition-opacity group-hover:opacity-100`}
                     title="Slet rapport"
                   >
                     <TrashIcon />
@@ -566,9 +613,9 @@ const TimelinePanel = ({ state, projectStartDate, projectEndDate, helpers }: Tim
         calculatePositionFromDate={helpers.calculatePositionFromDate}
         monthMarkers={helpers.getMonthMarkers()}
         todayPosition={helpers.getTodayPosition()}
-        addTimelineItem={() => {}}
-        updateTimelineItem={() => {}}
-        deleteTimelineItem={() => {}}
+        addTimelineItem={() => { }}
+        updateTimelineItem={() => { }}
+        deleteTimelineItem={() => { }}
         readOnly
       />
     </div>
@@ -916,9 +963,8 @@ const RiskPanel = ({
                     return (
                       <label
                         key={risk.id}
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm transition ${
-                          isChecked ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'
-                        }`}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm transition ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white'
+                          }`}
                       >
                         <input
                           type="checkbox"
@@ -1034,10 +1080,7 @@ export const ProjectReportsPage = () => {
   const { canManage } = projectManager;
   const projectId = project.id;
   const queryClient = useQueryClient();
-  const timelineHelpers = useMemo(
-    () => buildTimelineHelpers(project.config.projectStartDate, project.config.projectEndDate),
-    [project.config.projectEndDate, project.config.projectStartDate],
-  );
+
 
   const reportsQuery = useProjectReports(projectId);
   const reports = reportsQuery.reports;
@@ -1062,12 +1105,20 @@ export const ProjectReportsPage = () => {
 
   const { report: activeReport, query: reportQuery } = useReportDetail(activeReportId);
 
+  const reportStartDate = activeReport?.state?.startDate ?? project.config.projectStartDate;
+  const reportEndDate = activeReport?.state?.endDate ?? project.config.projectEndDate;
+
+  const timelineHelpers = useMemo(
+    () => buildTimelineHelpers(reportStartDate, reportEndDate),
+    [reportStartDate, reportEndDate],
+  );
+
   const timelineSnapshot = activeReport?.state
     ? {
-        phases: activeReport.state.phases ?? [],
-        milestones: activeReport.state.milestones ?? [],
-        deliverables: activeReport.state.deliverables ?? [],
-      }
+      phases: activeReport.state.phases ?? [],
+      milestones: activeReport.state.milestones ?? [],
+      deliverables: activeReport.state.deliverables ?? [],
+    }
     : null;
 
   const availableWeeks = useMemo(
@@ -1321,15 +1372,9 @@ export const ProjectReportsPage = () => {
                     Snapshot fra rapporten (uge {formatWeekLabel(activeSummary.weekKey)}) – tidslinjen er read-only her og afspejler planen på oprettelsestidspunktet. Opdatér tidsplanen under fanen "Tidsplan".
                   </div>
                   <TimelinePanel
-                    state={{
-                      ...getInitialProjectState(),
-                      phases: timelineSnapshot.phases,
-                      milestones: timelineSnapshot.milestones,
-                      deliverables: timelineSnapshot.deliverables,
-                      workstreams: project.workstreams ?? [],
-                    }}
-                    projectStartDate={project.config.projectStartDate ?? ''}
-                    projectEndDate={project.config.projectEndDate ?? ''}
+                    state={activeReport.state}
+                    projectStartDate={reportStartDate}
+                    projectEndDate={reportEndDate}
                     helpers={timelineHelpers}
                   />
                 </>

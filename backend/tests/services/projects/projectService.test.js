@@ -5,7 +5,8 @@ import {
   deleteProjectRecord,
 } from "../../../services/projects/projectService.js";
 import { withTransaction } from "../../../utils/transactions.js";
-import { ensureEmployeeLinkForUser, syncProjectReports } from "../../../services/workspaceService.js";
+import { ensureEmployeeLinkForUser } from "../../../services/workspaceService.js";
+import { syncProjectReports } from "../../../services/projects/projectSyncService.js";
 
 vi.mock("../../../utils/transactions.js", () => ({
   withTransaction: vi.fn(),
@@ -13,6 +14,9 @@ vi.mock("../../../utils/transactions.js", () => ({
 
 vi.mock("../../../services/workspaceService.js", () => ({
   ensureEmployeeLinkForUser: vi.fn(),
+}));
+
+vi.mock("../../../services/projects/projectSyncService.js", () => ({
   syncProjectReports: vi.fn(),
   syncProjectWorkstreams: vi.fn(),
 }));

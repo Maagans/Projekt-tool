@@ -121,9 +121,9 @@ export interface ListItem {
 }
 
 export interface TimeEntry {
-    weekKey: string; // "2024-W23"
-    plannedHours: number;
-    actualHours: number;
+  weekKey: string; // "2024-W23"
+  plannedHours: number;
+  actualHours: number;
 }
 
 export interface ProjectMember {
@@ -146,6 +146,8 @@ export interface ProjectState {
   deliverables: Deliverable[];
   kanbanTasks: KanbanTask[];
   workstreams?: Workstream[];
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface ProjectConfig {
