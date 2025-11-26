@@ -71,15 +71,6 @@ vi.mock('../ProjectLayout', () => ({
 }));
 
 // API mocks
-const planApiMock = { getSnapshot: vi.fn() };
-const reportApiMock = {
-  createReport: vi.fn(),
-  updateReport: vi.fn(),
-  deleteReport: vi.fn(),
-  listReports: vi.fn(),
-  getReport: vi.fn(),
-};
-
 vi.mock('../../../../api/plan', () => ({ __esModule: true, planApi: apiMocks.planApi }));
 vi.mock('../../../../api/report', () => ({ __esModule: true, reportApi: apiMocks.reportApi }));
 vi.mock('../../../../api', () => ({ __esModule: true, fetchWithAuth: apiMocks.fetchWithAuth }));

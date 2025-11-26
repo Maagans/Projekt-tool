@@ -15,6 +15,10 @@ const logDebug = (category, ...args) => {
     }
 };
 
+const PHASE_STATUS_OPTIONS = new Set(['Planned', 'Active', 'Completed']);
+const MILESTONE_STATUS_OPTIONS = new Set(['Pending', 'On Track', 'Delayed', 'Completed']);
+const DELIVERABLE_STATUS_OPTIONS = new Set(['Pending', 'In Progress', 'Completed']);
+
 const normalizeMirrorValue = (value) => {
     if (typeof value !== 'string') {
         return null;
@@ -693,6 +697,7 @@ export const buildWorkspaceForUser = async (user, clientOverride) => {
     return editable;
 };
 
+// eslint-disable-next-line no-unused-vars
 const syncEmployees = async (client, employeesPayload, projectsPayload, user, editableProjectIds) => {
     const employeesArray = Array.isArray(employeesPayload) ? employeesPayload : [];
     if (!employeesArray.length) return;
@@ -1251,6 +1256,7 @@ const syncProjectReports = async (client, projectId, reportsPayload, existingPro
     }
 };
 
+// eslint-disable-next-line no-unused-vars
 const syncProjects = async (client, projectsPayload, user, editableProjectIds, existingProjectById = new Map()) => {
     const projectsArray = Array.isArray(projectsPayload) ? projectsPayload : [];
     const userIsAdmin = user.role === 'Administrator';

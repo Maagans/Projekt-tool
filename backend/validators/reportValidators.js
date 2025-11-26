@@ -19,49 +19,6 @@ const mainTableRowSchema = z.object({
   note: z.string().optional().nullable(),
 });
 
-const phaseSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  start: z.number().min(0).max(100),
-  end: z.number().min(0).max(100),
-  highlight: z.string().optional().nullable(),
-  workstreamId: z.string().uuid().optional().nullable(),
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
-  status: z.string().optional().nullable(),
-});
-
-const milestoneSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  position: z.number().min(0).max(100),
-  date: z.string().optional().nullable(),
-  status: z.string().optional().nullable(),
-  workstreamId: z.string().uuid().optional().nullable(),
-});
-
-const deliverableChecklistItemSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  completed: z.boolean().optional().default(false),
-});
-
-const deliverableSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  position: z.number().min(0).max(100),
-  milestoneId: z.string().min(1).optional().nullable(),
-  status: z.string().optional().nullable(),
-  owner: z.string().optional().nullable(),
-  ownerId: z.string().uuid().optional().nullable(),
-  description: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
-  progress: z.number().min(0).max(100).optional().nullable(),
-  checklist: z.array(deliverableChecklistItemSchema).optional().default([]),
-});
-
 const kanbanTaskSchema = z.object({
   id: z.string().min(1),
   content: z.string().min(1),

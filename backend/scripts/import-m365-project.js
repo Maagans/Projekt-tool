@@ -90,14 +90,6 @@ const projectData = {
   ],
 };
 
-const toDateOnly = (value) => {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  return iso.toISOString().slice(0, 10);
-};
-
 const percentFromDate = (dateStr, startStr, endStr) => {
   const start = new Date(startStr);
   const end = new Date(endStr);

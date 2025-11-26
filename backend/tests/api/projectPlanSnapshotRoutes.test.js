@@ -176,7 +176,6 @@ beforeEach(() => {
   membershipAllowed = true;
   storedReportState = null;
   vi.clearAllMocks();
-  listPlanByProject.mockResolvedValue(samplePlan);
 });
 
 describe("Project plan snapshot routes", () => {

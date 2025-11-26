@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportApi, type ReportDetail, type ReportState, type ReportSummary } from '../api/report';
-import type { KanbanTask, ListItem, MainTableRow, Phase, Milestone, Deliverable, Workstream, Risk } from '../types';
+import type { KanbanTask, ListItem, MainTableRow, Risk } from '../types';
 
 export const reportKeys = {
   all: ['reports'] as const,

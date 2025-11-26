@@ -407,7 +407,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
       }
       setSelectedItem(selection);
     },
-    [],
+    [readOnly],
   );
 
   const selectedInspectorItem = useMemo<TimelineInspectorSelection | null>(() => {
@@ -779,3 +779,4 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
   </div>
   );
 };
+

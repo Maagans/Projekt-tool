@@ -283,7 +283,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [dragState, totalDuration, onSaveDeliverable, onSavePhase, onSaveMilestone]);
+    }, [canvasWidth, dragState, totalDuration, onSaveDeliverable, onSavePhase, onSaveMilestone]);
 
     const startDrag = (e: React.MouseEvent, type: 'move' | 'resize-left' | 'resize-right', d: Deliverable, milestoneId: string) => {
         if (readOnly) return;
