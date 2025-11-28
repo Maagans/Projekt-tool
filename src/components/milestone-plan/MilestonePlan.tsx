@@ -11,7 +11,7 @@ import { WorkstreamManagerModal } from './modals/WorkstreamManagerModal';
 // Constants for layout calculation
 const LEFT_COL_WIDTH = 240;
 const CANVAS_WIDTH = 2400;
-const HEADER_OFFSET = 50;
+const HEADER_OFFSET = 100;
 const BAR_HEIGHT = 80;
 const BAR_GAP = 12;
 
@@ -43,6 +43,25 @@ const WS_PALETTE = [
     '#d946ef', // Fuchsia
     '#f43f5e', // Rose
 ];
+
+const PHASE_COLORS = ['#e2e8f0', '#fee2e2', '#ffedd5', '#fef9c3', '#dcfce7', '#dbeafe', '#e0e7ff', '#f3e8ff', '#fae8ff'];
+const sanitizePhaseColor = (color?: string | null) => {
+    if (!color) return PHASE_COLORS[0];
+    const normalized = color.trim().toLowerCase();
+    const mapped: Record<string, string> = {
+        completed: '#dcfce7',
+        active: '#dbeafe',
+        planned: '#e2e8f0',
+        green: '#dcfce7',
+        blue: '#dbeafe',
+        red: '#fee2e2',
+        yellow: '#fef9c3',
+    };
+    const fromMap = mapped[normalized];
+    if (fromMap) return fromMap;
+    const exact = PHASE_COLORS.find((c) => c.toLowerCase() === normalized);
+    return exact ?? PHASE_COLORS[0];
+};
 
 export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { id: string; name: string; role: string }[] }> = ({
     project,
@@ -481,11 +500,13 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                 return { ...d, laneIndex, startMs: effectiveStart, endMs: effectiveEnd };
             });
 
+            const isFirstRow = idx === 0;
+            const currentHeaderOffset = isFirstRow ? 180 : HEADER_OFFSET;
             const totalLanes = Math.max(1, lanes.length);
-            const rowHeight = Math.max(120, HEADER_OFFSET + (totalLanes * (BAR_HEIGHT + BAR_GAP)) + 20);
+            const rowHeight = Math.max(120, currentHeaderOffset + (totalLanes * (BAR_HEIGHT + BAR_GAP)) + 20);
             const color = getWorkstreamColor(ws.name, idx);
 
-            return { ws, milestonesInWs, stackedDeliverables, rowHeight, color };
+            return { ws, milestonesInWs, stackedDeliverables, rowHeight, color, currentHeaderOffset };
         });
 
         const STICKY_TOP_OFFSET = 144;
@@ -706,7 +727,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
 
                                             const left = Math.max(0, ((currentStart - minDate) / totalDuration) * 100);
                                             const width = Math.min(100 - left, ((currentEnd - currentStart) / totalDuration) * 100);
-                                            const top = HEADER_OFFSET + (d.laneIndex * (BAR_HEIGHT + BAR_GAP));
+                                            const top = row.currentHeaderOffset + (d.laneIndex * (BAR_HEIGHT + BAR_GAP));
 
                                             return (
                                                 <div
@@ -757,42 +778,100 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                                                 </div>
                                             );
                                         })}
+                                        {(() => {
+                                            // Smart Label Positioning Logic
+                                            const sortedMilestones = [...row.milestonesInWs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                            const isFirstRow = _idx === 0;
 
-                                        {row.milestonesInWs.map(m => {
-                                            const baseMs = new Date(m.date).getTime();
-                                            const optimistic = optimisticItems[m.id];
-                                            const mDate = dragState?.itemType === 'milestone' && dragState.milestone?.id === m.id
-                                                ? dragState.currentStartMs
-                                                : (optimistic ? optimistic.startMs : baseMs);
-                                            const left = ((mDate - minDate) / totalDuration) * 100;
-                                            const isOverdue = m.status === 'Delayed' || (new Date() > new Date(mDate) && m.status !== 'Completed');
+                                            // Define slots with transform values
+                                            // Anchor is top-center of the diamond wrapper (which matches diamond top)
+                                            const slotConfigs = [
+                                                { id: 0, transform: 'translate(-50%, calc(-100% - 8px))' }, // Above
+                                                { id: 1, transform: 'translate(-50%, 34px)' },              // Below (24px diamond + 10px gap)
+                                                { id: 2, transform: 'translate(-50%, calc(-100% - 30px))' },// High Above
+                                                { id: 3, transform: 'translate(-50%, 56px)' }               // Low Below
+                                            ];
 
-                                            return (
-                                                <div
-                                                    key={m.id}
-                                                    className="absolute top-0 bottom-0 flex flex-col items-center z-10 pointer-events-none"
-                                                    style={{ left: `${left}%` }}
-                                                >
-                                                    <div className="absolute top-3 bottom-0 w-px border-l-2 border-dashed border-slate-400/50"></div>
+                                            // Priority: Prefer Above (0), then Below (1)
+                                            const preferredOrder = [0, 1, 2, 3];
+
+                                            const slotEndPixels = new Map<number, number>();
+                                            const milestoneSlots = new Map<string, number>();
+
+                                            sortedMilestones.forEach(m => {
+                                                const ms = new Date(m.date).getTime();
+                                                const pct = (ms - minDate) / totalDuration;
+                                                const centerX = pct * canvasWidth;
+                                                const labelWidth = m.title.length * 7 + 24;
+                                                const startX = centerX - labelWidth / 2;
+
+                                                let chosenSlot = preferredOrder[0];
+                                                let found = false;
+
+                                                for (const slotId of preferredOrder) {
+                                                    const lastEnd = slotEndPixels.get(slotId) ?? -1000;
+                                                    if (startX > lastEnd + 10) {
+                                                        chosenSlot = slotId;
+                                                        slotEndPixels.set(slotId, centerX + labelWidth / 2);
+                                                        found = true;
+                                                        break;
+                                                    }
+                                                }
+
+                                                if (!found) {
+                                                    chosenSlot = preferredOrder[0];
+                                                    slotEndPixels.set(chosenSlot, centerX + labelWidth / 2);
+                                                }
+                                                milestoneSlots.set(m.id, chosenSlot);
+                                            });
+
+                                            return row.milestonesInWs.map(m => {
+                                                const baseMs = new Date(m.date).getTime();
+                                                const optimistic = optimisticItems[m.id];
+                                                const mDate = dragState?.itemType === 'milestone' && dragState.milestone?.id === m.id
+                                                    ? dragState.currentStartMs
+                                                    : (optimistic ? optimistic.startMs : baseMs);
+                                                const left = ((mDate - minDate) / totalDuration) * 100;
+                                                const isOverdue = m.status === 'Delayed' || (new Date() > new Date(mDate) && m.status !== 'Completed');
+
+                                                const slotId = milestoneSlots.get(m.id) ?? 0;
+                                                const labelTransform = slotConfigs[slotId].transform;
+                                                const diamondMarginTop = isFirstRow ? '90px' : '12px';
+
+                                                return (
                                                     <div
-                                                        onMouseDown={(e) => startMilestoneDrag(e, m)}
-                                                        onClick={() => openEditMilestone(m)}
-                                                        style={{
-                                                            marginTop: '12px',
-                                                            backgroundColor: m.status === 'Completed' ? '#10b981' : (isOverdue ? '#ef4444' : row.color),
-                                                            borderColor: 'white'
-                                                        }}
-                                                        className="pointer-events-auto relative z-20 w-6 h-6 rotate-45 border-2 shadow-md transition-all duration-200 cursor-pointer hover:scale-125"
-                                                    ></div>
-                                                    <div
-                                                        style={{ marginTop: '-40px' }}
-                                                        className="pointer-events-auto absolute bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity z-30 cursor-default shadow-lg font-medium"
+                                                        key={m.id}
+                                                        className="absolute top-0 bottom-0 flex flex-col items-center z-10 pointer-events-none"
+                                                        style={{ left: `${left}%` }}
                                                     >
-                                                        {m.title} ({new Date(mDate).toLocaleDateString('da-DK')})
+                                                        <div className="absolute top-3 bottom-0 w-px border-l-2 border-dashed border-slate-400/50"></div>
+
+                                                        {/* Wrapper for Diamond and Label to ensure relative positioning */}
+                                                        <div className="relative flex flex-col items-center" style={{ marginTop: diamondMarginTop }}>
+                                                            <div
+                                                                onMouseDown={(e) => startMilestoneDrag(e, m)}
+                                                                onClick={() => openEditMilestone(m)}
+                                                                style={{
+                                                                    backgroundColor: m.status === 'Completed' ? '#10b981' : (isOverdue ? '#ef4444' : row.color),
+                                                                    borderColor: 'white'
+                                                                }}
+                                                                className="pointer-events-auto relative z-20 w-6 h-6 rotate-45 border-2 shadow-md transition-all duration-200 cursor-pointer hover:scale-125"
+                                                            ></div>
+                                                            <div
+                                                                className="pointer-events-auto absolute bg-white/90 text-slate-700 border border-slate-200 text-[10px] px-2 py-0.5 rounded whitespace-nowrap z-50 cursor-default shadow-sm font-bold backdrop-blur-sm transition-all"
+                                                                style={{
+                                                                    top: 0,
+                                                                    left: '50%',
+                                                                    transform: labelTransform
+                                                                }}
+                                                            >
+                                                                {m.title}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                             ))}
@@ -832,7 +911,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                             <p className="text-sm text-slate-500">{completed} af {total} milepæle gennemført</p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 print:hidden">
                             <button
                                 onClick={() => setGuideOpen(true)}
                                 className="flex items-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors font-medium text-sm shadow-sm mr-2"
@@ -1154,21 +1233,4 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         </>
     );
 };
-const PHASE_COLORS = ['#e2e8f0', '#fee2e2', '#ffedd5', '#fef9c3', '#dcfce7', '#dbeafe', '#e0e7ff', '#f3e8ff', '#fae8ff'];
-const sanitizePhaseColor = (color?: string | null) => {
-    if (!color) return PHASE_COLORS[0];
-    const normalized = color.trim().toLowerCase();
-    const mapped: Record<string, string> = {
-        completed: '#dcfce7',
-        active: '#dbeafe',
-        planned: '#e2e8f0',
-        green: '#dcfce7',
-        blue: '#dbeafe',
-        red: '#fee2e2',
-        yellow: '#fef9c3',
-    };
-    const fromMap = mapped[normalized];
-    if (fromMap) return fromMap;
-    const exact = PHASE_COLORS.find((c) => c.toLowerCase() === normalized);
-    return exact ?? PHASE_COLORS[0];
-};
+
