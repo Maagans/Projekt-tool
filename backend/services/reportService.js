@@ -13,6 +13,8 @@ import {
   deleteReport as repoDeleteReport,
 } from "../repositories/reportRepository.js";
 import { listPlanByProject } from "../repositories/projectPlanRepository.js";
+import { findByIdForUpdate } from "../repositories/projectRepository.js";
+import { toDateOnly } from "../utils/helpers.js";
 
 const assertAuthenticated = (user) => {
   if (!user) {
@@ -85,6 +87,8 @@ const fetchReportOrThrow = async (client, reportId) => {
 
 const buildPlanSnapshotState = async (client, projectId) => {
   const plan = await listPlanByProject(client, projectId);
+  const projectConfig = await findByIdForUpdate(client, projectId);
+
   const mapId = new Map();
   const remap = (id) => {
     if (!id) return randomUUID();
@@ -94,52 +98,118 @@ const buildPlanSnapshotState = async (client, projectId) => {
     return mapId.get(id);
   };
 
+  // 1. Collect all dates to find the effective range
+  const dateCandidates = [];
+  const collectDate = (val) => {
+    const d = toDateOnly(val);
+    if (d) dateCandidates.push(new Date(d));
+  };
+
+  plan.phases?.forEach(p => { collectDate(p.startDate); collectDate(p.endDate); });
+  plan.milestones?.forEach(m => collectDate(m.dueDate));
+  plan.deliverables?.forEach(d => { collectDate(d.startDate); collectDate(d.endDate); });
+
+  const derivedStart = dateCandidates.length ? new Date(Math.min(...dateCandidates)) : null;
+  const derivedEnd = dateCandidates.length ? new Date(Math.max(...dateCandidates)) : null;
+
+  const configStart = projectConfig?.startDate ? new Date(projectConfig.startDate) : null;
+  const configEnd = projectConfig?.endDate ? new Date(projectConfig.endDate) : null;
+
+  // Union of project config and item range
+  const effectiveStart = configStart && derivedStart
+    ? new Date(Math.min(configStart.getTime(), derivedStart.getTime()))
+    : (configStart ?? derivedStart);
+
+  const effectiveEnd = configEnd && derivedEnd
+    ? new Date(Math.max(configEnd.getTime(), derivedEnd.getTime()))
+    : (configEnd ?? derivedEnd);
+
+  const rangeStart = effectiveStart;
+  const rangeEnd = effectiveEnd;
+
+  const clampPercentage = (val) => Math.min(100, Math.max(0, val));
+
+  const calcPosFromDate = (dateStr) => {
+    const target = toDateOnly(dateStr);
+    if (!rangeStart || !rangeEnd || !target) return null;
+    const t = new Date(target);
+    if (rangeEnd <= rangeStart) return null;
+    const ratio = (t.getTime() - rangeStart.getTime()) / (rangeEnd.getTime() - rangeStart.getTime());
+    return clampPercentage(ratio * 100);
+  };
+
   const phases =
-    plan.phases?.map((p) => ({
-      id: remap(p.id),
-      text: p.label ?? "",
-      start: p.startPercentage ?? 0,
-      end: p.endPercentage ?? 0,
-      highlight: p.highlight ?? "",
-      workstreamId: p.workstreamId ?? null,
-      startDate: p.startDate ?? null,
-      endDate: p.endDate ?? null,
-      status: p.status ?? null,
-    })) ?? [];
+    plan.phases?.map((p) => {
+      const start = calcPosFromDate(p.startDate) ?? p.startPercentage ?? 0;
+      const end = calcPosFromDate(p.endDate ?? p.startDate) ?? p.endPercentage ?? start;
+      return {
+        id: remap(p.id),
+        text: p.label ?? "",
+        start,
+        end,
+        highlight: p.highlight ?? "",
+        workstreamId: p.workstreamId ?? null,
+        startDate: p.startDate ?? null,
+        endDate: p.endDate ?? null,
+        status: p.status ?? null,
+      };
+    }) ?? [];
 
   const milestones =
-    plan.milestones?.map((m, index) => ({
-      id: remap(m.id),
-      text: m.label ?? "",
-      position: m.position ?? index,
-      workstreamId: m.workstreamId ?? null,
-      date: m.dueDate ?? null,
-      status: m.status ?? null,
-    })) ?? [];
+    plan.milestones?.map((m, index) => {
+      const position = calcPosFromDate(m.dueDate) ?? m.position ?? index;
+      return {
+        id: remap(m.id),
+        text: m.label ?? "",
+        position,
+        workstreamId: m.workstreamId ?? null,
+        date: m.dueDate ?? null,
+        status: m.status ?? null,
+      };
+    }) ?? [];
+
+  const milestoneLookup = new Map();
+  plan.milestones?.forEach(m => milestoneLookup.set(m.id, remap(m.id)));
 
   const deliverables =
-    plan.deliverables?.map((d, index) => ({
-      id: remap(d.id),
-      text: d.label ?? "",
-      position: d.position ?? index,
-      milestoneId: d.milestoneId ? remap(d.milestoneId) : null,
-      status: d.status ?? null,
-      owner: d.ownerName ?? null,
-      ownerId: d.ownerEmployeeId ?? null,
-      description: d.description ?? null,
-      notes: d.notes ?? null,
-      startDate: d.startDate ?? null,
-      endDate: d.endDate ?? null,
-      progress: d.progress ?? null,
-      checklist: (d.checklist ?? []).map((item, itemIndex) => ({
-        id: remap(item.id),
-        text: item.text ?? "",
-        completed: item.completed ?? false,
-        position: itemIndex,
-      })),
-    })) ?? [];
+    plan.deliverables?.map((d, index) => {
+      // Anchor date logic similar to frontend: start > end > milestone due date
+      let anchorDate = d.startDate ?? d.endDate;
+      if (!anchorDate && d.milestoneId) {
+        const m = plan.milestones?.find(x => x.id === d.milestoneId);
+        if (m) anchorDate = m.dueDate;
+      }
+      const position = calcPosFromDate(anchorDate) ?? d.position ?? index;
 
-  return { phases, milestones, deliverables };
+      return {
+        id: remap(d.id),
+        text: d.label ?? "",
+        position,
+        milestoneId: d.milestoneId ? milestoneLookup.get(d.milestoneId) : null,
+        status: d.status ?? null,
+        owner: d.ownerName ?? null,
+        ownerId: d.ownerEmployeeId ?? null,
+        description: d.description ?? null,
+        notes: d.notes ?? null,
+        startDate: d.startDate ?? null,
+        endDate: d.endDate ?? null,
+        progress: d.progress ?? null,
+        checklist: (d.checklist ?? []).map((item, itemIndex) => ({
+          id: remap(item.id),
+          text: item.text ?? "",
+          completed: item.completed ?? false,
+          position: itemIndex,
+        })),
+      };
+    }) ?? [];
+
+  return {
+    phases,
+    milestones,
+    deliverables,
+    startDate: rangeStart ? toDateOnly(rangeStart) : null,
+    endDate: rangeEnd ? toDateOnly(rangeEnd) : null
+  };
 };
 
 const stripPlanFields = (state = {}) => {
@@ -148,6 +218,7 @@ const stripPlanFields = (state = {}) => {
   delete rest.milestones;
   delete rest.deliverables;
   delete rest.workstreams;
+  // We keep startDate/endDate if they exist, as they are part of the snapshot context now
   return rest;
 };
 
@@ -195,6 +266,8 @@ export const createReport = async (projectId, payload, user) => {
       phases: planState.phases,
       milestones: planState.milestones,
       deliverables: planState.deliverables,
+      startDate: planState.startDate,
+      endDate: planState.endDate,
     };
 
     const newId = await repoCreateReport(client, projectId, weekKey);

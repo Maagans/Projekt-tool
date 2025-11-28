@@ -134,12 +134,25 @@ const projectMemberIdentifierSchema = projectIdentifierSchema.extend({
   memberId: z.string().uuid('memberId must be a valid UUID.'),
 });
 
-const projectMemberCreateSchema = z.object({
-  employeeId: z.string().uuid('employeeId must be a valid UUID.'),
+const baseProjectMemberSchema = z.object({
   role: z.string().trim().min(1, 'role is required').optional(),
   group: z.enum(projectMemberGroupOptions).optional(),
   id: z.string().uuid('id must be a valid UUID.').optional(),
+  employeeId: z.string().uuid('employeeId must be a valid UUID.').optional(),
+  newEmployee: z
+    .object({
+      id: z.string().uuid('newEmployee.id must be a valid UUID.').optional(),
+      name: z.string().trim().min(1, 'newEmployee.name is required.'),
+      email: z.string().trim().email('newEmployee.email must be valid.'),
+      location: z.string().trim().optional(),
+      department: z.string().trim().optional(),
+    })
+    .optional(),
+}).refine((data) => Boolean(data.employeeId || data.newEmployee), {
+  message: 'employeeId or newEmployee is required.',
 });
+
+const projectMemberCreateSchema = baseProjectMemberSchema;
 
 const projectMemberUpdateSchema = z
   .object({

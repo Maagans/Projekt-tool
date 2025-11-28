@@ -35,10 +35,10 @@ describe('resourceAnalyticsService', () => {
     });
 
     expect(mockDb.query).toHaveBeenCalledTimes(4);
-    expect(mockDb.query.mock.calls[0][1]).toEqual(['Engineering']);
-    expect(mockDb.query.mock.calls[1][1]).toEqual(['Engineering', '2025-W01', '2025-W03']);
-    expect(mockDb.query.mock.calls[2][1]).toEqual(['Engineering', '2025-W01', '2025-W03']);
-    expect(mockDb.query.mock.calls[3][1]).toEqual(['Engineering', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[0][1]).toEqual(['Ekstern', 'Engineering']);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['Ekstern', 'Engineering', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['Ekstern', 'Engineering', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[3][1]).toEqual(['Ekstern', 'Engineering', '2025-W01', '2025-W03']);
 
     expect(result.scope).toEqual({ type: 'department', id: 'Engineering' });
     expect(result.series).toEqual([
@@ -130,10 +130,10 @@ describe('resourceAnalyticsService', () => {
     });
 
     expect(mockDb.query).toHaveBeenCalledTimes(4);
-    expect(mockDb.query.mock.calls[0][1]).toEqual([]);
-    expect(mockDb.query.mock.calls[1][1]).toEqual(['2025-W01', '2025-W03']);
-    expect(mockDb.query.mock.calls[2][1]).toEqual(['2025-W01', '2025-W03']);
-    expect(mockDb.query.mock.calls[3][1]).toEqual(['2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[0][1]).toEqual(['Ekstern']);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['Ekstern', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['Ekstern', '2025-W01', '2025-W03']);
+    expect(mockDb.query.mock.calls[3][1]).toEqual(['Ekstern', '2025-W01', '2025-W03']);
 
     expect(result.scope).toEqual({ type: 'department', id: '__ALL__' });
     expect(result.projectBreakdown).toHaveLength(2);
@@ -158,8 +158,8 @@ describe('resourceAnalyticsService', () => {
 
     expect(mockDb.query).toHaveBeenCalledTimes(3);
     expect(mockDb.query.mock.calls[0][1]).toEqual([projectId]);
-    expect(mockDb.query.mock.calls[1][1]).toEqual([projectId]);
-    expect(mockDb.query.mock.calls[2][1]).toEqual([projectId, '2025-W52', '2026-W02']);
+    expect(mockDb.query.mock.calls[1][1]).toEqual([projectId, 'Ekstern']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual([projectId, 'Ekstern', '2025-W52', '2026-W02']);
 
     expect(result.scope).toEqual({ type: 'project', id: projectId });
     expect(result.series).toEqual([
@@ -282,10 +282,10 @@ describe('resourceAnalyticsService', () => {
     });
 
     expect(mockDb.query).toHaveBeenCalledTimes(5);
-    expect(mockDb.query.mock.calls[0][1]).toEqual([]);
-    expect(mockDb.query.mock.calls[1][1]).toEqual(['2025-W01', '2025-W02']);
-    expect(mockDb.query.mock.calls[2][1]).toEqual(['2025-W01', '2025-W02']);
-    expect(mockDb.query.mock.calls[3][1]).toEqual(['2025-W01', '2025-W02']);
+    expect(mockDb.query.mock.calls[0][1]).toEqual(['Ekstern']);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['Ekstern', '2025-W01', '2025-W02']);
+    expect(mockDb.query.mock.calls[2][1]).toEqual(['Ekstern', '2025-W01', '2025-W02']);
+    expect(mockDb.query.mock.calls[3][1]).toEqual(['Ekstern', '2025-W01', '2025-W02']);
     expect(mockDb.query.mock.calls[4][1]).toEqual(['00000000-0000-0000-0000-000000000001']);
 
     expect(result.scope).toEqual({ type: 'department', id: '__ALL__' });

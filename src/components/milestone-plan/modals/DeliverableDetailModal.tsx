@@ -25,7 +25,29 @@ export const DeliverableDetailModal: React.FC<DeliverableDetailModalProps> = ({ 
                 ...deliverable,
                 checklist: deliverable.checklist || []
             });
-            setSelectedMilestoneId('');
+            // If we have milestones passed in (reassignment allowed) and we know the current milestone (via title lookup or props), try to set it.
+            // However, the prop 'milestoneTitle' is just a string. We need the ID.
+            // The parent component passes 'milestoneTitle' based on 'deliverableToEdit?.milestoneId'.
+            // But we don't receive 'milestoneId' directly as a prop here, only 'milestoneTitle'.
+            // Wait, we can infer it if we have the list of milestones and the title, OR we should pass milestoneId explicitly.
+            // Actually, let's look at how it's used.
+            // In MilestonePlan.tsx: milestoneTitle={project.milestones.find(m => m.id === deliverableToEdit?.milestoneId)?.title || ''}
+            // We should probably pass milestoneId as a prop to be safe, but we can also find it from the title if unique.
+            // Better yet, let's just use the 'milestones' prop to find the matching title if we have to, OR just rely on the user selecting one.
+            // BUT, if we want to pre-select the current one, we need to know it.
+            // The 'deliverable' object doesn't have 'milestoneId' on it usually (it's nested under milestone).
+            // Let's check the Deliverable type. It usually doesn't have milestoneId.
+            // So we need to pass milestoneId to this modal.
+
+            // Checking MilestonePlan.tsx again...
+            // deliverableToEdit has { milestoneId, data }.
+            // But we only pass 'deliverable={deliverableToEdit?.data}'.
+            // We should pass milestoneId as a separate prop.
+
+            // For now, let's assume we can find it by title if we have to, or just default to empty if not found.
+            // actually, let's check if we can match by title.
+            const currentMilestone = milestones?.find(m => m.title === milestoneTitle);
+            setSelectedMilestoneId(currentMilestone?.id || '');
         } else {
             setData(null);
             setSelectedMilestoneId('');

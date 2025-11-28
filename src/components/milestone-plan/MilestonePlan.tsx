@@ -1135,7 +1135,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
                 onSave={handleDeliverableModalSave}
                 deliverable={deliverableToEdit?.data || null}
                 milestoneTitle={project.milestones.find(m => m.id === deliverableToEdit?.milestoneId)?.title || ''}
-                milestones={isGlobalAddDeliverable ? project.milestones : undefined}
+                milestones={project.milestones}
                 projectMembers={projectMembers}
             />
 

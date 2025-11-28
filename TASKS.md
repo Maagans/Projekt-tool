@@ -945,7 +945,7 @@ resourceAnalyticsService og API-controllerens svar.
   - PRD: ?.1 Kernerapportering, ? Stabilitet & dataintegritet.
   - Afh�ngigheder: MP-001, MP-002, eksisterende rapport-draftflow.
 
-- [ ] MP-004: Rapport-tidslinje bruger Milepælsplan som read-only snapshot
+- [x] MP-004: Rapport-tidslinje bruger Milepælsplan som read-only snapshot
   - Formål: Adskille Live Plan (master) fra rapport-historik. Live Plan redigeres i `/plan` (project_workstreams + faser/milepæle/leverancer), rapporter gemmer et statisk snapshot pr. uge.
   - Ændringer:
     1) Backend snapshot endpoint: `GET /api/projects/:id/plan/snapshot` returnerer Live Plan (phases/milestones/deliverables) direkte fra projekt-tabellerne; read-only; uden workstreams; inkluderer generatedAt/start/end.
@@ -1053,7 +1053,7 @@ resourceAnalyticsService og API-controllerens svar.
     4) Tests: Supertest for projekt-CRUD med timezone-sensitive datoer (status-skift må ikke ændre start/end); unit-test for repo-dato-normalisering; regression på workspace-load (read) og at sync ikke muterer projekter.
   - Afhængigheder: LEG-002/003 (projektrepo/relationer), AGENTS.md 3-lags krav.
 
-[ ] LEG-006: WorkspaceService som ren read-orchestrator
+[x] LEG-006: WorkspaceService som ren read-orchestrator
   - Formål: Fjerne skrivende ansvar fra workspaceService og sikre 3-lags separation; workspace skal kun læse/aggregere data.
   - Ændringer: Identificer write-kald i workspaceService; flyt/afbryd dem; eksponer kun read/aggregation endpoints; opdater tests og AGENTS.md note.
   - Test (TDD): Unit tests for workspaceService (kun reads), regression på workspaceRoutes; evt. mocks for repos.

@@ -57,8 +57,8 @@ export const addProjectMember = async (req, res, next) => {
         const { projectId } = req.validatedParams ?? req.params ?? {};
         const payload = req.validatedBody ?? {};
 
-        const member = await addProjectMemberRecord(projectId, payload, req.user);
-        res.status(201).json({ success: true, member });
+        const { member, employee } = await addProjectMemberRecord(projectId, payload, req.user);
+        res.status(201).json({ success: true, member, employee });
     } catch (error) {
         next(error);
     }

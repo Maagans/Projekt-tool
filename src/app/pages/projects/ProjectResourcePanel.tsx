@@ -101,7 +101,6 @@ export const ProjectResourcePanel = () => {
 
   const { data, isPending, isFetching, isError, error, refetch } = analytics;
   const chartData = data?.series ?? [];
-  const overAllocated = data?.overAllocatedWeeksSet ?? new Set<string>();
   const hasData = Boolean(chartData.length);
   const latestPoint = data?.latestPoint ?? chartData.at(-1) ?? null;
   const summary = data?.summary ?? null;
@@ -111,13 +110,6 @@ export const ProjectResourcePanel = () => {
     if (!data) return null;
     if (viewMode === "weekly") {
       return [
-        {
-          label: "Kapacitet (seneste uge)",
-          value: formatHours(latestPoint?.capacity ?? 0),
-          suffix: "timer",
-          tone: "capacity" as ResourceSummaryTone,
-          helper: latestPoint ? formatWeekLabel(latestPoint.week) : undefined,
-        },
         {
           label: "Planlagt (seneste uge)",
           value: formatHours(latestPoint?.planned ?? 0),
@@ -138,24 +130,17 @@ export const ProjectResourcePanel = () => {
     const labelPrefix = viewMode === "cumulative" ? "Kumulativ " : "Total ";
     return [
       {
-        label: `${labelPrefix}kapacitet`,
-        value: formatHours(summary.totalCapacity),
-        suffix: "timer",
-        tone: "capacity" as ResourceSummaryTone,
-        helper: `Gns. ${formatHours(summary.averageCapacity)} timer/uge - ${summary.weeks} uger`,
-      },
-      {
         label: `${labelPrefix}planlagt`,
         value: formatHours(summary.totalPlanned),
         suffix: "timer",
-        tone: getSummaryTone(summary.totalPlanned, summary.totalCapacity, "planned"),
+        tone: "planned" as ResourceSummaryTone,
         helper: `Gns. ${formatHours(summary.averagePlanned)} timer/uge`,
       },
       {
         label: `${labelPrefix}faktisk`,
         value: formatHours(summary.totalActual),
         suffix: "timer",
-        tone: getSummaryTone(summary.totalActual, summary.totalCapacity, "actual"),
+        tone: "actual" as ResourceSummaryTone,
         helper: `Gns. ${formatHours(summary.averageActual)} timer/uge`,
       },
     ];
@@ -167,7 +152,7 @@ export const ProjectResourcePanel = () => {
         <div>
           <h3 className="text-base font-semibold text-slate-800">Ressourceoverblik</h3>
           <p className="text-xs text-slate-500">
-            Viser kapacitet, planlagte og faktiske timer for dette projekt.
+            Viser planlagte og faktiske timer for dette projekt.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -235,29 +220,6 @@ export const ProjectResourcePanel = () => {
               Ingen data i den valgte periode.
             </div>
           )}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <div className="font-semibold text-slate-700">
-              {viewMode === "weekly" ? "Over-allokerede uger" : "Over-allokerede uger i perioden"}
-            </div>
-            {!hasData ? (
-              <p className="mt-1 text-xs text-slate-500">Ingen data i den valgte periode.</p>
-            ) : overAllocated.size === 0 ? (
-              <p className="mt-1 text-xs text-slate-500">Ingen uger overstiger kapaciteten.</p>
-            ) : (
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {Array.from(overAllocated)
-                  .sort((a, b) => a.localeCompare(b))
-                  .map((week) => (
-                    <li
-                      key={week}
-                      className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600"
-                    >
-                      {formatWeekLabel(week)}
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
           {(viewMode === "summary" || viewMode === "cumulative") && summary ? <SummaryDiffs summary={summary} /> : null}
         </div>
 
@@ -289,7 +251,6 @@ export const ProjectResourcePanel = () => {
                   fillOpacity={0.25}
                   strokeOpacity={0}
                 />
-                <Line type="monotone" dataKey="capacity" name="Kapacitet" stroke="#0ea5e9" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
                 <Line
                   type="monotone"
@@ -297,17 +258,7 @@ export const ProjectResourcePanel = () => {
                   name="Faktisk"
                   stroke="#10b981"
                   strokeWidth={2}
-                  dot={(props) => {
-                    if (!props || typeof props.cx !== "number" || typeof props.cy !== "number") {
-                      return <circle cx={0} cy={0} r={3} fill="#10b981" stroke="#ffffff" strokeWidth={1} />;
-                    }
-                    const weekKey = (props.payload as { week: string }).week;
-                    const isOverAllocated = overAllocated.has(weekKey);
-                    const radius = isOverAllocated ? 6 : 3;
-                    const fill = isOverAllocated ? "#dc2626" : "#10b981";
-                    const strokeWidth = isOverAllocated ? 2 : 1;
-                    return <circle cx={props.cx} cy={props.cy} r={radius} fill={fill} stroke="#ffffff" strokeWidth={strokeWidth} />;
-                  }}
+                  dot={false}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
@@ -325,7 +276,6 @@ export const ProjectResourcePanel = () => {
                     contentStyle={{ borderRadius: "0.75rem", borderColor: "#cbd5f5" }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="capacity" name="Kumulativ kapacitet" stroke="#0ea5e9" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} />
                 </LineChart>
@@ -356,15 +306,9 @@ const getSummaryTone = (value: number, capacity: number, fallback: ResourceSumma
 };
 
 const SummaryDiffs = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
-  const plannedVsCapacity = summary.totalPlanned - summary.totalCapacity;
-  const actualVsCapacity = summary.totalActual - summary.totalCapacity;
   const actualVsPlanned = summary.totalActual - summary.totalPlanned;
 
-  const items: Array<{ label: string; value: number }> = [
-    { label: "Planlagt vs. kapacitet", value: plannedVsCapacity },
-    { label: "Faktisk vs. kapacitet", value: actualVsCapacity },
-    { label: "Faktisk vs. planlagt", value: actualVsPlanned },
-  ];
+  const items: Array<{ label: string; value: number }> = [{ label: "Faktisk vs. planlagt", value: actualVsPlanned }];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
@@ -382,9 +326,8 @@ const SummaryDiffs = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
 };
 
 const SummaryComparison = ({ summary }: { summary: ResourceAnalyticsSummary }) => {
-  const maxValue = Math.max(summary.totalCapacity, summary.totalPlanned, summary.totalActual, 1);
+  const maxValue = Math.max(summary.totalPlanned, summary.totalActual, 1);
   const rows: Array<{ label: string; value: number; barClass: string }> = [
-    { label: "Kapacitet", value: summary.totalCapacity, barClass: "bg-sky-400" },
     { label: "Planlagt", value: summary.totalPlanned, barClass: "bg-amber-400" },
     { label: "Faktisk", value: summary.totalActual, barClass: "bg-emerald-500" },
   ];
@@ -443,7 +386,7 @@ const PanelLoading = () => (
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
       />
     </svg>
-    <p className="text-xs font-medium">Henter projektets ressourcedataâ€¦</p>
+    <p className="text-xs font-medium">Henter projektets ressourcedata...</p>
   </div>
 );
 
@@ -456,7 +399,7 @@ const PanelError = ({ message, onRetry }: { message: string; onRetry: () => void
       onClick={onRetry}
       className="rounded-full border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-600 transition hover:border-rose-400"
     >
-      PrÃ¸v igen
+      Prøv igen
     </button>
   </div>
 );

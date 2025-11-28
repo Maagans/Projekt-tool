@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, DragEvent } from 'react';
-import { ProjectMember, Employee, Project } from '../types';
+import { ProjectMember, Employee, Project, Location } from '../types';
 import { TrashIcon, ClockIcon } from './Icons';
 import { EditableField } from './EditableField';
 import { UserPlus, GripVertical, Mail, Briefcase, IdCard, X, User } from 'lucide-react';
@@ -14,6 +14,13 @@ const COLUMNS: { id: MemberGroup; title: string; color: 'red' | 'blue' | 'amber'
   { id: 'unassigned', title: 'Ikke tildelte medlemmer', color: 'slate' },
 ];
 
+type AddMemberPayload = {
+  employeeId?: string;
+  role?: string;
+  group?: MemberGroup;
+  newEmployee?: { id?: string; name: string; email: string; location?: Location | null; department?: string | null };
+};
+
 interface ProjectOrganizationChartProps {
   project: Project;
   members: ProjectMember[];
@@ -22,7 +29,7 @@ interface ProjectOrganizationChartProps {
   canLogTime: boolean;
   currentUserEmployeeId?: string | null;
   isSaving?: boolean;
-  onAssignEmployee: (employeeId: string, role?: string, group?: MemberGroup) => void;
+  onAssignEmployee: (payload: AddMemberPayload) => void;
   onUpdateMember: (id: string, updates: Partial<ProjectMember>) => void;
   onDeleteMember: (id: string) => void;
   onUpdateTimeLog: (memberId: string, weekKey: string, hours: { planned?: number; actual?: number }) => void;
@@ -63,7 +70,7 @@ const getInitials = (name: string) => {
 interface AddMemberModalProps {
   allEmployees: Employee[];
   projectMembers: ProjectMember[];
-  onAssign: (employeeId: string, role?: string, group?: MemberGroup) => void;
+  onAssign: (payload: AddMemberPayload) => void;
   onUpdateMember: (id: string, updates: Partial<ProjectMember>) => void;
   onBulkUpdateTimeLog: (memberId: string, entries: { weekKey: string; plannedHours: number }[]) => void;
   onClose: () => void;
@@ -89,6 +96,8 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [role, setRole] = useState('');
   const [allocation, setAllocation] = useState(50);
   const [assignableEmployees, setAssignableEmployees] = useState<Employee[]>([]);
+  const [externalName, setExternalName] = useState('');
+  const [externalEmail, setExternalEmail] = useState('');
 
   useEffect(() => {
     const assignedIds = new Set(projectMembers.map((m) => m.employeeId));
@@ -103,18 +112,31 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
 
   const handleSelectEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
+    setExternalName('');
+    setExternalEmail('');
     setRole(employee.jobTitle || 'Teammedlem');
     setStep('configure');
   };
 
   const handleSave = async () => {
-    if (!selectedEmployee) return;
+    if (selectedEmployee) {
+      onAssign({ employeeId: selectedEmployee.id, role, group: initialGroup });
+      onClose();
+      return;
+    }
 
-    // 1. Assign Employee (this creates the ProjectMember)
-    onAssign(selectedEmployee.id, role, initialGroup);
+    const name = externalName.trim() || searchTerm.trim();
+    const email = externalEmail.trim();
+    if (!name || !email) {
+      alert('Angiv navn og email for eksternt medlem.');
+      return;
+    }
+    onAssign({
+      newEmployee: { name, email },
+      role: role || 'Ekstern',
+      group: initialGroup,
+    });
 
-    // Note: We cannot update role/allocation immediately because we don't have the new member ID yet.
-    // The user will have to edit these after creation.
     onClose();
   };
 
@@ -166,19 +188,81 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 <div className="text-center text-slate-400 py-8 text-sm">Ingen medarbejdere fundet</div>
               )}
             </div>
+            <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+              <div className="text-xs font-semibold uppercase text-slate-500">Tilføj ekstern</div>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={externalName}
+                  onChange={(e) => setExternalName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  placeholder="Navn"
+                />
+                <input
+                  type="email"
+                  value={externalEmail}
+                  onChange={(e) => setExternalEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  placeholder="Email"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEmployee(null);
+                  setRole('Ekstern leverandør');
+                  setStep('configure');
+                }}
+                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:opacity-50"
+                disabled={!externalName.trim() || !externalEmail.trim()}
+              >
+                Tilføj ekstern medlem
+              </button>
+            </div>
           </div>
         ) : (
           <div className="p-6 space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-              <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm">
-                {getInitials(selectedEmployee!.name)}
+            {selectedEmployee ? (
+              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm">
+                  {getInitials(selectedEmployee!.name)}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-800 text-sm">{selectedEmployee!.name}</div>
+                  <div className="text-xs text-indigo-600">{selectedEmployee!.email}</div>
+                </div>
+                <button onClick={() => setStep('select-employee')} className="ml-auto text-xs text-indigo-600 hover:underline">Skift</button>
               </div>
-              <div>
-                <div className="font-bold text-slate-800 text-sm">{selectedEmployee!.name}</div>
-                <div className="text-xs text-indigo-600">{selectedEmployee!.email}</div>
+            ) : (
+              <div className="flex flex-col gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm">
+                    {getInitials(externalName || 'Ekstern')}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-slate-800 text-sm">{externalName || 'Ekstern medlem'}</div>
+                    <div className="text-xs text-indigo-600">{externalEmail || 'Angiv email'}</div>
+                  </div>
+                  <button onClick={() => setStep('select-employee')} className="ml-auto text-xs text-indigo-600 hover:underline">Skift</button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={externalName}
+                    onChange={(e) => setExternalName(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    placeholder="Navn"
+                  />
+                  <input
+                    type="email"
+                    value={externalEmail}
+                    onChange={(e) => setExternalEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    placeholder="Email"
+                  />
+                </div>
               </div>
-              <button onClick={() => setStep('select-employee')} className="ml-auto text-xs text-indigo-600 hover:underline">Skift</button>
-            </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rolle i projektet</label>

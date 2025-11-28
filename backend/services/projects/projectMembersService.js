@@ -3,6 +3,7 @@ import { withTransaction } from "../../utils/transactions.js";
 import { createAppError } from "../../utils/errors.js";
 import { ensureEmployeeLinkForUser } from "../workspaceService.js";
 import * as projectMembersRepository from "../../repositories/projectMembersRepository.js";
+import * as employeeRepository from "../../repositories/employeeRepository.js";
 
 const mapMemberRow = (row) => ({
   id: row.id,
@@ -32,19 +33,40 @@ const assertCanManageProject = async (client, projectId, user) => {
   return effectiveUser;
 };
 
-const ensureEmployeeExists = async (client, employeeId) => {
-  const result = await client.query(`SELECT id::text FROM employees WHERE id = $1::uuid`, [employeeId]);
-  if (result.rowCount === 0) {
-    throw createAppError("Employee not found.", 404);
-  }
-};
-
 export const addProjectMemberRecord = async (projectId, payload, user) =>
   withTransaction(async (client) => {
     await assertCanManageProject(client, projectId, user);
-    await ensureEmployeeExists(client, payload.employeeId);
+    let createdEmployee = null;
+    let employeeId = payload.employeeId;
 
-    const existingMember = await projectMembersRepository.existsForProjectEmployee(client, projectId, payload.employeeId);
+    if (payload.newEmployee) {
+      const normalizedEmail = payload.newEmployee.email.trim().toLowerCase();
+      const existing = await employeeRepository.findByEmail(client, normalizedEmail);
+      if (existing) {
+        employeeId = existing.id;
+      } else {
+        createdEmployee = await employeeRepository.create(client, {
+          id: payload.newEmployee.id ?? payload.employeeId, // allow client-supplied id for linkage
+          name: payload.newEmployee.name.trim(),
+          email: normalizedEmail,
+          location: payload.newEmployee.location ?? "",
+          department: payload.newEmployee.department ?? "Ekstern",
+          maxCapacityHoursWeek: 0,
+        });
+        employeeId = createdEmployee?.id;
+      }
+    } else if (employeeId) {
+      const existingEmployee = await employeeRepository.findById(client, employeeId);
+      if (!existingEmployee) {
+        throw createAppError("Employee not found.", 404);
+      }
+    }
+
+    if (!employeeId) {
+      throw createAppError("Employee not found.", 404);
+    }
+
+    const existingMember = await projectMembersRepository.existsForProjectEmployee(client, projectId, employeeId);
     if (existingMember) {
       throw createAppError("Employee is already assigned to this project.", 409);
     }
@@ -53,14 +75,14 @@ export const addProjectMemberRecord = async (projectId, payload, user) =>
     await projectMembersRepository.insertMember(client, {
       id: memberId,
       projectId,
-      employeeId: payload.employeeId,
+      employeeId,
       role: payload.role?.trim() || "Ny rolle",
       group: payload.group ?? "unassigned",
       isProjectLead: Boolean(payload.isProjectLead),
     });
 
     const detailRow = await projectMembersRepository.findById(client, memberId);
-    return mapMemberRow(detailRow);
+    return { member: mapMemberRow(detailRow), employee: createdEmployee };
   });
 
 export const updateProjectMemberRecord = async (projectId, memberId, updates, user) =>
@@ -85,8 +107,9 @@ export const deleteProjectMemberRecord = async (projectId, memberId, user) =>
   withTransaction(async (client) => {
     await assertCanManageProject(client, projectId, user);
     const deleted = await projectMembersRepository.deleteMember(client, projectId, memberId);
+    // Idempotent delete: if member is already gone, treat as success
     if (!deleted) {
-      throw createAppError("Project member not found.", 404);
+      return { success: true };
     }
     return { success: true };
   });

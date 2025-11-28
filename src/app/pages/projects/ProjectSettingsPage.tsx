@@ -105,6 +105,7 @@ export const ProjectSettingsPage = () => {
   const [budgetInputValue, setBudgetInputValue] = useState<string>('');
   const [startDateInput, setStartDateInput] = useState(project.config.projectStartDate);
   const [endDateInput, setEndDateInput] = useState(project.config.projectEndDate);
+  const [imagePreviewError, setImagePreviewError] = useState(false);
 
   useEffect(() => {
     setBudgetInputValue(
@@ -257,15 +258,15 @@ export const ProjectSettingsPage = () => {
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">DKK</span>
                   <input
-                type="number"
-                min={0}
-                step={100000}
-                value={budgetInputValue}
-                onChange={handleBudgetChange}
-                onBlur={handleBudgetBlur}
-                disabled={isSaving}
-                className="w-full rounded-md border border-slate-300 bg-white py-2 pl-14 pr-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
-              />
+                    type="number"
+                    min={0}
+                    step={100000}
+                    value={budgetInputValue}
+                    onChange={handleBudgetChange}
+                    onBlur={handleBudgetBlur}
+                    disabled={isSaving}
+                    className="w-full rounded-md border border-slate-300 bg-white py-2 pl-14 pr-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                  />
                 </div>
                 <p className="mt-2 text-xs text-slate-500">Efterlad feltet tomt, hvis projektet ikke har et fastlagt budget.</p>
               </div>
@@ -280,24 +281,34 @@ export const ProjectSettingsPage = () => {
                 <input
                   type="url"
                   value={project.config.heroImageUrl ?? ''}
-                  onChange={(event) => updateProjectConfig(project.id, { heroImageUrl: event.target.value || null })}
+                  onChange={(event) => {
+                    updateProjectConfig(project.id, { heroImageUrl: event.target.value || null });
+                    setImagePreviewError(false);
+                  }}
                   placeholder="https://..."
                   disabled={isSaving}
                   className="w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
                 {project.config.heroImageUrl ? (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-center">
-                    <img
-                      src={project.config.heroImageUrl}
-                      alt="Hero preview"
-                      className="mx-auto h-32 w-full rounded-lg object-cover"
-                      onError={(event) => {
-                        event.currentTarget.style.display = 'none';
-                      }}
-                    />
+                    {!imagePreviewError ? (
+                      <img
+                        src={project.config.heroImageUrl}
+                        alt="Hero preview"
+                        className="mx-auto h-32 w-full rounded-lg object-cover"
+                        onError={() => setImagePreviewError(true)}
+                      />
+                    ) : (
+                      <div className="flex h-32 w-full items-center justify-center rounded-lg border border-dashed border-red-300 bg-red-50 text-sm text-red-600">
+                        Kunne ikke indlæse billede. Tjek URL.
+                      </div>
+                    )}
                     <button
                       type="button"
-                      onClick={() => updateProjectConfig(project.id, { heroImageUrl: null })}
+                      onClick={() => {
+                        updateProjectConfig(project.id, { heroImageUrl: null });
+                        setImagePreviewError(false);
+                      }}
                       className="mt-2 text-sm font-semibold text-red-600 hover:underline"
                     >
                       Fjern billede

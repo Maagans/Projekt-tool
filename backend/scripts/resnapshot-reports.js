@@ -77,9 +77,9 @@ const resnapshotReports = async () => {
     for (const row of projects.rows) {
       const projectId = row.id;
       const plan = await listPlanByProject(client, projectId);
-      const planState = buildPlanState(plan);
       const reports = await getReportsByProjectId(client, projectId);
       for (const report of reports) {
+        const planState = buildPlanState(plan); // generate fresh IDs per report to avoid PK collisions
         const current = await getReportState(client, report.id);
         const merged = {
           ...current,

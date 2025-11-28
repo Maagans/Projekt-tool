@@ -438,13 +438,19 @@ export const api = {
 
   async addProjectMember(
     projectId: string,
-    payload: { employeeId: string; role?: string; group?: ProjectMember['group']; id?: string },
-  ): Promise<ProjectMember> {
+    payload: {
+      employeeId?: string;
+      newEmployee?: { id?: string; name: string; email: string; location?: string; department?: string };
+      role?: string;
+      group?: ProjectMember['group'];
+      id?: string;
+    },
+  ): Promise<{ member: ProjectMember; employee?: Employee }> {
     const response = await fetchWithAuth(`/api/projects/${projectId}/members`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return (response as { member: ProjectMember }).member;
+    return response as { member: ProjectMember; employee?: Employee };
   },
 
   async updateProjectMember(

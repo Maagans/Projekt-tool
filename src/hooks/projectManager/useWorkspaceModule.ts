@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+﻿import { useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
+import { resourceAnalyticsKeys } from '../useResourceAnalytics';
 import { DEFAULT_EMPLOYEE_CAPACITY } from '../../constants';
 import {
   Deliverable,
@@ -90,6 +91,7 @@ const parseCapacityFromCsv = (value: string | undefined, fallback: number) => {
 export const useWorkspaceModule = (store: ProjectManagerStore) => {
   const {
     projects,
+    employees,
     setProjects,
     setEmployees,
     isAuthenticated,
@@ -268,19 +270,35 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     },
   });
 
+  type AddProjectMemberInput = {
+    projectId: string;
+    member: {
+      employeeId?: string;
+      newEmployee?: { id?: string; name: string; email: string; location?: Location | null; department?: string | null };
+      role?: string;
+      group?: ProjectMember['group'];
+      id?: string;
+    };
+  };
+
   const createProjectMemberMutation = useMutation({
-    mutationFn: (variables: {
-      projectId: string;
-      member: { employeeId: string; role?: string; group?: ProjectMember['group']; id?: string };
-    }) => api.addProjectMember(variables.projectId, variables.member),
+    mutationFn: (variables: AddProjectMemberInput) => api.addProjectMember(variables.projectId, variables.member),
     onMutate: () => {
       beginMutation();
     },
-    onSuccess: (member, variables) => {
+    onSuccess: (payload, variables) => {
+      const { member, employee } = payload;
       syncWorkspaceCache((previous) => {
         if (!previous) return previous;
+        const nextEmployees = employee
+          ? [
+            ...previous.employees.filter((candidate) => candidate.id !== employee.id),
+            { ...employee, maxCapacityHoursWeek: employee.maxCapacityHoursWeek ?? 0 },
+          ]
+          : previous.employees;
         return {
           ...previous,
+          employees: nextEmployees,
           projects: previous.projects.map((project) =>
             project.id === variables.projectId
               ? {
@@ -499,6 +517,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     },
     [setProjects],
   );
+
+  const invalidateResourceAnalytics = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: resourceAnalyticsKeys.all });
+  }, [queryClient]);
 
   const updateEmployees = useCallback(
     (updater: EmployeeUpdater) => {
@@ -734,7 +756,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         }
 
         alert(
-          `Import faerdig.\n- ${addedCount} nye medarbejdere tilfoejet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} raekker sprunget over pga. fejl.`,
+          `Import færdig.\n- ${addedCount} nye medarbejdere tilføjet.\n- ${updatedCount} eksisterende medarbejdere opdateret.\n- ${skippedCount} rækker sprunget over pga. fejl.`,
         );
 
         return newEmployeesList;
@@ -896,12 +918,58 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     [scheduleProjectSync, updateProjects],
   );
 
+  type AssignMemberInput = {
+    employeeId?: string;
+    role?: string;
+    group?: ProjectMember['group'];
+    newEmployee?: { id?: string; name: string; email: string; location?: Location | null; department?: string | null };
+  };
+
   const assignEmployeeToProject = useCallback(
-    (projectId: string, employeeId: string, role?: string, group?: ProjectMember['group']) => {
+    (projectId: string, input: AssignMemberInput | string, role?: string, group?: ProjectMember['group']) => {
+      const normalizedInput: AssignMemberInput =
+        typeof input === 'string'
+          ? { employeeId: input, role, group }
+          : input;
+
       const project = projects.find((candidate) => candidate.id === projectId);
       if (!project) {
         return;
       }
+
+      const trimmedName = normalizedInput.newEmployee?.name?.trim() ?? '';
+      const trimmedEmail = normalizedInput.newEmployee?.email?.trim() ?? '';
+
+      let employeeId = normalizedInput.employeeId;
+      if (!employeeId && normalizedInput.newEmployee) {
+        if (!trimmedName || !trimmedEmail) {
+          alert('Navn og email er påkrævet for eksterne medlemmer.');
+          return;
+        }
+        const existingByEmail = employees.find(
+          (emp) => emp.email.toLowerCase() === trimmedEmail.toLowerCase(),
+        );
+        employeeId = existingByEmail?.id ?? normalizedInput.newEmployee.id ?? generateId();
+        if (!existingByEmail) {
+          updateEmployees((prev) => [
+            ...prev,
+            {
+              id: employeeId!,
+              name: trimmedName,
+              email: trimmedEmail,
+              location: normalizedInput.newEmployee?.location ?? undefined,
+              department: normalizedInput.newEmployee?.department ?? 'Ekstern',
+              maxCapacityHoursWeek: 0,
+            },
+          ]);
+        }
+      }
+
+      if (!employeeId) {
+        alert('Vælg en medarbejder eller angiv navn og email.');
+        return;
+      }
+
       if (project.projectMembers.some((member) => member.employeeId === employeeId)) {
         alert('Medarbejderen er allerede tilknyttet projektet.');
         return;
@@ -910,8 +978,8 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       const newMember: ProjectMember = {
         id: generateId(),
         employeeId,
-        role: role ?? 'Ny rolle',
-        group: group ?? 'unassigned',
+        role: normalizedInput.role ?? 'Ny rolle',
+        group: normalizedInput.group ?? 'unassigned',
         timeEntries: [],
         isProjectLead: false,
       };
@@ -931,10 +999,18 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           employeeId,
           role: newMember.role,
           group: newMember.group,
+          newEmployee: normalizedInput.newEmployee
+            ? {
+              ...normalizedInput.newEmployee,
+              id: employeeId,
+              name: trimmedName,
+              email: trimmedEmail,
+            }
+            : undefined,
         },
       });
     },
-    [createProjectMemberMutation, projects, updateProjects],
+    [createProjectMemberMutation, employees, projects, updateEmployees, updateProjects],
   );
 
   const updateProjectMember = useCallback(
@@ -1076,9 +1152,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         .catch((error) => {
           console.error('Time log sync failed:', error);
           setApiError('Kunne ikke synkronisere timeregistrering. Prøv igen.');
+        })
+        .finally(() => {
+          invalidateResourceAnalytics();
         });
     },
-    [setApiError, updateProjects],
+    [invalidateResourceAnalytics, setApiError, updateProjects],
   );
 
   const bulkUpdateTimeLogForMember = useCallback(
@@ -1119,12 +1198,16 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         payloads.map(({ weekKey, plannedHours }) =>
           api.logTimeEntry(projectId, memberId, weekKey, { plannedHours }),
         ),
-      ).catch((error) => {
-        console.error('Time log sync failed:', error);
-        setApiError('Kunne ikke synkronisere timeregistrering. Proev igen.');
-      });
+      )
+        .catch((error) => {
+          console.error('Time log sync failed:', error);
+          setApiError('Kunne ikke synkronisere timeregistrering. Prøv igen.');
+        })
+        .finally(() => {
+          invalidateResourceAnalytics();
+        });
     },
-    [setApiError, updateProjects],
+    [invalidateResourceAnalytics, setApiError, updateProjects],
   );
 
   const projectActions = useCallback(
@@ -1609,7 +1692,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             const startDate = parseDateOnlyToUtcDate(project.config.projectStartDate);
             const endDate = parseDateOnlyToUtcDate(project.config.projectEndDate);
             if (!startDate || !endDate || startDate > endDate) {
-              alert('Projektets slutdato er f??r startdatoen.');
+              alert('Projektets slutdato er før startdatoen.');
               return null;
             }
             const current = new Date(startDate);
@@ -1654,7 +1737,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
             const nextWeekKey = getWeekKey(date);
 
             if (!allPossibleWeeksSet.has(nextWeekKey)) {
-              alert('Nste uge er uden for projektets tidsramme.');
+              alert('Næste uge er uden for projektets tidsramme.');
               return null;
             }
             if (existingWeeks.has(nextWeekKey)) {
@@ -1711,8 +1794,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
           },
         },
         organizationManager: {
-          assignEmployee: (employeeId: string, role?: string, group?: ProjectMember['group']) =>
-            assignEmployeeToProject(projectId, employeeId, role, group),
+          assignEmployee: (
+            input: string | AssignMemberInput,
+            role?: string,
+            group?: ProjectMember['group'],
+          ) => assignEmployeeToProject(projectId, input, role, group),
           updateMember: (memberId: string, updates: Partial<ProjectMember>) =>
             updateProjectMember(projectId, memberId, updates),
           deleteMember: (memberId: string) => deleteProjectMember(projectId, memberId),
@@ -1772,6 +1858,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     bulkUpdateTimeLogForMember,
   };
 };
+
+
+
+
+
 
 
 

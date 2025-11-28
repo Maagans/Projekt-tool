@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.12.0] - 2025-11-27
+### Added
+- Mulighed for at tilføje eksterne projektmedlemmer via navn/email; backend opretter automatisk medarbejder og returnerer både medlem og ny employee.
+
+### Changed
+- Ressourceanalytics udelader medarbejdere med afdeling "Ekstern" fra kapacitet/planlagt/faktisk og fikser SQL-parametrering for projektvisning.
+- Ressourcepanelet på projekter viser kun planlagt/faktisk (kapacitet og over-allokerede uger skjult) og invaliderer analytics efter timelog-opdateringer.
+- Projektmedlems-sletning er idempotent, så fjern-kald fejler ikke hvis medlemmet allerede er væk.
+
 ## [1.11.0] - 2025-11-24
 ### Added
 - Auth/setup flyttet til repository-lag (LEG-004): nyt `usersRepository`, UUID-defaults for employees, services bruger Zod + transaktioner.

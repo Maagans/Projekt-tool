@@ -4,6 +4,7 @@ import { createAppError } from "../utils/errors.js";
 const isoWeekPattern = /^(\d{4})-W(\d{2})$/;
 const MAX_SUPPORTED_RANGE_WEEKS = 520;
 const DEFAULT_CACHE_TTL_MS = 2 * 60 * 1000;
+const EXTERNAL_DEPARTMENT = "Ekstern";
 
 const defaultCache = new Map();
 const WORKSPACE_SETTINGS_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
@@ -206,14 +207,14 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     `
       SELECT id::text, COALESCE(max_capacity_hours_week, 0)::float AS capacity
       FROM employees
-      ${isAllDepartments ? "" : "WHERE department = $1"}
+      WHERE department <> $1${isAllDepartments ? "" : " AND department = $2"}
     `,
-    isAllDepartments ? [] : [validatedDepartment],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT] : [EXTERNAL_DEPARTMENT, validatedDepartment],
   );
 
   const totalCapacity = (employeesResult.rows ?? []).reduce((sum, row) => sum + Number(row.capacity ?? 0), 0);
 
-  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, isAllDepartments ? 1 : 2);
+  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, isAllDepartments ? 2 : 3);
   const timeEntriesResult = await database.query(
     `
       SELECT t.week_key,
@@ -222,11 +223,12 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       FROM project_member_time_entries t
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN employees e ON e.id = pm.employee_id
-      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}${rangeClause}
+      WHERE e.department <> $1
+        ${isAllDepartments ? "" : "AND e.department = $2"}${rangeClause}
       GROUP BY t.week_key
       ORDER BY t.week_key ASC
     `,
-    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
   );
 
   const projectBreakdownResult = await database.query(
@@ -240,12 +242,13 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN projects p ON p.id = pm.project_id
       JOIN employees e ON e.id = pm.employee_id
-      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}
+      WHERE e.department <> $1
+        ${isAllDepartments ? "" : "AND e.department = $2"}
         AND p.status = 'active'${rangeClause}
       GROUP BY p.id, p.name
       ORDER BY p.name ASC
     `,
-    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
   );
 
   const projectStackResult = await database.query(
@@ -260,12 +263,13 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN projects p ON p.id = pm.project_id
       JOIN employees e ON e.id = pm.employee_id
-      WHERE ${isAllDepartments ? "1=1" : "e.department = $1"}
+      WHERE e.department <> $1
+        ${isAllDepartments ? "" : "AND e.department = $2"}
         AND p.status = 'active'${rangeClause}
       GROUP BY pm.project_id, p.name, t.week_key
       ORDER BY t.week_key ASC, p.name ASC
     `,
-    isAllDepartments ? rangeParams : [validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
   );
 
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);
@@ -390,13 +394,14 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
       FROM project_members pm
       JOIN employees e ON e.id = pm.employee_id
       WHERE pm.project_id = $1::uuid
+        AND e.department <> $2
     `,
-    [validatedProjectId],
+    [validatedProjectId, EXTERNAL_DEPARTMENT],
   );
 
   const totalCapacity = (memberResult.rows ?? []).reduce((sum, row) => sum + Number(row.capacity ?? 0), 0);
 
-  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, 2);
+  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, 3);
   const timeEntriesResult = await database.query(
     `
       SELECT t.week_key,
@@ -404,11 +409,13 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
              SUM(t.actual_hours)::float AS actual_hours
       FROM project_member_time_entries t
       JOIN project_members pm ON pm.id = t.project_member_id
-      WHERE pm.project_id = $1::uuid${rangeClause}
+      JOIN employees e ON e.id = pm.employee_id
+      WHERE pm.project_id = $1::uuid
+        AND e.department <> $2${rangeClause}
       GROUP BY t.week_key
       ORDER BY t.week_key ASC
     `,
-    [validatedProjectId, ...rangeParams],
+    [validatedProjectId, EXTERNAL_DEPARTMENT, ...rangeParams],
   );
 
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);

@@ -286,6 +286,6 @@ describe('ProjectOrganizationChart', () => {
     await user.click(screen.getByRole('button', { name: /Tilføj Medlem/i }));
 
     // 5. Assert
-    expect(onAssignEmployee).toHaveBeenCalledWith('e1', 'Arkitekt', 'styregruppe');
+    expect(onAssignEmployee).toHaveBeenCalledWith({ employeeId: 'e1', role: 'Arkitekt', group: 'styregruppe' });
   });
 });

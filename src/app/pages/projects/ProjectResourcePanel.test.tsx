@@ -98,7 +98,6 @@ describe("ProjectResourcePanel", () => {
     render(<ProjectResourcePanel />);
 
     expect(screen.getByText("Ressourceoverblik")).toBeInTheDocument();
-    expect(screen.getByText("Kapacitet (seneste uge)")).toBeInTheDocument();
     expect(screen.getByText("Planlagt (seneste uge)")).toBeInTheDocument();
     expect(screen.getByText("Faktisk (seneste uge)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Opsummeret" })).toBeInTheDocument();
@@ -138,7 +137,6 @@ describe("ProjectResourcePanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Opsummeret" }));
 
-    expect(screen.getByText("Total kapacitet")).toBeInTheDocument();
     expect(screen.getByText("Total planlagt")).toBeInTheDocument();
     expect(screen.getByText("Total faktisk")).toBeInTheDocument();
   });
@@ -148,7 +146,6 @@ describe("ProjectResourcePanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Kumulativ" }));
 
-    expect(screen.getByText("Kumulativ kapacitet")).toBeInTheDocument();
     expect(screen.getByText("Kumulativ planlagt")).toBeInTheDocument();
     expect(screen.getByText("Kumulativ faktisk")).toBeInTheDocument();
   });
