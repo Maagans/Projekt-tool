@@ -51,12 +51,12 @@ const baseRiskFields = {
   status: statusSchema.optional(),
 };
 
-const createRiskSchema = z.object({
+export const createRiskSchema = z.object({
   ...baseRiskFields,
   title: baseRiskFields.title,
 });
 
-const updateRiskSchema = z
+export const updateRiskSchema = z
   .object({
     ...baseRiskFields,
     title: baseRiskFields.title.optional(),
@@ -66,7 +66,7 @@ const updateRiskSchema = z
     message: "At least one risk field must be provided.",
   });
 
-const listQuerySchema = z.object({
+export const listQuerySchema = z.object({
   status: statusSchema.optional(),
   ownerId: uuidSchema.optional(),
   category: categorySchema.optional(),
@@ -81,6 +81,10 @@ const projectParamSchema = z.object({
 const riskParamSchema = z.object({
   riskId: uuidSchema,
 });
+
+export const parseRiskFilters = (filters = {}) => listQuerySchema.parse(filters ?? {});
+export const parseCreateRiskPayload = (payload = {}) => createRiskSchema.parse(payload ?? {});
+export const parseUpdateRiskPayload = (payload = {}) => updateRiskSchema.parse(payload ?? {});
 
 export const validateRiskListRequest = (req, res, next) => {
   const paramsParsed = projectParamSchema.safeParse(req.params ?? {});

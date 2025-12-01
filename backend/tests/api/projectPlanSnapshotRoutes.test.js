@@ -292,14 +292,6 @@ describe("Report creation seeds plan snapshot", () => {
       .set("x-csrf-token", csrf)
       .send({ weekKey: "2024-W06" });
 
-    const pctBetween = (dateStr) => {
-      const start = Date.UTC(2024, 0, 1);
-      const end = Date.UTC(2024, 11, 31);
-      const [y, m, d] = dateStr.split("-").map((part) => Number.parseInt(part, 10));
-      const target = Date.UTC(y, m - 1, d);
-      return ((target - start) / (end - start)) * 100;
-    };
-
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(storedReportState.phases[0].start).toBeGreaterThanOrEqual(0);
     expect(storedReportState.phases[0].end).toBeGreaterThanOrEqual(storedReportState.phases[0].start);

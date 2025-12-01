@@ -60,7 +60,39 @@ export const fetchRiskById = async (client, riskId) => {
     return result.rows[0] ?? null;
 };
 
-export const listProjectRisks = async (client, projectId, whereClause, params) => {
+const buildListFilters = (projectId, filters = {}) => {
+    const clauses = ["r.project_id = $1::uuid"];
+    const params = [projectId];
+    let index = 2;
+
+    if (!filters.includeArchived) {
+        clauses.push("r.is_archived = false");
+    }
+
+    if (filters.status) {
+        clauses.push(`r.status = $${index++}`);
+        params.push(filters.status);
+    }
+
+    if (filters.ownerId) {
+        clauses.push(`r.owner_id = $${index++}::uuid`);
+        params.push(filters.ownerId);
+    }
+
+    if (filters.category) {
+        clauses.push(`r.category = $${index++}`);
+        params.push(filters.category);
+    }
+
+    if (filters.overdue) {
+        clauses.push("r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE AND r.status <> 'closed'");
+    }
+
+    return { whereClause: clauses.join(" AND "), params };
+};
+
+export const listProjectRisks = async (client, { projectId, filters = {} }) => {
+    const { whereClause, params } = buildListFilters(projectId, filters);
     const queryText = `
       SELECT
         r.id::text AS id,
@@ -162,7 +194,37 @@ export const insertProjectRisk = async (client, insertPayload) => {
     return result.rows[0] ?? null;
 };
 
-export const updateProjectRisk = async (client, riskId, sets, params) => {
+const COLUMN_MAP = {
+    mitigationPlanA: "mitigation_plan_a",
+    mitigationPlanB: "mitigation_plan_b",
+    ownerId: "owner_id",
+    followUpNotes: "follow_up_notes",
+    followUpFrequency: "follow_up_frequency",
+    lastFollowUpAt: "last_follow_up_at",
+    dueDate: "due_date",
+    isArchived: "is_archived",
+    updatedBy: "updated_by",
+};
+
+const buildUpdateColumns = (updates = {}) => {
+    const sets = [];
+    const params = [];
+    let index = 1;
+    Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined) {
+            return;
+        }
+        const column = COLUMN_MAP[key] ?? key;
+        const needsUuidCast = key === "ownerId" || key === "updatedBy";
+        sets.push(`${column} = $${index++}${needsUuidCast ? "::uuid" : ""}`);
+        params.push(value);
+    });
+    sets.push("updated_at = NOW()");
+    return { sets, params };
+};
+
+export const updateProjectRisk = async (client, { riskId, updates }) => {
+    const { sets, params } = buildUpdateColumns(updates);
     const query = `
       WITH updated AS (
         UPDATE project_risks r

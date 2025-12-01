@@ -2,13 +2,7 @@ import pool from "../../db.js";
 import { createAppError } from "../../utils/errors.js";
 import { withTransaction } from "../../utils/transactions.js";
 import { ensureEmployeeLinkForUser } from "../workspaceService.js";
-import {
-  buildCategoryMeta,
-  calculateRiskScore,
-  normalizeRiskCategory,
-  PROJECT_RISK_STATUSES,
-  assertRiskScale,
-} from "./riskSchema.js";
+import { buildCategoryMeta, calculateRiskScore } from "./riskSchema.js";
 import {
   archiveProjectRisk as archiveProjectRiskRepo,
   ensureProjectExists,
@@ -18,6 +12,11 @@ import {
   listProjectRisks as listProjectRisksRepo,
   updateProjectRisk as updateProjectRiskRepo,
 } from "../../repositories/riskRepository.js";
+import {
+  parseRiskFilters,
+  parseCreateRiskPayload,
+  parseUpdateRiskPayload,
+} from "../../validators/riskValidators.js";
 
 const mapRiskRow = (row) => {
   const normalizeDate = (value) => {
@@ -113,54 +112,12 @@ const assertEditAccess = async (client, projectId, user) => {
   }
 };
 
-const buildListFilters = ({ includeArchived = false, status, ownerId, category, overdue = false } = {}) => {
-  const clauses = ["r.project_id = $1::uuid"];
-  const params = [];
-  let paramIndex = 2;
-
-  if (!includeArchived) {
-    clauses.push("r.is_archived = false");
-  }
-
-  if (status) {
-    clauses.push(`r.status = $${paramIndex++}`);
-    params.push(status);
-  }
-
-  if (ownerId) {
-    clauses.push(`r.owner_id = $${paramIndex++}::uuid`);
-    params.push(ownerId);
-  }
-
-  if (category) {
-    clauses.push(`r.category = $${paramIndex++}`);
-    params.push(category);
-  }
-
-  if (overdue) {
-    clauses.push(`r.due_date IS NOT NULL AND r.due_date < CURRENT_DATE AND r.status <> 'closed'`);
-  }
-
-  return { clauses, params };
-};
-
 const fetchRiskOrThrow = async (client, riskId) => {
   const row = await fetchRiskById(client, riskId);
   if (!row) {
     throw createAppError("Risk not found.", 404);
   }
   return row;
-};
-
-const normalizeStatus = (status) => {
-  if (!status) {
-    return "open";
-  }
-  const normalized = status.trim().toLowerCase();
-  if (!PROJECT_RISK_STATUSES.includes(normalized)) {
-    throw createAppError("Invalid risk status value.", 400);
-  }
-  return normalized;
 };
 
 export const listProjectRisks = async (projectId, filters = {}, user, { client } = {}) => {
@@ -180,21 +137,18 @@ export const listProjectRisks = async (projectId, filters = {}, user, { client }
   }
   await assertReadAccess(executor, projectId, effectiveUser ?? user);
 
-  const { clauses, params } = buildListFilters(filters);
-  const rows = await listProjectRisksRepo(executor, projectId, clauses.join(" AND "), [projectId, ...params]);
+  const parsedFilters = parseRiskFilters(filters);
+  const rows = await listProjectRisksRepo(executor, { projectId, filters: parsedFilters });
   return rows.map(mapRiskRow);
 };
 
-const prepareInsertParams = (projectId, payload, user) => {
-  const probability = assertRiskScale(payload.probability ?? 1, "probability");
-  const impact = assertRiskScale(payload.impact ?? 1, "impact");
+const buildInsertPayload = (projectId, payload, user) => {
+  const probability = payload.probability ?? 1;
+  const impact = payload.impact ?? 1;
   const score = calculateRiskScore(probability, impact);
-  const category = normalizeRiskCategory(payload.category);
-  const status = normalizeStatus(payload.status ?? "open");
-
   return {
     projectId,
-    title: payload.title.trim(),
+    title: payload.title,
     description: payload.description ?? null,
     probability,
     impact,
@@ -204,10 +158,10 @@ const prepareInsertParams = (projectId, payload, user) => {
     ownerId: payload.ownerId ?? null,
     followUpNotes: payload.followUpNotes ?? null,
     followUpFrequency: payload.followUpFrequency ?? null,
-    category,
+    category: payload.category ?? null,
     lastFollowUpAt: payload.lastFollowUpAt ?? null,
     dueDate: payload.dueDate ?? null,
-    status,
+    status: payload.status ?? "open",
     createdBy: user?.id ?? null,
   };
 };
@@ -218,86 +172,22 @@ export const createProjectRisk = async (projectId, payload, user, options = {}) 
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     await assertEditAccess(client, projectId, effectiveUser);
 
-    const insertPayload = prepareInsertParams(projectId, payload, effectiveUser);
+    const parsedPayload = parseCreateRiskPayload(payload);
+    const insertPayload = buildInsertPayload(projectId, parsedPayload, effectiveUser);
     const row = await insertProjectRisk(client, insertPayload);
     return mapRiskRow(row);
   }, options);
 };
 
-const buildUpdateStatement = (riskRow, updates, user) => {
-  const sets = [];
-  const params = [];
-  let index = 1;
-
-  if (updates.title !== undefined) {
-    sets.push(`title = $${index++}`);
-    params.push(updates.title.trim());
-  }
-  if (updates.description !== undefined) {
-    sets.push(`description = $${index++}`);
-    params.push(updates.description);
-  }
-  let probability = Number(riskRow.probability);
-  let impact = Number(riskRow.impact);
-  if (updates.probability !== undefined) {
-    probability = assertRiskScale(updates.probability, "probability");
-    sets.push(`probability = $${index++}`);
-    params.push(probability);
-  }
-  if (updates.impact !== undefined) {
-    impact = assertRiskScale(updates.impact, "impact");
-    sets.push(`impact = $${index++}`);
-    params.push(impact);
-  }
-  if (updates.mitigationPlanA !== undefined) {
-    sets.push(`mitigation_plan_a = $${index++}`);
-    params.push(updates.mitigationPlanA);
-  }
-  if (updates.mitigationPlanB !== undefined) {
-    sets.push(`mitigation_plan_b = $${index++}`);
-    params.push(updates.mitigationPlanB);
-  }
-  if (updates.ownerId !== undefined) {
-    sets.push(`owner_id = $${index++}::uuid`);
-    params.push(updates.ownerId);
-  }
-  if (updates.followUpNotes !== undefined) {
-    sets.push(`follow_up_notes = $${index++}`);
-    params.push(updates.followUpNotes);
-  }
-  if (updates.followUpFrequency !== undefined) {
-    sets.push(`follow_up_frequency = $${index++}`);
-    params.push(updates.followUpFrequency);
-  }
-  if (updates.category !== undefined) {
-    sets.push(`category = $${index++}`);
-    params.push(normalizeRiskCategory(updates.category));
-  }
-  if (updates.lastFollowUpAt !== undefined) {
-    sets.push(`last_follow_up_at = $${index++}`);
-    params.push(updates.lastFollowUpAt);
-  }
-  if (updates.dueDate !== undefined) {
-    sets.push(`due_date = $${index++}`);
-    params.push(updates.dueDate);
-  }
-  if (updates.status !== undefined) {
-    sets.push(`status = $${index++}`);
-    params.push(normalizeStatus(updates.status));
-  }
-  if (updates.isArchived !== undefined) {
-    sets.push(`is_archived = $${index++}`);
-    params.push(Boolean(updates.isArchived));
-  }
-
-  const nextScore = calculateRiskScore(probability, impact);
-  sets.push(`score = $${index++}`);
-  params.push(nextScore);
-  sets.push(`updated_by = $${index++}::uuid`);
-  params.push(user?.id ?? null);
-  sets.push(`updated_at = NOW()`);
-
-  return { sets, params };
+const buildUpdatePayload = (riskRow, updates, user) => {
+  const nextProbability = updates.probability ?? Number(riskRow.probability ?? 1);
+  const nextImpact = updates.impact ?? Number(riskRow.impact ?? 1);
+  const score = calculateRiskScore(nextProbability, nextImpact);
+  return {
+    ...updates,
+    score,
+    updatedBy: user?.id ?? null,
+  };
 };
 
 export const updateProjectRisk = async (riskId, updates, user, options = {}) => {
@@ -306,12 +196,9 @@ export const updateProjectRisk = async (riskId, updates, user, options = {}) => 
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     await assertEditAccess(client, riskRow.project_id, effectiveUser);
 
-    const { sets, params } = buildUpdateStatement(riskRow, updates, effectiveUser);
-    if (sets.length === 1 && sets[0] === "updated_at = NOW()") {
-      throw createAppError("No valid risk fields provided for update.", 400);
-    }
-
-    const row = await updateProjectRiskRepo(client, riskId, sets, params);
+    const parsedUpdates = parseUpdateRiskPayload(updates);
+    const updatePayload = buildUpdatePayload(riskRow, parsedUpdates, effectiveUser);
+    const row = await updateProjectRiskRepo(client, { riskId, updates: updatePayload });
     return mapRiskRow(row);
   }, options);
 };
