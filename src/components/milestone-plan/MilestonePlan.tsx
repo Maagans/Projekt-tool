@@ -92,7 +92,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
     const [addingToMilestone, setAddingToMilestone] = useState<string | null>(null);
     const [newDeliverableText, setNewDeliverableText] = useState('');
     const [, setInlineSaving] = useState(false);
-    const [isGlobalAddDeliverable, setIsGlobalAddDeliverable] = useState(false);
+    const [, setIsGlobalAddDeliverable] = useState(false);
 
     // State for Workstream Colors
     const [wsColors, setWsColors] = useState<Record<string, string>>({});

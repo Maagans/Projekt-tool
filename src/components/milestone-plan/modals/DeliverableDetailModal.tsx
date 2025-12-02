@@ -54,7 +54,7 @@ export const DeliverableDetailModal: React.FC<DeliverableDetailModalProps> = ({ 
         }
         setNewChecklistItem('');
         setIsSaving(false);
-    }, [isOpen, deliverable]);
+    }, [isOpen, deliverable, milestoneTitle, milestones]);
 
     if (!isOpen || !data) return null;
 

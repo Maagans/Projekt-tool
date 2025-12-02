@@ -5,22 +5,8 @@ import { useProjectManager } from '../../../hooks/useProjectManager';
 import { RESOURCES_ANALYTICS_ENABLED } from '../../constants';
 import { ResourceAnalyticsEmbeddedView } from '../resources/ResourceAnalyticsPage';
 import { locations } from '../../../types';
-import type { Employee, Location } from '../../../types';
+import { usePmoWorkload } from '../../../hooks/usePmoWorkload';
 import { ChevronDownIcon, ClockIcon } from '../../../components/Icons';
-
-type EmployeeProjectSummary = {
-  id: string;
-  name: string;
-  planned: number;
-  actual: number;
-};
-
-type EmployeeWorkload = Employee & {
-  totalPlanned: number;
-  totalActual: number;
-  projectDetails: EmployeeProjectSummary[];
-  projectCount: number;
-};
 
 const WorkloadBar = ({ planned, actual }: { planned: number; actual: number }) => {
   if (planned === 0) return <span className="text-slate-500">N/A</span>;
@@ -182,93 +168,7 @@ export const PmoPage = () => {
         : 'border-transparent text-slate-600 hover:border-blue-300 hover:text-blue-600',
     ].join(' ');
 
-  const pmoDataByLocation = useMemo(() => {
-    const activeProjects = projects.filter((project) => project.status === 'active');
-    const rangeStart = new Date(dateRange.start);
-    const rangeEnd = new Date(dateRange.end);
-
-    const employeeData: EmployeeWorkload[] = employees
-      .map((employee) => {
-        let totalPlanned = 0;
-        let totalActual = 0;
-        const projectDetails: EmployeeProjectSummary[] = [];
-
-        activeProjects.forEach((project) => {
-          const member = project.projectMembers.find((m) => m.employeeId === employee.id);
-          if (!member) return;
-
-          let projectPlanned = 0;
-          let projectActual = 0;
-
-          member.timeEntries.forEach((entry) => {
-            const [yearPart, weekPart] = entry.weekKey.replace('W', '').split('-');
-            const year = Number(yearPart);
-            const week = Number(weekPart);
-            if (!Number.isFinite(year) || !Number.isFinite(week)) {
-              return;
-            }
-            const baseDate = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-            const day = baseDate.getUTCDay();
-            const diff = baseDate.getUTCDate() - day + (day === 0 ? -6 : 1);
-            const weekDate = new Date(baseDate.setUTCDate(diff));
-
-            if (weekDate >= rangeStart && weekDate <= rangeEnd) {
-              projectPlanned += entry.plannedHours;
-              projectActual += entry.actualHours;
-            }
-          });
-
-          if (projectPlanned > 0 || projectActual > 0) {
-            totalPlanned += projectPlanned;
-            totalActual += projectActual;
-            projectDetails.push({
-              id: project.id,
-              name: project.config.projectName,
-              planned: projectPlanned,
-              actual: projectActual,
-            });
-          }
-        });
-
-        return {
-          ...employee,
-          totalPlanned,
-          totalActual,
-          projectDetails,
-          projectCount: projectDetails.length,
-        };
-      })
-      .filter((summary) => summary.totalPlanned > 0 || summary.totalActual > 0);
-
-    const grouped = Object.fromEntries(locations.map((location) => [location, [] as EmployeeWorkload[]])) as Record<
-      Location | string,
-      EmployeeWorkload[]
-    >;
-
-    for (const summary of employeeData) {
-      if (!summary.location) continue;
-      if (!grouped[summary.location]) {
-        grouped[summary.location] = [];
-      }
-      grouped[summary.location].push(summary);
-    }
-
-    const locationTotals = Object.fromEntries(
-      locations.map((location) => {
-        const summaries = grouped[location];
-        const totals = summaries.reduce(
-          (accTotals, summary) => ({
-            planned: accTotals.planned + summary.totalPlanned,
-            actual: accTotals.actual + summary.totalActual,
-          }),
-          { planned: 0, actual: 0 },
-        );
-        return [location, totals] as const;
-      }),
-    ) as Record<Location, { planned: number; actual: number }>;
-
-    return { grouped, totals: locationTotals };
-  }, [employees, projects, dateRange]);
+  const pmoDataByLocation = usePmoWorkload({ employees, projects, dateRange });
 
   if (!canManage) {
     return <Navigate to="/" replace />;
