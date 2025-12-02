@@ -4,6 +4,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.9.1] - 2025-12-02
+### Added
+- Ny `usePmoWorkload` hook med tilhørende Vitest-suite der udtrækker og tester PMO-belastningslogikken separat fra UI-laget.
+
+### Fixed
+- PMO-siden bruger nu hooken i stedet for en stor `useMemo`, så komponenten holdes ren og nem at vedligeholde.
+- MilestonePlan linter rent igen efter oprydning af ubrugte variabler og manglende `useEffect`-afhængigheder i `DeliverableDetailModal`.
+
 ## [1.12.0] - 2025-11-27
 ### Added
 - Mulighed for at tilføje eksterne projektmedlemmer via navn/email; backend opretter automatisk medarbejder og returnerer både medlem og ny employee.
