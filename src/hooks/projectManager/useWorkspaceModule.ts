@@ -929,7 +929,11 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     (projectId: string, input: AssignMemberInput | string, role?: string, group?: ProjectMember['group']) => {
       const normalizedInput: AssignMemberInput =
         typeof input === 'string'
-          ? { employeeId: input, role, group }
+          ? {
+            employeeId: input,
+            ...(role ? { role } : {}),
+            ...(group ? { group } : {}),
+          }
           : input;
 
       const project = projects.find((candidate) => candidate.id === projectId);
@@ -951,13 +955,14 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         );
         employeeId = existingByEmail?.id ?? normalizedInput.newEmployee.id ?? generateId();
         if (!existingByEmail) {
+          const locationValue: Location = (normalizedInput.newEmployee?.location ?? locations[0]) as Location;
           updateEmployees((prev) => [
             ...prev,
             {
               id: employeeId!,
               name: trimmedName,
               email: trimmedEmail,
-              location: normalizedInput.newEmployee?.location ?? undefined,
+              location: locationValue,
               department: normalizedInput.newEmployee?.department ?? 'Ekstern',
               maxCapacityHoursWeek: 0,
             },
@@ -992,22 +997,25 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         ),
       );
 
+      const memberPayload: AddProjectMemberInput['member'] = {
+        id: newMember.id,
+        employeeId,
+        role: newMember.role,
+        group: newMember.group,
+      };
+
+      if (normalizedInput.newEmployee) {
+        memberPayload.newEmployee = {
+          ...normalizedInput.newEmployee,
+          id: employeeId,
+          name: trimmedName,
+          email: trimmedEmail,
+        };
+      }
+
       createProjectMemberMutation.mutate({
         projectId,
-        member: {
-          id: newMember.id,
-          employeeId,
-          role: newMember.role,
-          group: newMember.group,
-          newEmployee: normalizedInput.newEmployee
-            ? {
-              ...normalizedInput.newEmployee,
-              id: employeeId,
-              name: trimmedName,
-              email: trimmedEmail,
-            }
-            : undefined,
-        },
+        member: memberPayload,
       });
     },
     [createProjectMemberMutation, employees, projects, updateEmployees, updateProjects],

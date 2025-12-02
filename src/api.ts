@@ -15,6 +15,7 @@ import type {
   UserRole,
   WorkspaceData,
   WorkspaceSettings,
+  Location,
 } from './types';
 import { notifyUnauthorizedLogout } from './hooks/projectManager/authEvents';
 
@@ -440,7 +441,7 @@ export const api = {
     projectId: string,
     payload: {
       employeeId?: string;
-      newEmployee?: { id?: string; name: string; email: string; location?: string; department?: string };
+      newEmployee?: { id?: string; name: string; email: string; location?: Location | null; department?: string | null };
       role?: string;
       group?: ProjectMember['group'];
       id?: string;

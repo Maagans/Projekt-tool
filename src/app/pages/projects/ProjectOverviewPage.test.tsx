@@ -95,9 +95,9 @@ describe('ProjectOverviewPage', () => {
     renderPage();
 
     expect(screen.getByText(/Tilføj projektmål/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ingen timeplan registreret endnu/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ingen medlemmer tilføjet endnu/i)).toBeInTheDocument();
     expect(screen.getByText(/Ingen næste skridt er angivet/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ingen risici registreret i seneste rapport/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ingen risici fundet/i)).toBeInTheDocument();
   });
 
   it('viser projektdata, KPI og risici når data findes', () => {

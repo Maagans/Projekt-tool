@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { ProjectOrganizationChart, TimeLogModal } from '../ProjectOrganizationChart';
-import type { Project, ProjectMember, Employee } from '../../types';
+import type { Project, ProjectMember, Employee, Location } from '../../types';
 
 const buildProject = (): Project => ({
   id: 'project-1',
@@ -264,7 +264,7 @@ describe('ProjectOrganizationChart', () => {
       ...createDefaultProps(),
       onAssignEmployee,
       allEmployees: [
-        { id: 'e1', name: 'Ny Medarbejder', email: 'ny@example.com', location: 'Sano Aarhus' },
+        { id: 'e1', name: 'Ny Medarbejder', email: 'ny@example.com', location: 'Sano Aarhus' as Location },
       ],
       members: [],
     };

@@ -11,7 +11,7 @@ import { SyncStatusPill } from '../../../components/SyncStatusPill';
 import { ProjectReportHeader } from '../../../components/ProjectReportHeader';
 import { KanbanTaskInspector } from '../../../components/KanbanTaskInspector';
 import { KanbanTaskList } from '../../../components/KanbanTaskList';
-import { KanbanTask, MainTableRow, ProjectRisk, ProjectRiskCategoryKey, ProjectRiskCategoryMeta, ProjectRiskStatus, ProjectState, Risk } from '../../../types';
+import { KanbanTask, MainTableRow, ProjectRisk, ProjectRiskCategoryKey, ProjectRiskCategoryMeta, ProjectRiskStatus, ProjectState, Risk, Project, PhaseStatus, MilestoneStatus, DeliverableStatus } from '../../../types';
 import { generateId, getInitialProjectState, getWeekKey } from '../../../hooks/projectManager/utils';
 import { useProjectRisks as useCuratedProjectRisks } from '../../../hooks/useProjectRisks';
 import { api } from '../../../api';
@@ -38,6 +38,19 @@ const parseDateOnlyToUtcDate = (value?: string | null): Date | null => {
 };
 
 const clampPercentage = (value: number) => Math.max(0, Math.min(100, value));
+
+const PHASE_STATUS_VALUES: PhaseStatus[] = ['Planned', 'Active', 'Completed', 'Pending'];
+const MILESTONE_STATUS_VALUES: MilestoneStatus[] = ['Pending', 'On Track', 'Delayed', 'Completed'];
+const DELIVERABLE_STATUS_VALUES: DeliverableStatus[] = ['Pending', 'In Progress', 'Completed'];
+
+const normalizePhaseStatus = (status?: string | null): PhaseStatus =>
+  PHASE_STATUS_VALUES.includes((status ?? '') as PhaseStatus) ? ((status as PhaseStatus) ?? 'Planned') : 'Planned';
+
+const normalizeMilestoneStatus = (status?: string | null): MilestoneStatus =>
+  MILESTONE_STATUS_VALUES.includes((status ?? '') as MilestoneStatus) ? ((status as MilestoneStatus) ?? 'Pending') : 'Pending';
+
+const normalizeDeliverableStatus = (status?: string | null): DeliverableStatus =>
+  DELIVERABLE_STATUS_VALUES.includes((status ?? '') as DeliverableStatus) ? ((status as DeliverableStatus) ?? 'Pending') : 'Pending';
 
 const buildTimelineHelpers = (projectStartDate?: string | null, projectEndDate?: string | null) => {
   const toUtcTimestamp = (value?: string | null): number | null => {
@@ -336,7 +349,7 @@ const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSna
         workstreamId: p.workstreamId ?? null,
         startDate: p.startDate ?? null,
         endDate: p.endDate ?? null,
-        status: p.status ?? null,
+        status: normalizePhaseStatus(p.status),
       };
     }) ?? [];
 
@@ -349,7 +362,7 @@ const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSna
         position,
         workstreamId: m.workstreamId ?? null,
         date: m.dueDate ?? null,
-        status: m.status ?? null,
+        status: normalizeMilestoneStatus(m.status),
       };
     }) ?? [];
 
@@ -365,7 +378,7 @@ const buildReportStateFromPlan = (plan: Awaited<ReturnType<typeof planApi.getSna
         text: d.label,
         position,
         milestoneId: d.milestoneId ? milestoneLookup.get(d.milestoneId) ?? null : null,
-        status: d.status ?? null,
+        status: normalizeDeliverableStatus(d.status),
         owner: d.ownerName ?? null,
         ownerId: d.ownerEmployeeId ?? null,
         description: d.description ?? null,

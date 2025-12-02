@@ -131,13 +131,13 @@ async function main() {
     if (employeeLookup.rowCount > 0) {
       employeeId = employeeLookup.rows[0].id;
       await client.query(
-        'UPDATE employees SET name = $1, email = $2 WHERE id = $3',
+        'UPDATE employees SET name = $1, email = $2, max_capacity_hours_week = COALESCE(max_capacity_hours_week, 0) WHERE id = $3',
         [adminName, adminEmailRaw || adminEmail, employeeId],
       );
     } else {
       const insertEmployee = await client.query(
-        'INSERT INTO employees (name, email) VALUES ($1, $2) RETURNING id',
-        [adminName, adminEmailRaw || adminEmail],
+        'INSERT INTO employees (name, email, max_capacity_hours_week) VALUES ($1, $2, $3) RETURNING id',
+        [adminName, adminEmailRaw || adminEmail, 0],
       );
       employeeId = insertEmployee.rows[0].id;
     }

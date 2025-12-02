@@ -159,8 +159,8 @@ export const MilestonePlanPage: React.FC = () => {
         phases,
         workstreams: project?.workstreams ?? [],
         milestones: Object.values(milestoneById),
-        startDate: project?.config.projectStartDate,
-        endDate: project?.config.projectEndDate,
+        startDate: project?.config.projectStartDate ?? '',
+        endDate: project?.config.projectEndDate ?? '',
       };
     },
     [deriveDateFromPercentage, project, sanitizePhaseColor],

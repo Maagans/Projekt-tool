@@ -647,7 +647,7 @@ export const Timeline: React.FC<TimelineProps> = (props) => {
                       <div className={`bg-white px-2 py-1 rounded-md shadow text-xs whitespace-nowrap mb-2 ${isSelected ? 'ring-2 ring-purple-300' : ''}`}>
                         <EditableField disabled={readOnly} initialValue={m.text} onSave={(text) => updateTimelineItem('milestone', m.id, { text })} className="!p-0" />
                       </div>
-                      <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[9px] ${isSelected ? 'border-b-purple-600' : 'border-b-purple-500'}`} title={calculateDateFromPosition(milestonePosition)}></div>
+                      <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[9px] ${isSelected ? 'border-b-purple-600' : 'border-b-purple-500'}`} title={calculateDateFromPosition(milestonePosition ?? 0)}></div>
                       <div className={`w-px h-6 ${isSelected ? 'bg-purple-600' : 'bg-purple-500'}`}></div>
                     </div>
                   </div>
