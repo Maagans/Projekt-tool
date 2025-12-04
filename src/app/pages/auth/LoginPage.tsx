@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { BrandLogo } from '../../../components/branding/BrandLogo';
+
 type LoginPageProps = {
   onLogin: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   onNavigateToRegister: () => void;
@@ -23,9 +25,10 @@ export const LoginPage = ({ onLogin, onNavigateToRegister }: LoginPageProps) => 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
-        <div className="text-center mb-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100">
+      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl border border-slate-200">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <BrandLogo className="h-40 w-40 mb-4" />
           <h1 className="text-3xl font-bold text-slate-800">Projektværktøj</h1>
           <p className="text-slate-500">Log ind for at fortsætte</p>
         </div>
@@ -61,15 +64,12 @@ export const LoginPage = ({ onLogin, onNavigateToRegister }: LoginPageProps) => 
             </button>
           </div>
         </form>
-        <div className="mt-6 text-center text-sm text-slate-500 space-y-2">
+        <div className="mt-6 text-center text-sm text-slate-500">
           <p>
             Har du ikke en konto?{' '}
-            <button onClick={onNavigateToRegister} className="font-semibold text-blue-600 hover:underline">
+            <button onClick={onNavigateToRegister} className="text-blue-600 font-medium hover:underline">
               Registrer her
             </button>
-          </p>
-          <p className="text-slate-400">
-            Demo: <b>projektleder@sano.dk</b> / <b>password</b>
           </p>
         </div>
       </div>
