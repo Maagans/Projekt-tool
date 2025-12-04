@@ -37,6 +37,7 @@ const configSchema = z.object({
   RESOURCES_ANALYTICS_ENABLED: booleanSchema.default(false),
   PROJECT_RISK_ANALYSIS_ENABLED: booleanSchema.default(true),
   DEBUG_WORKSPACE: booleanSchema.default(false),
+  TRUST_PROXY: booleanSchema.default(false),
   PG_BACKUP_DIR: z.string().default("backups"),
 });
 
@@ -52,6 +53,7 @@ export const config = {
   databaseUrl: parsed.DATABASE_URL,
   jwtSecret: parsed.JWT_SECRET,
   logLevel: parsed.LOG_LEVEL,
+  trustProxy: parsed.TRUST_PROXY ?? false,
   corsOrigins,
   rateLimit: {
     windowMs: parsed.RATE_LIMIT_WINDOW_MS,

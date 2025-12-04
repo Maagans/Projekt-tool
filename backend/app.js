@@ -17,6 +17,9 @@ const resolveFeatureFlag = (override, fallback) => {
 
 export const createApp = ({ dbClient, resourcesAnalyticsEnabled, riskAnalysisEnabled } = {}) => {
   const app = express();
+  if (config.trustProxy) {
+    app.set('trust proxy', true);
+  }
   const database = dbClient ?? pool;
   const resourcesEnabled = resolveFeatureFlag(
     resourcesAnalyticsEnabled,
