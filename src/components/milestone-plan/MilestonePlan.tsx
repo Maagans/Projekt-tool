@@ -7,6 +7,7 @@ import { NewPhaseModal } from './modals/NewPhaseModal';
 import { DeliverableDetailModal } from './modals/DeliverableDetailModal';
 import { ProjectGuideModal } from './modals/ProjectGuideModal';
 import { WorkstreamManagerModal } from './modals/WorkstreamManagerModal';
+import { generateId } from '../../hooks/projectManager/utils';
 
 // Constants for layout calculation
 const LEFT_COL_WIDTH = 240;
@@ -367,7 +368,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         if (milestoneToEdit) {
             await onSaveMilestone({ ...milestoneData, id: milestoneToEdit.id });
         } else {
-            await onSaveMilestone({ ...milestoneData, id: crypto.randomUUID() });
+            await onSaveMilestone({ ...milestoneData, id: generateId() });
         }
         setMilestoneToEdit(null);
     };
@@ -377,7 +378,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         if (phaseToEdit) {
             await onSavePhase({ ...phaseData, id: phaseToEdit.id });
         } else {
-            await onSavePhase({ ...phaseData, id: crypto.randomUUID() });
+            await onSavePhase({ ...phaseData, id: generateId() });
         }
         setPhaseToEdit(null);
     };
@@ -396,7 +397,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         setInlineSaving(true);
         try {
             const newDeliverable: Deliverable = {
-                id: crypto.randomUUID(),
+                id: generateId(),
                 title: newDeliverableText.trim(),
                 status: 'Pending',
                 owner: 'Unassigned',
@@ -422,7 +423,7 @@ export const MilestonePlan: React.FC<MilestonePlanProps & { projectMembers?: { i
         setDeliverableToEdit({
             milestoneId: '',
             data: {
-                id: crypto.randomUUID(),
+                id: generateId(),
                 title: '',
                 status: 'Pending',
                 checklist: [],

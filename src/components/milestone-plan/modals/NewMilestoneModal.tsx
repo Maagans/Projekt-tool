@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Flag, Plus, Trash2, PenTool, Loader2, Layers, ChevronDown } from 'lucide-react';
 import { Milestone, Deliverable, Workstream } from '../../../types/milestone-plan';
+import { generateId } from '../../../hooks/projectManager/utils';
 
 interface NewMilestoneModalProps {
     isOpen: boolean;
@@ -50,7 +51,7 @@ export const NewMilestoneModal: React.FC<NewMilestoneModalProps> = ({
     const handleAddDeliverable = () => {
         if (currentDeliverableText.trim()) {
             const newDeliverable: Deliverable = {
-                id: crypto.randomUUID(),
+                id: generateId(),
                 title: currentDeliverableText.trim(),
                 status: 'Pending',
                 checklist: [],

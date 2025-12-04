@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Box, CheckSquare, User, AlignLeft, FileText, Plus, Trash2, CheckCircle2, Circle, Loader2, Calendar } from 'lucide-react';
 import { Deliverable, ChecklistItem } from '../../../types/milestone-plan';
+import { generateId } from '../../../hooks/projectManager/utils';
 
 interface DeliverableDetailModalProps {
     isOpen: boolean;
@@ -79,7 +80,7 @@ export const DeliverableDetailModal: React.FC<DeliverableDetailModalProps> = ({ 
         if (!newChecklistItem.trim()) return;
 
         const newItem: ChecklistItem = {
-            id: crypto.randomUUID(),
+            id: generateId(),
             text: newChecklistItem,
             completed: false
         };

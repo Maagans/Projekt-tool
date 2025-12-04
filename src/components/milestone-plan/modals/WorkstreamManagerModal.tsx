@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, ArrowRight, Edit2, Check } from 'lucide-react';
 import { Workstream } from '../../../types/milestone-plan';
+import { generateId } from '../../../hooks/projectManager/utils';
 
 interface WorkstreamManagerModalProps {
     isOpen: boolean;
@@ -29,7 +30,7 @@ export const WorkstreamManagerModal: React.FC<WorkstreamManagerModalProps> = ({
         e.preventDefault();
         if (newWorkstreamName.trim()) {
             onSave({
-                id: crypto.randomUUID(),
+                id: generateId(),
                 name: newWorkstreamName.trim()
             });
             setNewWorkstreamName('');
