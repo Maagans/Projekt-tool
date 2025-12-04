@@ -15,6 +15,32 @@ const booleanSchema = z
   })
   .optional();
 
+const trustProxySchema = z
+  .union([z.boolean(), z.string(), z.number()])
+  .transform((value) => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === "number") {
+      return Number.isNaN(value) ? false : value;
+    }
+    if (typeof value === "boolean") {
+      return value ? "loopback" : false;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    const normalized = trimmed.toLowerCase();
+    if (["false", "0", "off", "no"].includes(normalized)) {
+      return false;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+    if (["true", "yes", "on", "loopback"].includes(normalized)) {
+      return "loopback";
+    }
+    return trimmed;
+  })
+  .default(false);
+
 const configSchema = z.object({
   ADMIN_NAME: z.string().optional(),
   ADMIN_EMAIL: z.string().optional(),
@@ -37,7 +63,7 @@ const configSchema = z.object({
   RESOURCES_ANALYTICS_ENABLED: booleanSchema.default(false),
   PROJECT_RISK_ANALYSIS_ENABLED: booleanSchema.default(true),
   DEBUG_WORKSPACE: booleanSchema.default(false),
-  TRUST_PROXY: booleanSchema.default(false),
+  TRUST_PROXY: trustProxySchema,
   PG_BACKUP_DIR: z.string().default("backups"),
 });
 
@@ -53,7 +79,7 @@ export const config = {
   databaseUrl: parsed.DATABASE_URL,
   jwtSecret: parsed.JWT_SECRET,
   logLevel: parsed.LOG_LEVEL,
-  trustProxy: parsed.TRUST_PROXY ?? false,
+  trustProxy: parsed.TRUST_PROXY,
   corsOrigins,
   rateLimit: {
     windowMs: parsed.RATE_LIMIT_WINDOW_MS,
