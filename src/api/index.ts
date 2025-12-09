@@ -4,6 +4,7 @@
 export { reportApi } from './reportApi';
 export { planApi } from './planApi';
 export { organizationsApi } from './organizationsApi';
+export { workspacesApi } from './workspacesApi';
 
 // Re-export from main api.ts for convenience
 export { api, fetchWithAuth, AUTH_USER_STORAGE_KEY } from '../api';
