@@ -23,8 +23,8 @@ const baseEmployeeSchema = z.object({
   id: z.string().uuid('id must be a valid UUID.').optional(),
   name: z.string().trim().min(1, 'name is required.'),
   email: z.string().trim().email('email must be valid.'),
-  location: z.string().trim().optional(),
-  department: z.string().trim().optional(),
+  location: z.string().trim().optional().nullable(),
+  department: z.string().trim().optional().nullable(),
   maxCapacityHoursWeek: numericCapacity.optional().default(0),
 });
 
