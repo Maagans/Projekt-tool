@@ -1,7 +1,7 @@
 {
   "name": "projekt-status-rapport",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.14.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

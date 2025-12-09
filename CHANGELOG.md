@@ -4,6 +4,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.14.0] - 2025-12-09
+### Added
+- **Frontend:** 4 nye domæne-hooks til modulær arkitektur (ARCH-001):
+  - `workspaceUtils.ts` - Delte typer og utilities
+  - `useEmployeeMutations.ts` - Employee CRUD operationer
+  - `useProjectMutations.ts` - Project CRUD med debounced sync
+  - `useMemberMutations.ts` - Projektmedlem operationer
+- **Backend:** Repository-lag for workspace-operationer (ARCH-002):
+  - `workspaceRepository.js` - Alle workspace SQL queries
+  - `loadWorkspaceService.js` - Data loading via repository
+  - `workspacePermissions.js` - Tilladelseskontrol
+- **Frontend:** `src/api/index.ts` samler API-moduler (ARCH-003)
+
+### Changed
+- Frontendmoduler følger nu domæneopdelt arkitektur (~960 linjer ekstraheret)
+- Backend følger 3-lags arkitektur: Controller → Service → Repository
+- Ingen breaking changes - originale filer bevaret for gradvis migration
+
 ## [1.13.0] - 2025-12-09
 ### Added
 - Password reset via email-link med Microsoft Graph API og dev-mock til lokal test (AUTH-001).
