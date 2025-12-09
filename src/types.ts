@@ -1,4 +1,8 @@
-export type Location = 'Sano Aarhus' | 'Sano Middelfart' | 'Sano Skælskør' | 'Dansk Gigthospital' | 'Sekretariatet';
+// Legacy: Keep for backward compatibility during migration
+// New code should use organizationId and locationId from database
+export type Location = string;
+
+// Legacy array - now fetched from /api/organizations/all/locations
 export const locations: Location[] = ['Sano Aarhus', 'Sano Middelfart', 'Sano Skælskør', 'Dansk Gigthospital', 'Sekretariatet'];
 
 export type UserRole = 'Administrator' | 'Projektleder' | 'Teammedlem';
@@ -14,7 +18,7 @@ export interface User {
 export interface Employee {
   id: string; // UUID
   name: string;
-  location?: Location;
+  location?: Location; // Legacy: text field for backward compat
   email: string;
   maxCapacityHoursWeek?: number;
   azureAdId?: string | null;
@@ -22,6 +26,9 @@ export interface Employee {
   jobTitle?: string | null;
   accountEnabled?: boolean;
   syncedAt?: string | null;
+  // New: Database-backed organization/location
+  organizationId?: string | null;
+  locationId?: string | null;
 }
 
 export interface MainTableRow {
