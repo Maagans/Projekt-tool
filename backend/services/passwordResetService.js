@@ -6,7 +6,7 @@ import { config } from "../config/index.js";
 import { createAppError } from "../utils/errors.js";
 import { withTransaction } from "../utils/transactions.js";
 import * as passwordResetRepo from "../repositories/passwordResetRepository.js";
-import * as usersRepo from "../repositories/usersRepository.js";
+import * as usersRepo from "../repositories/userRepository.js";
 import { sendPasswordResetEmail } from "../utils/graphMailClient.js";
 
 const TOKEN_BYTES = 32;

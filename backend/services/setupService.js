@@ -3,11 +3,11 @@ import pool from "../db.js";
 import { normalizeEmail } from "../utils/helpers.js";
 import { createAppError } from "../utils/errors.js";
 import { withTransaction } from "../utils/transactions.js";
-import * as usersRepository from "../repositories/usersRepository.js";
+import * as userRepository from "../repositories/userRepository.js";
 import * as employeeRepository from "../repositories/employeeRepository.js";
 
 export const needsInitialSetup = async () => {
-    const adminCount = await usersRepository.countAdmins(pool);
+    const adminCount = await userRepository.countAdmins(pool);
     return adminCount === 0;
 };
 
@@ -15,7 +15,7 @@ export const createFirstAdministrator = async ({ email, name, password }) => {
     const normalizedEmail = normalizeEmail(email);
 
     return withTransaction(async (client) => {
-        const adminCount = await usersRepository.countAdmins(client);
+        const adminCount = await userRepository.countAdmins(client);
         if (adminCount > 0) {
             throw createAppError('An administrator account already exists. Cannot create another.', 403);
         }
@@ -37,7 +37,7 @@ export const createFirstAdministrator = async ({ email, name, password }) => {
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        await usersRepository.create(client, {
+        await userRepository.create(client, {
             id: undefined,
             name: name.trim(),
             email: normalizedEmail,

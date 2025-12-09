@@ -1,4 +1,4 @@
-import { listUsers, updateUserRole } from "../services/usersService.js";
+import { listUsers, updateUserRole } from "../services/userService.js";
 
 const assertAdmin = (user) => {
     if (user?.role !== "Administrator") {

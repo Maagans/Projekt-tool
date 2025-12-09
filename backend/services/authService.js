@@ -8,7 +8,7 @@ import { ensureEmployeeLinkForUser } from "./workspaceService.js";
 import { withTransaction } from "../utils/transactions.js";
 import { config } from "../config/index.js";
 import { loginSchema, registerSchema } from "../validators/authValidators.js";
-import * as usersRepository from "../repositories/usersRepository.js";
+import * as userRepository from "../repositories/userRepository.js";
 import * as employeeRepository from "../repositories/employeeRepository.js";
 
 const jwtSecret = config.jwtSecret;
@@ -19,7 +19,7 @@ export const login = async (email, password) => {
     }
 
     const { email: normalizedEmail, password: sanitizedPassword } = loginSchema.parse({ email, password });
-    const user = await usersRepository.findByEmail(pool, normalizedEmail);
+    const user = await userRepository.findByEmail(pool, normalizedEmail);
     if (!user) {
         logger.warn({ event: 'login_failed', reason: 'user_not_found' });
         throw createAppError('Login failed. Please check your email and password.', 401);
@@ -58,7 +58,7 @@ export const register = async (email, name, password) => {
         name,
         password,
     });
-    const exists = await usersRepository.existsByEmail(pool, normalizedEmail);
+    const exists = await userRepository.existsByEmail(pool, normalizedEmail);
     if (exists) {
         throw createAppError('An account with this email already exists.', 409);
     }
@@ -82,7 +82,7 @@ export const register = async (email, name, password) => {
             employeeId = createdEmployee?.id ?? null;
         }
 
-        await usersRepository.create(client, {
+        await userRepository.create(client, {
             id: undefined,
             name: sanitizedName,
             email: normalizedEmail,

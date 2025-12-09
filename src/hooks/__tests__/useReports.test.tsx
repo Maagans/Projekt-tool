@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vites
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useProjectReports, useReportKanban, reportKeys } from '../useReports';
-import type { ReportDetail } from '../../api/report';
+import type { ReportDetail } from '../../api/reportApi';
 
-vi.mock('../../api/report', () => {
+vi.mock('../../api/reportApi', () => {
   return {
     reportApi: {
       listReports: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../api/report', () => {
   };
 });
 
-const { reportApi } = await import('../../api/report');
+const { reportApi } = await import('../../api/reportApi');
 const mockedList = reportApi.listReports as MockedFunction<typeof reportApi.listReports>;
 const mockedUpdate = reportApi.updateReport as MockedFunction<typeof reportApi.updateReport>;
 

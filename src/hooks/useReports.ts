@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { reportApi, type ReportDetail, type ReportState, type ReportSummary } from '../api/report';
+import { reportApi, type ReportDetail, type ReportState, type ReportSummary } from '../api/reportApi';
 import type { KanbanTask, ListItem, MainTableRow, Risk } from '../types';
 
 export const reportKeys = {

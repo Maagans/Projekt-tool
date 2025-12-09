@@ -5,12 +5,12 @@ import {
   existsByEmail,
   countAdmins,
   create,
-} from "../../repositories/usersRepository.js";
+} from "../../repositories/userRepository.js";
 
 const query = vi.fn();
 const client = { query };
 
-describe("usersRepository", () => {
+describe("userRepository", () => {
   beforeEach(() => {
     query.mockReset();
   });

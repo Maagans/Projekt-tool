@@ -2,7 +2,7 @@ import {
   createEmployeeRecord,
   updateEmployeeRecord,
   deleteEmployeeRecord,
-} from '../services/employeesService.js';
+} from '../services/employeeService.js';
 
 export const createEmployee = async (req, res, next) => {
   try {

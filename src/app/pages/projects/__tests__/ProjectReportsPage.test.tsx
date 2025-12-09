@@ -71,8 +71,8 @@ vi.mock('../ProjectLayout', () => ({
 }));
 
 // API mocks
-vi.mock('../../../../api/plan', () => ({ __esModule: true, planApi: apiMocks.planApi }));
-vi.mock('../../../../api/report', () => ({ __esModule: true, reportApi: apiMocks.reportApi }));
+vi.mock('../../../../api/planApi', () => ({ __esModule: true, planApi: apiMocks.planApi }));
+vi.mock('../../../../api/reportApi', () => ({ __esModule: true, reportApi: apiMocks.reportApi }));
 vi.mock('../../../../api', () => ({ __esModule: true, fetchWithAuth: apiMocks.fetchWithAuth }));
 
 import { ProjectReportsPage } from '../ProjectReportsPage';

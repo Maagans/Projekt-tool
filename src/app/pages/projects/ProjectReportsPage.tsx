@@ -17,10 +17,10 @@ import { useProjectRisks as useCuratedProjectRisks } from '../../../hooks/usePro
 import { api } from '../../../api';
 import { useProjectRouteContext } from './ProjectLayout';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
-import { reportApi } from '../../../api/report';
-import { planApi } from '../../../api/plan';
+import { reportApi } from '../../../api/reportApi';
+import { planApi } from '../../../api/planApi';
 import { reportKeys, useProjectReports, useReportDetail, useReportKanban, useReportRiskMatrix, useReportStatusCards } from '../../../hooks/useReports';
-import type { ReportSummary } from '../../../api/report';
+import type { ReportSummary } from '../../../api/reportApi';
 
 
 const parseDateOnlyToUtcDate = (value?: string | null): Date | null => {

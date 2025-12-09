@@ -8,7 +8,7 @@ import {
   isProjectLeadForEmployee,
   listTimeEntriesForMember,
   upsertTimeEntry,
-} from "../../repositories/timeEntriesRepository.js";
+} from "../../repositories/timeEntryRepository.js";
 
 const normaliseHours = (value, fallback = 0) => {
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {

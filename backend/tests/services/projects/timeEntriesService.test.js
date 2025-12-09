@@ -8,7 +8,7 @@ import {
   isProjectLeadForEmployee,
   listTimeEntriesForMember,
   upsertTimeEntry,
-} from "../../../repositories/timeEntriesRepository.js";
+} from "../../../repositories/timeEntryRepository.js";
 
 vi.mock("../../../utils/transactions.js", () => ({
   withTransaction: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock("../../../services/workspaceService.js", () => ({
   ensureEmployeeLinkForUser: vi.fn(),
 }));
 
-vi.mock("../../../repositories/timeEntriesRepository.js", () => ({
+vi.mock("../../../repositories/timeEntryRepository.js", () => ({
   findMemberById: vi.fn(),
   isProjectLeadForEmployee: vi.fn(),
   getTimeEntryForWeek: vi.fn(),

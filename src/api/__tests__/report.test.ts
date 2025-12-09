@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, type MockedFunction } from 'vitest';
-import { reportApi } from '../report';
+import { reportApi } from '../reportApi';
 
 vi.mock('../../api', () => ({
   fetchWithAuth: vi.fn(),

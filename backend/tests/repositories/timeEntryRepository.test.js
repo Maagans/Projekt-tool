@@ -5,12 +5,12 @@ import {
   isProjectLeadForEmployee,
   listTimeEntriesForMember,
   upsertTimeEntry,
-} from "../../repositories/timeEntriesRepository.js";
+} from "../../repositories/timeEntryRepository.js";
 
 const query = vi.fn();
 const client = { query };
 
-describe("timeEntriesRepository", () => {
+describe("timeEntryRepository", () => {
   beforeEach(() => {
     query.mockReset();
   });

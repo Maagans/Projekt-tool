@@ -3,7 +3,7 @@ import {
   createEmployeeRecord,
   updateEmployeeRecord,
   deleteEmployeeRecord,
-} from "../../services/employeesService.js";
+} from "../../services/employeeService.js";
 import { withTransaction } from "../../utils/transactions.js";
 import { ensureEmployeeLinkForUser } from "../../services/workspaceService.js";
 
@@ -29,7 +29,7 @@ const createMockClient = (...responses) => {
   return { query };
 };
 
-describe("employeesService", () => {
+describe("employeeService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { planApi, type PlanSnapshot, type PlanPhase, type PlanMilestone, type PlanDeliverable } from '../../../api/plan';
+import { planApi, type PlanSnapshot, type PlanPhase, type PlanMilestone, type PlanDeliverable } from '../../../api/planApi';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import { MilestonePlan } from '../../../components/milestone-plan/MilestonePlan';
 import {
@@ -360,14 +360,14 @@ export const MilestonePlanPage: React.FC = () => {
       <MilestonePlan
         project={planProject}
         readOnly={!canManage}
-        onSavePhase={canManage ? handleSavePhase : async () => {}}
-        onDeletePhase={canManage ? handleDeletePhase : async () => {}}
-        onSaveMilestone={canManage ? handleSaveMilestone : async () => {}}
-        onDeleteMilestone={canManage ? handleDeleteMilestone : async () => {}}
-        onSaveDeliverable={canManage ? handleSaveDeliverable : async () => {}}
-        onDeleteDeliverable={canManage ? handleDeleteDeliverable : async () => {}}
-        onSaveWorkstream={canManage ? handleSaveWorkstream : () => {}}
-        onDeleteWorkstream={canManage ? handleDeleteWorkstream : () => {}}
+        onSavePhase={canManage ? handleSavePhase : async () => { }}
+        onDeletePhase={canManage ? handleDeletePhase : async () => { }}
+        onSaveMilestone={canManage ? handleSaveMilestone : async () => { }}
+        onDeleteMilestone={canManage ? handleDeleteMilestone : async () => { }}
+        onSaveDeliverable={canManage ? handleSaveDeliverable : async () => { }}
+        onDeleteDeliverable={canManage ? handleDeleteDeliverable : async () => { }}
+        onSaveWorkstream={canManage ? handleSaveWorkstream : () => { }}
+        onDeleteWorkstream={canManage ? handleDeleteWorkstream : () => { }}
         projectMembers={projectMembers}
       />
       {error && <div className="text-red-600 text-sm mt-3">{error}</div>}
