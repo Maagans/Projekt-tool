@@ -28,8 +28,14 @@ const baseEmployeeSchema = z.object({
   maxCapacityHoursWeek: numericCapacity.optional().default(0),
 });
 
+// For updates we allow partial + extra read-only fields from frontend
 const updateEmployeeSchema = baseEmployeeSchema.partial().extend({
   maxCapacityHoursWeek: baseEmployeeSchema.shape.maxCapacityHoursWeek.optional(),
+  // Read-only fields that frontend may send but we ignore
+  azureAdId: z.string().nullish(),
+  jobTitle: z.string().nullish(),
+  accountEnabled: z.boolean().nullish(),
+  syncedAt: z.string().nullish(),
 });
 
 export const validateCreateEmployee = (req, res, next) => {
