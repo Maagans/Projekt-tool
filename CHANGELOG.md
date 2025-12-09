@@ -4,6 +4,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.13.0] - 2025-12-09
+### Added
+- Password reset via email-link med Microsoft Graph API og dev-mock til lokal test (AUTH-001).
+- `auth_provider` felt på users-tabellen til hybrid auth (local/Azure AD) forberedt til SSO.
+- Nye frontend-sider: `ForgotPasswordPage` med Azure AD-bruger-detection og `ResetPasswordPage`.
+- "Glemt password?" link på login-siden.
+- Azure setup guide i `docs/azure-mail-setup-guide.md`.
+
+### Changed
+- Backend følger 3-layer arkitektur: controller, service, repository for password reset.
+- Config udvidet med Azure Mail og password reset miljøvariabler.
+
 ## [1.9.1] - 2025-12-02
 ### Added
 - Ny `usePmoWorkload` hook med tilhørende Vitest-suite der udtrækker og tester PMO-belastningslogikken separat fra UI-laget.
