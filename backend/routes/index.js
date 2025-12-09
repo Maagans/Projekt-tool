@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRoutes from "./authRoutes.js";
+import passwordResetRoutes from "./passwordResetRoutes.js";
 import setupRoutes from "./setupRoutes.js";
 import workspaceRoutes from "./workspaceRoutes.js";
 import projectsRoutes from "./projectsRoutes.js";
@@ -13,6 +14,7 @@ export const createApiRouter = ({ resourcesEnabled, riskAnalysisEnabled } = {}) 
   const router = Router();
 
   router.use("/", authRoutes);
+  router.use("/", passwordResetRoutes);
   router.use("/setup", setupRoutes);
   router.use("/workspace", workspaceRoutes);
   router.use("/projects", projectsRoutes);

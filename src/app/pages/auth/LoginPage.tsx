@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { BrandLogo } from '../../../components/branding/BrandLogo';
 
@@ -64,7 +65,12 @@ export const LoginPage = ({ onLogin, onNavigateToRegister }: LoginPageProps) => 
             </button>
           </div>
         </form>
-        <div className="mt-6 text-center text-sm text-slate-500">
+        <div className="mt-4 text-center">
+          <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+            Glemt password?
+          </Link>
+        </div>
+        <div className="mt-4 text-center text-sm text-slate-500">
           <p>
             Har du ikke en konto?{' '}
             <button onClick={onNavigateToRegister} className="text-blue-600 font-medium hover:underline">

@@ -1,5 +1,5 @@
 ﻿import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { StatusToast } from '../components/ui/StatusToast';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { useProjectManager } from '../hooks/useProjectManager';
@@ -32,6 +32,8 @@ const ProjectRisksPage = lazy(
 const MilestonePlanPage = lazy(
   () => import('./pages/projects/MilestonePlanPage').then((module) => ({ default: module.MilestonePlanPage })),
 );
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 
 const RouteLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -50,6 +52,7 @@ export const AppShell = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [showApiToast, setShowApiToast] = useState(false);
   const [authPage, setAuthPage] = useState<'login' | 'register'>('login');
+  const location = useLocation();
   const projectManager = useProjectManager();
   const {
     isAuthenticated,
@@ -82,6 +85,9 @@ export const AppShell = () => {
     }
   }, [acknowledgeLogoutRedirect, shouldRedirectToLogin]);
 
+  // Public routes that don't require authentication
+  const isPublicRoute = location.pathname === '/forgot-password' || location.pathname.startsWith('/reset-password');
+
   if (isBootstrapping) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -99,6 +105,19 @@ export const AppShell = () => {
 
   if (needsSetup) {
     return <FirstTimeSetupPage onSetupComplete={completeSetup} />;
+  }
+
+  // Handle public routes (forgot password, reset password)
+  if (!isAuthenticated && isPublicRoute) {
+    return (
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Suspense>
+    );
   }
 
   if (!isAuthenticated) {

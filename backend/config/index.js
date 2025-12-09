@@ -65,6 +65,14 @@ const configSchema = z.object({
   DEBUG_WORKSPACE: booleanSchema.default(false),
   TRUST_PROXY: trustProxySchema,
   PG_BACKUP_DIR: z.string().default("backups"),
+  // Azure / Microsoft Graph
+  AZURE_TENANT_ID: z.string().optional(),
+  AZURE_CLIENT_ID: z.string().optional(),
+  AZURE_CLIENT_SECRET: z.string().optional(),
+  AZURE_MAIL_FROM: z.string().email().optional(),
+  // Password Reset
+  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: z.coerce.number().int().positive().default(60),
+  FRONTEND_URL: z.string().optional(),
 });
 
 const parsed = configSchema.parse(process.env);
@@ -100,6 +108,16 @@ export const config = {
     email: parsed.ADMIN_EMAIL ?? null,
     password: parsed.ADMIN_PASSWORD ?? null,
     forceReset: parsed.ADMIN_FORCE_RESET ?? true,
+  },
+  azure: {
+    tenantId: parsed.AZURE_TENANT_ID ?? null,
+    clientId: parsed.AZURE_CLIENT_ID ?? null,
+    clientSecret: parsed.AZURE_CLIENT_SECRET ?? null,
+    mailFrom: parsed.AZURE_MAIL_FROM ?? null,
+  },
+  passwordReset: {
+    tokenExpiryMinutes: parsed.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+    frontendUrl: parsed.FRONTEND_URL ?? "http://localhost:5173",
   },
 };
 

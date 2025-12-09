@@ -9,7 +9,8 @@ export const findByEmail = async (client, email) => {
         email,
         role,
         password_hash,
-        employee_id::text AS employee_id
+        employee_id::text AS employee_id,
+        auth_provider
       FROM users
       WHERE LOWER(email) = LOWER($1)
       LIMIT 1
@@ -28,7 +29,8 @@ export const findById = async (client, userId) => {
         email,
         role,
         password_hash,
-        employee_id::text AS employee_id
+        employee_id::text AS employee_id,
+        auth_provider
       FROM users
       WHERE id = $1::uuid
       LIMIT 1
@@ -64,4 +66,18 @@ export const create = async (client, { id, name, email, passwordHash, role, empl
     [userId, name, email, passwordHash, role, employeeId ?? null],
   );
   return rows[0] ?? null;
+};
+
+/**
+ * Update password hash for a user.
+ * @param {import('pg').PoolClient} client
+ * @param {string} userId
+ * @param {string} passwordHash
+ */
+export const updatePasswordHash = async (client, userId, passwordHash) => {
+  const { rowCount } = await client.query(
+    `UPDATE users SET password_hash = $2 WHERE id = $1::uuid`,
+    [userId, passwordHash],
+  );
+  return rowCount > 0;
 };

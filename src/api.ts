@@ -159,13 +159,13 @@ type ResourceAnalyticsQueryParams = ResourceAnalyticsQuery;
 
 type ResourceAnalyticsApiResponse =
   | {
-      success: true;
-      data: ResourceAnalyticsPayload;
-    }
+    success: true;
+    data: ResourceAnalyticsPayload;
+  }
   | {
-      success: false;
-      message?: string;
-    }
+    success: false;
+    message?: string;
+  }
   | ResourceAnalyticsPayload;
 
 const normalizeStackEntries = (stack: unknown[]): ResourceAnalyticsStackEntry[] => {
@@ -241,14 +241,14 @@ const normalizeResourceAnalyticsPayload = (payload: ResourceAnalyticsPayload): R
 
   const projectBreakdown = Array.isArray(payload.projectBreakdown)
     ? payload.projectBreakdown
-        .map((item) => ({
-          projectId: typeof item.projectId === 'string' ? item.projectId : '',
-          projectName:
-            typeof item.projectName === 'string' && item.projectName.trim().length > 0 ? item.projectName : 'Ukendt projekt',
-          planned: Number(item.planned ?? 0),
-          actual: Number(item.actual ?? 0),
-        }))
-        .filter((item) => item.projectId)
+      .map((item) => ({
+        projectId: typeof item.projectId === 'string' ? item.projectId : '',
+        projectName:
+          typeof item.projectName === 'string' && item.projectName.trim().length > 0 ? item.projectName : 'Ukendt projekt',
+        planned: Number(item.planned ?? 0),
+        actual: Number(item.actual ?? 0),
+      }))
+      .filter((item) => item.projectId)
     : [];
 
   const projectStackPlan = normalizeStackEntries((payload as { projectStackPlan?: unknown[] }).projectStackPlan ?? []);
@@ -291,17 +291,17 @@ const normalizeResourceAnalyticsPayload = (payload: ResourceAnalyticsPayload): R
 export const api = {
   // NEW: Check if the application needs initial setup
   async checkSetupStatus(): Promise<{ needsSetup: boolean }> {
-      // This is an unauthenticated endpoint.
-      const response = await fetch(resolveUrl('/api/setup/status'), { credentials: 'include' });
-      if (!response.ok) {
-          throw new Error('Could not check setup status.');
-      }
-      return response.json();
+    // This is an unauthenticated endpoint.
+    const response = await fetch(resolveUrl('/api/setup/status'), { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error('Could not check setup status.');
+    }
+    return response.json();
   },
 
   // NEW: Create the first administrator user
   async createFirstUser(name: string, email: string, password: string): Promise<{ success: boolean; message: string }> {
-     try {
+    try {
       // This is an unauthenticated endpoint.
       const response = await fetch(resolveUrl('/api/setup/create-first-user'), {
         method: 'POST',
@@ -365,12 +365,12 @@ export const api = {
   async logout(): Promise<void> {
     // It's good practice to inform the backend about logout to invalidate the session/token.
     try {
-        await fetchWithAuth('/api/logout', { method: 'POST' });
+      await fetchWithAuth('/api/logout', { method: 'POST' });
     } catch (error: unknown) {
-        console.warn("Logout API call failed, but logging out on client-side anyway.", error);
+      console.warn("Logout API call failed, but logging out on client-side anyway.", error);
     } finally {
-        // Always clear local storage regardless of API call success.
-        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      // Always clear local storage regardless of API call success.
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     }
   },
 
@@ -500,8 +500,8 @@ export const api = {
 
   async updateUserRole(userId: string, role: UserRole): Promise<{ success: boolean }> {
     await fetchWithAuth(`/api/users/${userId}/role`, {
-        method: 'PUT',
-        body: JSON.stringify({ role }),
+      method: 'PUT',
+      body: JSON.stringify({ role }),
     });
     return { success: true };
   },
@@ -594,6 +594,42 @@ export const api = {
       body: JSON.stringify(payload),
     });
     return (response as { snapshot: ProjectRisk }).snapshot;
+  },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; isAzureAdUser?: boolean; message?: string }> {
+    try {
+      const response = await fetch(resolveUrl('/api/forgot-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || `Request failed with status ${response.status}`);
+      }
+      return data;
+    } catch (error: unknown) {
+      return { success: false, message: toErrorMessage(error) };
+    }
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch(resolveUrl('/api/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || `Request failed with status ${response.status}`);
+      }
+      return data;
+    } catch (error: unknown) {
+      return { success: false, message: toErrorMessage(error) };
+    }
   },
 };
 
