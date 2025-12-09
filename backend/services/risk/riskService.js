@@ -2,6 +2,7 @@ import pool from "../../db.js";
 import { createAppError } from "../../utils/errors.js";
 import { withTransaction } from "../../utils/transactions.js";
 import { ensureEmployeeLinkForUser } from "../workspaceService.js";
+import { isAdmin, isProjectLeader } from "../../utils/permissions.js";
 import { buildCategoryMeta, calculateRiskScore } from "./riskSchema.js";
 import {
   archiveProjectRisk as archiveProjectRiskRepo,
@@ -31,10 +32,10 @@ const mapRiskRow = (row) => {
 
   const owner = row.owner_id
     ? {
-        id: row.owner_id,
-        name: row.owner_name ?? null,
-        email: row.owner_email ?? null,
-      }
+      id: row.owner_id,
+      name: row.owner_name ?? null,
+      email: row.owner_email ?? null,
+    }
     : null;
 
   const normalizedDue = row.due_date ? normalizeDate(row.due_date) : null;
@@ -82,7 +83,7 @@ const assertReadAccess = async (client, projectId, user) => {
   if (!user) {
     throw createAppError("Authentication required.", 401);
   }
-  if (user.role === "Administrator") {
+  if (isAdmin(user)) {
     return;
   }
   const employeeId = user.employeeId ?? null;
@@ -99,10 +100,10 @@ const assertEditAccess = async (client, projectId, user) => {
   if (!user) {
     throw createAppError("Authentication required.", 401);
   }
-  if (user.role === "Administrator") {
+  if (isAdmin(user)) {
     return;
   }
-  if (user.role !== "Projektleder") {
+  if (!isProjectLeader(user)) {
     throw createAppError("Forbidden: Insufficient permissions.", 403);
   }
   const employeeId = user.employeeId ?? null;

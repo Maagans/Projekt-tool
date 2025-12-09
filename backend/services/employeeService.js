@@ -4,6 +4,7 @@ import { withTransaction } from "../utils/transactions.js";
 import { normalizeEmail, toNonNegativeCapacity } from "../utils/helpers.js";
 import { ensureEmployeeLinkForUser, resolveDepartmentLocation } from "./workspaceService.js";
 import * as employeeRepository from "../repositories/employeeRepository.js";
+import { isAdmin, isProjectLeader } from "../utils/permissions.js";
 
 const mapEmployeeRow = (row) => {
   const resolved = resolveDepartmentLocation(
@@ -36,7 +37,7 @@ const assertAuthenticated = (user) => {
 
 const assertAdmin = (user) => {
   assertAuthenticated(user);
-  if (user.role !== "Administrator") {
+  if (!isAdmin(user)) {
     throw createAppError("Forbidden: Administrator access required.", 403);
   }
 };
@@ -53,10 +54,10 @@ const assertProjectLeadAccess = async (client, user, employeeId) => {
   if (!user) {
     throw createAppError("Unauthorized", 401);
   }
-  if (user.role === "Administrator") {
+  if (isAdmin(user)) {
     return true;
   }
-  if (user.role !== "Projektleder") {
+  if (!isProjectLeader(user)) {
     throw createAppError("Forbidden: Insufficient permissions.", 403);
   }
   if (!user.employeeId) {

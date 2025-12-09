@@ -4,6 +4,7 @@ import { classifyReportIdentifier, ensureUuid } from "../utils/helpers.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
 import { withTransaction } from "../utils/transactions.js";
 import { assertRiskScale, calculateRiskScore } from "./risk/riskSchema.js";
+import { isAdmin, isProjectLeader } from "../utils/permissions.js";
 
 const fetchReportContext = async (client, reportId) => {
   const { value, sqlType } = classifyReportIdentifier(reportId);
@@ -23,10 +24,10 @@ const assertProjectEditAccess = async (client, projectId, user) => {
   if (!user) {
     throw createAppError("Authentication required.", 401);
   }
-  if (user.role === "Administrator") {
+  if (isAdmin(user)) {
     return;
   }
-  if (user.role !== "Projektleder") {
+  if (!isProjectLeader(user)) {
     throw createAppError("Forbidden: Insufficient permissions.", 403);
   }
   const employeeId = user.employeeId ?? null;

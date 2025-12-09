@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { createAppError } from "../utils/errors.js";
 import { withTransaction } from "../utils/transactions.js";
 import { ensureEmployeeLinkForUser } from "./workspaceService.js";
+import { isAdmin, isProjectLeader } from "../utils/permissions.js";
 import {
   getReportsByProjectId,
   getReportById,
@@ -24,7 +25,7 @@ const assertAuthenticated = (user) => {
 
 const assertProjectReadAccess = async (client, projectId, user) => {
   assertAuthenticated(user);
-  if (user.role === "Administrator") return;
+  if (isAdmin(user)) return;
   const employeeId = user.employeeId ?? null;
   if (!employeeId) {
     throw createAppError("Forbidden: Missing employee link.", 403);
@@ -45,8 +46,8 @@ const assertProjectReadAccess = async (client, projectId, user) => {
 
 const assertProjectEditAccess = async (client, projectId, user) => {
   assertAuthenticated(user);
-  if (user.role === "Administrator") return;
-  if (user.role !== "Projektleder") {
+  if (isAdmin(user)) return;
+  if (!isProjectLeader(user)) {
     throw createAppError("Forbidden: Insufficient permissions.", 403);
   }
   const employeeId = user.employeeId ?? null;

@@ -3,6 +3,8 @@
  * Extracted from workspaceService.js - handles permission checks and filtering
  */
 
+import { isPMO } from '../../utils/permissions.js';
+
 /**
  * Apply workspace permissions based on user role
  * Filters projects the user can see and sets canEdit/canLogTime flags
@@ -12,13 +14,13 @@ export const applyWorkspacePermissions = (workspace, user) => {
         return workspace;
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'pmo';
+    const userIsPMO = isPMO(user);
     const userEmployeeId = user.employeeId ?? null;
 
     const filteredProjects = workspace.projects
         .filter((project) => {
             // Admins and PMOs see all projects
-            if (isAdmin) return true;
+            if (userIsPMO) return true;
             // Regular users only see projects they're a member of
             return project.projectMembers.some((m) => m.employeeId === userEmployeeId);
         })
@@ -31,8 +33,8 @@ export const applyWorkspacePermissions = (workspace, user) => {
             return {
                 ...project,
                 permissions: {
-                    canEdit: isAdmin || isLead,
-                    canLogTime: isAdmin || isMember,
+                    canEdit: userIsPMO || isLead,
+                    canLogTime: userIsPMO || isMember,
                 },
             };
         });
@@ -51,10 +53,10 @@ export const getUserEditableProjects = (workspace, user) => {
         return new Set();
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'pmo';
+    const userIsPMO = isPMO(user);
     const userEmployeeId = user.employeeId ?? null;
 
-    if (isAdmin) {
+    if (userIsPMO) {
         return new Set(workspace.projects.map((p) => p.id));
     }
 
@@ -86,8 +88,7 @@ export const canUserLogTimeOnProject = (workspace, user, projectId) => {
         return false;
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'pmo';
-    if (isAdmin) return true;
+    if (isPMO(user)) return true;
 
     const userEmployeeId = user.employeeId ?? null;
     const project = workspace.projects.find((p) => p.id === projectId);
@@ -95,3 +96,4 @@ export const canUserLogTimeOnProject = (workspace, user, projectId) => {
 
     return project.projectMembers.some((m) => m.employeeId === userEmployeeId);
 };
+

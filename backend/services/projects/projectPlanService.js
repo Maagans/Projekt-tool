@@ -1,6 +1,7 @@
 import pool from '../../db.js';
 import { createAppError } from '../../utils/errors.js';
 import { ensureEmployeeLinkForUser } from '../workspaceService.js';
+import { isAdmin } from '../../utils/permissions.js';
 import {
   listPlanByProject,
   upsertPhase,
@@ -34,7 +35,7 @@ const ensureProjectExists = async (client, projectId) => {
 
 const assertProjectReadAccess = async (client, projectId, user) => {
   assertAuthenticated(user);
-  if (user.role === 'Administrator') return;
+  if (isAdmin(user)) return;
   const employeeId = user.employeeId ?? null;
   if (!employeeId) {
     throw createAppError('Forbidden: Missing employee link.', 403);
