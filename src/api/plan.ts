@@ -62,7 +62,7 @@ export type PlanSnapshot = z.infer<typeof snapshotSchema>;
 
 export const planApi = {
   async getSnapshot(projectId: string): Promise<PlanSnapshot> {
-    const res = await fetchWithAuth(`/api/projects/${projectId}/plan/snapshot`);
+    const res = await fetchWithAuth(`/api/projects/${projectId}/plan/snapshot`) as { snapshot?: unknown };
     const parsed = snapshotSchema.safeParse(res.snapshot ?? res);
     if (!parsed.success) {
       throw new Error('Invalid snapshot response');
