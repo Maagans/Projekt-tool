@@ -10,6 +10,16 @@ MVP 1.0 fokuserer på 3 områder: Workspace Foundation, Forbedret RBAC, og Proje
 
 ---
 
+## Design Decisions (Resolved)
+
+| Spørgsmål | Beslutning | Begrundelse |
+|-----------|------------|-------------|
+| **Admin scope** | Workspace-scoped | Forenkler repository logic - ingen `if(admin) fjern_filter`. Admin er "Gud i sit rum". |
+| **Project leader** | Én primær `leader_id` | O(1) check i `canEditProject()` - ingen join på project_members. |
+| **Workspace strategi** | Strict (database-level) | Kræver workspace_id i alle queries - crasher hellere end lækker data. |
+
+---
+
 ## Phase 1: Workspace Foundation (1.5-2 uger)
 
 ### 1.1 Workspace Table & CRUD
@@ -55,6 +65,7 @@ backend/tests/services/authService.test.js
 
 backend/tests/middleware/auth.test.js
 - req.user contains workspaceId from token
+- JWT without workspaceId is rejected (NEW: Gemini feedback)
 ```
 
 **Implementation:**
@@ -62,6 +73,7 @@ backend/tests/middleware/auth.test.js
 - [ ] Update `authService.login()` → include workspaceId in response
 - [ ] Update JWT payload → add workspaceId
 - [ ] Update auth middleware → set req.user.workspaceId
+- [ ] **Frontend:** Update AuthProvider to store workspaceId from login response
 
 ### 1.4 Data Isolation
 
@@ -70,7 +82,7 @@ backend/tests/middleware/auth.test.js
 backend/tests/integration/workspaceIsolation.test.js
 - user in Workspace A cannot see projects from Workspace B
 - user in Workspace A cannot see employees from Workspace B
-- admin sees all (or admin is workspace-scoped too?)
+- admin in Workspace A cannot see Workspace B data (admin is scoped)
 ```
 
 **Implementation:**
@@ -89,7 +101,7 @@ backend/tests/utils/permissions.test.js
 - isPMO returns true for PMO role
 - isPMO returns false for regular User
 - PMO can view all projects in workspace
-- PMO can edit project settings (not content?)
+- PMO cannot edit projects (read-only)
 ```
 
 **Implementation:**
@@ -106,7 +118,7 @@ backend/tests/repositories/projectRepository.test.js
 - getProject returns leader info
 - updateLeader updates leaderId
 
-backend/tests/services/projectsService.test.js  
+backend/tests/services/projectsService.test.js (mock repository)
 - isProjectLeader correctly identifies leader
 ```
 
@@ -122,7 +134,7 @@ backend/tests/services/projectsService.test.js
 backend/tests/utils/permissions.test.js
 - PL can read all projects in workspace
 - PL can only edit own projects (where leaderId = userId)
-- Admin can edit all projects
+- Admin can edit all projects in own workspace
 ```
 
 **Implementation:**
@@ -163,6 +175,19 @@ src/app/pages/projects/__tests__/ProjectListPage.test.tsx
 - [ ] UI: two sections with headers
 - [ ] Highlight current user's projects
 
+### 3.3 Error Handling (NEW: Gemini feedback)
+
+**Tests først:**
+```
+src/app/pages/projects/__tests__/ProjectListPage.test.tsx
+- shows friendly error message on 403 Forbidden
+- shows friendly error message on 500 Server Error
+```
+
+**Implementation:**
+- [ ] Add error boundary/state for RBAC rejections
+- [ ] Display user-friendly "Ingen adgang" message
+
 ---
 
 ## Test Coverage Summary
@@ -170,10 +195,10 @@ src/app/pages/projects/__tests__/ProjectListPage.test.tsx
 | Phase | New Tests | Est. Time |
 |-------|-----------|-----------|
 | 1.1-1.2 | 6 tests | 2 days |
-| 1.3-1.4 | 8 tests | 2 days |
+| 1.3-1.4 | 10 tests | 2 days |
 | 2.1-2.3 | 10 tests | 3 days |
-| 3.1-3.2 | 6 tests | 2 days |
-| **Total** | **~30 tests** | **9 days** |
+| 3.1-3.3 | 8 tests | 2 days |
+| **Total** | **~34 tests** | **9 days** |
 
 ---
 
@@ -188,11 +213,11 @@ src/app/pages/projects/__tests__/ProjectListPage.test.tsx
 
 ---
 
-## Decision Points
+## Notes from Review
 
-> [!IMPORTANT]
-> Beslutninger påkrævet før implementation:
-
-1. **Admin scope:** Skal admin se alt på tværs af workspaces, eller kun sin egen?
-2. **PMO permissions:** Skal PMO kunne redigere projekter, eller kun se?
-3. **Project leader:** Kan et projekt have flere ledere, eller kun én?
+> [!TIP]
+> **Gemini Review Highlights:**
+> - Service tests should mock repository layer (fast tests, no DB)
+> - Middleware must reject JWT without workspaceId
+> - Frontend AuthProvider needs to store workspaceId
+> - Location tables in MVP 1.5 need workspace_id too
