@@ -23,6 +23,7 @@ const TABLES_TO_RESET = [
   'report_risk_snapshots',
   'report_main_table_rows',
   'report_challenge_items',
+  'report_next_step_items',
   'report_status_items',
   'reports',
   'project_deliverable_checklist',
@@ -52,12 +53,42 @@ const truncateExistingTables = async (client, tableNames) => {
   }
 };
 
+const workspaces = [
+  {
+    key: 'sekretariatet',
+    name: 'Sekretariatet',
+    type: 'sekretariat',
+    config: { timeMode: 'monthly', defaultPlanningHorizonMonths: 12 },
+  },
+  {
+    key: 'behandling',
+    name: 'Behandlingsstederne',
+    type: 'behandling',
+    config: { timeMode: 'weekly', defaultPlanningHorizonMonths: 8 },
+  },
+];
+
+const organizations = [
+  { key: 'sekretariatet', name: 'Sekretariatet', code: 'SEK' },
+  { key: 'sano', name: 'Sano', code: 'SANO' },
+  { key: 'dgh', name: 'Dansk Gigthospital', code: 'DGH' },
+];
+
+const locations = [
+  { key: 'sano-aarhus', organizationKey: 'sano', name: 'Aarhus', code: 'AAR' },
+  { key: 'sano-middelfart', organizationKey: 'sano', name: 'Middelfart', code: 'MID' },
+  { key: 'sano-skaelskoer', organizationKey: 'sano', name: 'Skælskør', code: 'SKA' },
+];
+
 const employees = [
   {
     key: 'maja-holm',
     name: 'Maja Holm',
     email: 'maja.holm@demo.projekt',
     location: 'Sekretariatet',
+    workspaceKey: 'sekretariatet',
+    organizationKey: 'sekretariatet',
+    locationKey: null,
     maxCapacity: 37,
     department: 'Digitalisering & IT',
     jobTitle: 'Senior Project Manager',
@@ -67,10 +98,13 @@ const employees = [
     key: 'sofia-birk',
     name: 'Sofia Birk',
     email: 'sofia.birk@demo.projekt',
-    location: 'Sekretariatet',
+    location: 'Sano Aarhus',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-aarhus',
     maxCapacity: 35,
-    department: 'Digitalisering & IT',
-    jobTitle: 'Program Manager',
+    department: 'Connected Care',
+    jobTitle: 'Programchef for telemedicin',
     accountEnabled: true,
   },
   {
@@ -78,6 +112,9 @@ const employees = [
     name: 'Rasmus Lund',
     email: 'rasmus.lund@demo.projekt',
     location: 'Sano Aarhus',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-aarhus',
     maxCapacity: 37,
     department: 'Data & Insights',
     jobTitle: 'Lead Data Engineer',
@@ -88,36 +125,48 @@ const employees = [
     name: 'Linea Skov',
     email: 'linea.skov@demo.projekt',
     location: 'Sano Aarhus',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-aarhus',
     maxCapacity: 30,
     department: 'Innovation Lab',
-    jobTitle: 'Scrum Master',
+    jobTitle: 'Projektleder for kliniske flows',
     accountEnabled: true,
   },
   {
     key: 'ahmed-yasin',
     name: 'Ahmed Yasin',
     email: 'ahmed.yasin@demo.projekt',
-    location: 'Sano Skælskør',
+    location: 'Sano Sk?lsk?r',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-skaelskoer',
     maxCapacity: 37,
     department: 'Innovation Lab',
-    jobTitle: 'Backend Developer',
+    jobTitle: 'Integrationsarkitekt',
     accountEnabled: true,
   },
   {
     key: 'maria-jorgensen',
     name: 'Maria Jorgensen',
     email: 'maria.jorgensen@demo.projekt',
-    location: 'Sano Skælskør',
+    location: 'Sano Sk?lsk?r',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-skaelskoer',
     maxCapacity: 28,
-    department: 'Customer Experience',
-    jobTitle: 'UX Designer',
+    department: 'Patientoplevelser',
+    jobTitle: 'UX Lead',
     accountEnabled: true,
   },
   {
     key: 'frederik-hald',
     name: 'Frederik Hald',
     email: 'frederik.hald@demo.projekt',
-    location: 'Sano Middelfart',
+    location: 'Sekretariatet',
+    workspaceKey: 'sekretariatet',
+    organizationKey: 'sekretariatet',
+    locationKey: null,
     maxCapacity: 37,
     department: 'Finance Transformation',
     jobTitle: 'Automation Specialist',
@@ -128,6 +177,9 @@ const employees = [
     name: 'Clara Petersen',
     email: 'clara.petersen@demo.projekt',
     location: 'Sano Middelfart',
+    workspaceKey: 'behandling',
+    organizationKey: 'sano',
+    locationKey: 'sano-middelfart',
     maxCapacity: 30,
     department: 'Facility Services',
     jobTitle: 'IoT Analyst',
@@ -138,6 +190,9 @@ const employees = [
     name: 'Julie Sand',
     email: 'julie.sand@demo.projekt',
     location: 'Dansk Gigthospital',
+    workspaceKey: 'behandling',
+    organizationKey: 'dgh',
+    locationKey: null,
     maxCapacity: 24,
     department: 'PMO',
     jobTitle: 'Change Manager',
@@ -148,12 +203,43 @@ const employees = [
     name: 'Nina Iversen',
     email: 'nina.iversen@demo.projekt',
     location: 'Sekretariatet',
+    workspaceKey: 'sekretariatet',
+    organizationKey: 'sekretariatet',
+    locationKey: null,
     maxCapacity: 34,
     department: 'Finance Transformation',
     jobTitle: 'QA Lead',
     accountEnabled: true,
   },
+  {
+    key: 'henrik-vestergaard',
+    name: 'Henrik Vestergaard',
+    email: 'henrik.vestergaard@demo.projekt',
+    location: 'Sekretariatet',
+    workspaceKey: 'sekretariatet',
+    organizationKey: 'sekretariatet',
+    locationKey: null,
+    maxCapacity: 32,
+    department: 'Procesforbedring',
+    jobTitle: 'Portef?ljekonsulent',
+    accountEnabled: true,
+  },
+  {
+    key: 'emma-kristensen',
+    name: 'Emma Kristensen',
+    email: 'emma.kristensen@demo.projekt',
+    location: 'Sekretariatet',
+    workspaceKey: 'sekretariatet',
+    organizationKey: 'sekretariatet',
+    locationKey: null,
+    maxCapacity: 30,
+    department: '?konomi & Portef?lje',
+    jobTitle: 'Business Controller',
+    accountEnabled: true,
+  },
 ];
+
+const employeeLookup = new Map(employees.map((employee) => [employee.key, employee]));
 
 const demoUsers = [
   {
@@ -178,66 +264,162 @@ const demoUsers = [
 
 const projects = [
   {
-    key: 'digital-hr-platform',
-    name: 'Digital HR Platform',
-    startDate: '2025-07-01',
-    endDate: '2026-04-30',
-    status: 'active',
-    description:
-      'Implementerer en samlet HR selvbetjeningsplatform med integration til lon, vagtplaner og kompetenceudvikling.',
-  },
-  {
-    key: 'cloud-data-warehouse',
-    name: 'Cloud Data Warehouse Modernisering',
-    startDate: '2025-06-01',
-    endDate: '2026-03-31',
-    status: 'active',
-    description:
-      'Migrerer virksomhedens BI setup til en moderne cloud data warehouse platform med realtime datastreams.',
-  },
-  {
-    key: 'citizen-engagement-app',
-    name: 'Citizen Engagement App',
+    key: 'rehab-tracker-platform',
+    name: 'Rehab Tracker Platform',
+    workspaceKey: 'behandling',
     startDate: '2025-08-01',
-    endDate: '2026-05-31',
+    endDate: '2026-06-30',
     status: 'active',
     description:
-      'Udvikler en brugervenlig app til borgere med selvbetjening, push-notifikationer og digitale kvitteringer.',
+      'Udvikler f?lles tele-rehabiliteringsplatform med video, sensordata og patientkommunikation til alle behandlingssteder.',
+    projectGoal:
+      'Give terapeuter ?t cockpit til planl?gning, opf?lgning og monitorering s? rehabiliteringsforl?b forkortes og kvaliteten dokumenteres.',
+    businessCase:
+      'Reducerer manuelle registreringer med 45 procent og frig?r 8 FTE pa ?rligt samt h?jere patienttilfredshed.',
+    totalBudget: 3800000,
+    heroImageUrl: 'https://picsum.photos/seed/rehab-tracker/1200/400',
+  },
+  {
+    key: 'clinical-ai-triage',
+    name: 'Clinical AI Triage',
+    workspaceKey: 'behandling',
+    startDate: '2025-05-15',
+    endDate: '2026-03-01',
+    status: 'active',
+    description:
+      'Implementerer AI-baseret triagering p? akutmodtagelserne s? klinikere f?r st?ttet beslutning ved f?rste kontakt.',
+    projectGoal:
+      'Automatisere fordelingen af patienter til behandlingsspor baseret p? historiske data og sensorinput.',
+    businessCase:
+      'Forventet reduktion af ventetid med 18 procent og f?rre omvisiteringer gennem bedre datadrevet triage.',
+    totalBudget: 2400000,
+    heroImageUrl: 'https://picsum.photos/seed/clinical-ai/1200/400',
+  },
+  {
+    key: 'shared-services-automation',
+    name: 'Shared Services Automation',
+    workspaceKey: 'sekretariatet',
+    startDate: '2025-04-01',
+    endDate: '2026-01-31',
+    status: 'active',
+    description:
+      'Automatiserer budgetopf?lgning, kontraktdata og PMO-rapportering i Sekretariatets f?lles services.',
+    projectGoal:
+      'Digitalisere portef?ljestyring s? teams kan opdatere status ?n gang og data genbruges i alle ledelsesrapporter.',
+    businessCase:
+      'Sparer 1.600 manuelle timer ?rligt og giver hurtigere forecast til direktionen.',
+    totalBudget: 1900000,
+    heroImageUrl: 'https://picsum.photos/seed/shared-services/1200/400',
   },
 ];
 
 const projectMembers = [
-  { key: 'digital-hr-platform.maja-holm', projectKey: 'digital-hr-platform', employeeKey: 'maja-holm', role: 'Projektleder', group: 'projektgruppe', isLead: true },
-  { key: 'digital-hr-platform.linea-skov', projectKey: 'digital-hr-platform', employeeKey: 'linea-skov', role: 'Scrum Master', group: 'projektgruppe', isLead: false },
-  { key: 'digital-hr-platform.ahmed-yasin', projectKey: 'digital-hr-platform', employeeKey: 'ahmed-yasin', role: 'Backend Udvikler', group: 'projektgruppe', isLead: false },
-  { key: 'digital-hr-platform.maria-jorgensen', projectKey: 'digital-hr-platform', employeeKey: 'maria-jorgensen', role: 'UX Designer', group: 'projektgruppe', isLead: false },
-  { key: 'digital-hr-platform.julie-sand', projectKey: 'digital-hr-platform', employeeKey: 'julie-sand', role: 'Forandringsleder', group: 'styregruppe', isLead: false },
+  { key: 'rehab-tracker-platform.sofia-birk', projectKey: 'rehab-tracker-platform', employeeKey: 'sofia-birk', role: 'Projektleder', group: 'projektgruppe', isLead: true },
+  { key: 'rehab-tracker-platform.rasmus-lund', projectKey: 'rehab-tracker-platform', employeeKey: 'rasmus-lund', role: 'Data Lead', group: 'projektgruppe', isLead: false },
+  { key: 'rehab-tracker-platform.linea-skov', projectKey: 'rehab-tracker-platform', employeeKey: 'linea-skov', role: 'Scrum Master', group: 'projektgruppe', isLead: false },
+  { key: 'rehab-tracker-platform.ahmed-yasin', projectKey: 'rehab-tracker-platform', employeeKey: 'ahmed-yasin', role: 'Integrationsarkitekt', group: 'projektgruppe', isLead: false },
+  { key: 'rehab-tracker-platform.maria-jorgensen', projectKey: 'rehab-tracker-platform', employeeKey: 'maria-jorgensen', role: 'UX Lead', group: 'projektgruppe', isLead: false },
+  { key: 'rehab-tracker-platform.clara-petersen', projectKey: 'rehab-tracker-platform', employeeKey: 'clara-petersen', role: 'IoT Analyst', group: 'projektgruppe', isLead: false },
+  { key: 'rehab-tracker-platform.julie-sand', projectKey: 'rehab-tracker-platform', employeeKey: 'julie-sand', role: 'Direktionsrepr?sentant', group: 'styregruppe', isLead: false },
 
-  { key: 'cloud-data-warehouse.sofia-birk', projectKey: 'cloud-data-warehouse', employeeKey: 'sofia-birk', role: 'Projektleder', group: 'projektgruppe', isLead: true },
-  { key: 'cloud-data-warehouse.rasmus-lund', projectKey: 'cloud-data-warehouse', employeeKey: 'rasmus-lund', role: 'Lead Data Engineer', group: 'projektgruppe', isLead: false },
-  { key: 'cloud-data-warehouse.frederik-hald', projectKey: 'cloud-data-warehouse', employeeKey: 'frederik-hald', role: 'BI Specialist', group: 'projektgruppe', isLead: false },
-  { key: 'cloud-data-warehouse.nina-iversen', projectKey: 'cloud-data-warehouse', employeeKey: 'nina-iversen', role: 'QA Lead', group: 'projektgruppe', isLead: false },
+  { key: 'clinical-ai-triage.linea-skov', projectKey: 'clinical-ai-triage', employeeKey: 'linea-skov', role: 'Projektleder', group: 'projektgruppe', isLead: true },
+  { key: 'clinical-ai-triage.rasmus-lund', projectKey: 'clinical-ai-triage', employeeKey: 'rasmus-lund', role: 'Lead Data Scientist', group: 'projektgruppe', isLead: false },
+  { key: 'clinical-ai-triage.ahmed-yasin', projectKey: 'clinical-ai-triage', employeeKey: 'ahmed-yasin', role: 'Integration Lead', group: 'projektgruppe', isLead: false },
+  { key: 'clinical-ai-triage.clara-petersen', projectKey: 'clinical-ai-triage', employeeKey: 'clara-petersen', role: 'Data Analyst', group: 'projektgruppe', isLead: false },
+  { key: 'clinical-ai-triage.maria-jorgensen', projectKey: 'clinical-ai-triage', employeeKey: 'maria-jorgensen', role: 'UX Researcher', group: 'projektgruppe', isLead: false },
+  { key: 'clinical-ai-triage.julie-sand', projectKey: 'clinical-ai-triage', employeeKey: 'julie-sand', role: 'Forandringsleder', group: 'styregruppe', isLead: false },
+  { key: 'clinical-ai-triage.sofia-birk', projectKey: 'clinical-ai-triage', employeeKey: 'sofia-birk', role: 'Programchef', group: 'styregruppe', isLead: false },
 
-  { key: 'citizen-engagement-app.maja-holm', projectKey: 'citizen-engagement-app', employeeKey: 'maja-holm', role: 'Projektleder', group: 'projektgruppe', isLead: true },
-  { key: 'citizen-engagement-app.maria-jorgensen', projectKey: 'citizen-engagement-app', employeeKey: 'maria-jorgensen', role: 'UX Lead', group: 'projektgruppe', isLead: false },
-  { key: 'citizen-engagement-app.rasmus-lund', projectKey: 'citizen-engagement-app', employeeKey: 'rasmus-lund', role: 'Integrationsarkitekt', group: 'projektgruppe', isLead: false },
-  { key: 'citizen-engagement-app.clara-petersen', projectKey: 'citizen-engagement-app', employeeKey: 'clara-petersen', role: 'Data Analyst', group: 'projektgruppe', isLead: false },
-  { key: 'citizen-engagement-app.ahmed-yasin', projectKey: 'citizen-engagement-app', employeeKey: 'ahmed-yasin', role: 'Mobile Udvikler', group: 'projektgruppe', isLead: false },
-  { key: 'citizen-engagement-app.linea-skov', projectKey: 'citizen-engagement-app', employeeKey: 'linea-skov', role: 'Scrum Master', group: 'projektgruppe', isLead: false },
-  { key: 'citizen-engagement-app.julie-sand', projectKey: 'citizen-engagement-app', employeeKey: 'julie-sand', role: 'Forandringsleder', group: 'styregruppe', isLead: false },
+  { key: 'shared-services-automation.maja-holm', projectKey: 'shared-services-automation', employeeKey: 'maja-holm', role: 'Programleder', group: 'projektgruppe', isLead: true },
+  { key: 'shared-services-automation.frederik-hald', projectKey: 'shared-services-automation', employeeKey: 'frederik-hald', role: 'Automationsspecialist', group: 'projektgruppe', isLead: false },
+  { key: 'shared-services-automation.nina-iversen', projectKey: 'shared-services-automation', employeeKey: 'nina-iversen', role: 'QA Lead', group: 'projektgruppe', isLead: false },
+  { key: 'shared-services-automation.henrik-vestergaard', projectKey: 'shared-services-automation', employeeKey: 'henrik-vestergaard', role: 'Portef?ljekonsulent', group: 'projektgruppe', isLead: false },
+  { key: 'shared-services-automation.emma-kristensen', projectKey: 'shared-services-automation', employeeKey: 'emma-kristensen', role: 'Business Controller', group: 'projektgruppe', isLead: false },
 ];
 
 const timeEntries = [
   {
-    memberKey: 'digital-hr-platform.maja-holm',
+    memberKey: 'rehab-tracker-platform.sofia-birk',
     weeks: [
-      { key: '2025-W45', planned: 22, actual: 21 },
       { key: '2025-W46', planned: 20, actual: 19 },
-      { key: '2025-W47', planned: 18, actual: 18 },
+      { key: '2025-W47', planned: 22, actual: 21 },
+      { key: '2025-W48', planned: 20, actual: 20 },
     ],
   },
   {
-    memberKey: 'digital-hr-platform.linea-skov',
+    memberKey: 'rehab-tracker-platform.rasmus-lund',
+    weeks: [
+      { key: '2025-W46', planned: 32, actual: 31 },
+      { key: '2025-W47', planned: 32, actual: 32 },
+      { key: '2025-W48', planned: 30, actual: 29 },
+    ],
+  },
+  {
+    memberKey: 'rehab-tracker-platform.linea-skov',
+    weeks: [
+      { key: '2025-W46', planned: 18, actual: 18 },
+      { key: '2025-W47', planned: 18, actual: 18 },
+      { key: '2025-W48', planned: 18, actual: 17 },
+    ],
+  },
+  {
+    memberKey: 'rehab-tracker-platform.ahmed-yasin',
+    weeks: [
+      { key: '2025-W46', planned: 32, actual: 31 },
+      { key: '2025-W47', planned: 32, actual: 32 },
+      { key: '2025-W48', planned: 30, actual: 28 },
+    ],
+  },
+  {
+    memberKey: 'rehab-tracker-platform.maria-jorgensen',
+    weeks: [
+      { key: '2025-W46', planned: 24, actual: 23 },
+      { key: '2025-W47', planned: 24, actual: 24 },
+      { key: '2025-W48', planned: 25, actual: 25 },
+    ],
+  },
+  {
+    memberKey: 'rehab-tracker-platform.clara-petersen',
+    weeks: [
+      { key: '2025-W46', planned: 20, actual: 19 },
+      { key: '2025-W47', planned: 20, actual: 20 },
+      { key: '2025-W48', planned: 19, actual: 19 },
+    ],
+  },
+  {
+    memberKey: 'rehab-tracker-platform.julie-sand',
+    weeks: [
+      { key: '2025-W46', planned: 6, actual: 6 },
+      { key: '2025-W47', planned: 6, actual: 5 },
+      { key: '2025-W48', planned: 6, actual: 6 },
+    ],
+  },
+  {
+    memberKey: 'clinical-ai-triage.linea-skov',
+    weeks: [
+      { key: '2025-W45', planned: 22, actual: 21 },
+      { key: '2025-W46', planned: 22, actual: 22 },
+      { key: '2025-W47', planned: 21, actual: 21 },
+    ],
+  },
+  {
+    memberKey: 'clinical-ai-triage.rasmus-lund',
+    weeks: [
+      { key: '2025-W45', planned: 34, actual: 33 },
+      { key: '2025-W46', planned: 34, actual: 34 },
+      { key: '2025-W47', planned: 32, actual: 31 },
+    ],
+  },
+  {
+    memberKey: 'clinical-ai-triage.ahmed-yasin',
+    weeks: [
+      { key: '2025-W45', planned: 26, actual: 26 },
+      { key: '2025-W46', planned: 26, actual: 25 },
+      { key: '2025-W47', planned: 24, actual: 24 },
+    ],
+  },
+  {
+    memberKey: 'clinical-ai-triage.clara-petersen',
     weeks: [
       { key: '2025-W45', planned: 18, actual: 17 },
       { key: '2025-W46', planned: 18, actual: 18 },
@@ -245,262 +427,214 @@ const timeEntries = [
     ],
   },
   {
-    memberKey: 'digital-hr-platform.ahmed-yasin',
+    memberKey: 'clinical-ai-triage.maria-jorgensen',
     weeks: [
-      { key: '2025-W45', planned: 32, actual: 30 },
-      { key: '2025-W46', planned: 32, actual: 31 },
-      { key: '2025-W47', planned: 30, actual: 29 },
+      { key: '2025-W45', planned: 20, actual: 20 },
+      { key: '2025-W46', planned: 20, actual: 19 },
+      { key: '2025-W47', planned: 19, actual: 19 },
     ],
   },
   {
-    memberKey: 'digital-hr-platform.maria-jorgensen',
+    memberKey: 'clinical-ai-triage.julie-sand',
     weeks: [
-      { key: '2025-W45', planned: 24, actual: 23 },
-      { key: '2025-W46', planned: 24, actual: 24 },
-      { key: '2025-W47', planned: 22, actual: 21 },
+      { key: '2025-W45', planned: 8, actual: 8 },
+      { key: '2025-W46', planned: 8, actual: 8 },
+      { key: '2025-W47', planned: 8, actual: 7 },
     ],
   },
   {
-    memberKey: 'digital-hr-platform.julie-sand',
+    memberKey: 'clinical-ai-triage.sofia-birk',
     weeks: [
-      { key: '2025-W45', planned: 6, actual: 5 },
-      { key: '2025-W46', planned: 6, actual: 6 },
-      { key: '2025-W47', planned: 6, actual: 5 },
+      { key: '2025-W45', planned: 10, actual: 9 },
+      { key: '2025-W46', planned: 10, actual: 10 },
+      { key: '2025-W47', planned: 9, actual: 9 },
     ],
   },
   {
-    memberKey: 'cloud-data-warehouse.sofia-birk',
+    memberKey: 'shared-services-automation.maja-holm',
     weeks: [
-      { key: '2025-W44', planned: 24, actual: 24 },
-      { key: '2025-W45', planned: 24, actual: 25 },
-      { key: '2025-W46', planned: 22, actual: 21 },
+      { key: '2025-W44', planned: 24, actual: 23 },
+      { key: '2025-W45', planned: 24, actual: 24 },
+      { key: '2025-W46', planned: 24, actual: 23 },
     ],
   },
   {
-    memberKey: 'cloud-data-warehouse.rasmus-lund',
+    memberKey: 'shared-services-automation.frederik-hald',
     weeks: [
-      { key: '2025-W44', planned: 32, actual: 31 },
-      { key: '2025-W45', planned: 32, actual: 33 },
-      { key: '2025-W46', planned: 30, actual: 29 },
+      { key: '2025-W44', planned: 28, actual: 27 },
+      { key: '2025-W45', planned: 28, actual: 28 },
+      { key: '2025-W46', planned: 28, actual: 27 },
     ],
   },
   {
-    memberKey: 'cloud-data-warehouse.frederik-hald',
+    memberKey: 'shared-services-automation.nina-iversen',
     weeks: [
       { key: '2025-W44', planned: 20, actual: 19 },
-      { key: '2025-W45', planned: 20, actual: 19 },
-      { key: '2025-W46', planned: 18, actual: 17 },
+      { key: '2025-W45', planned: 20, actual: 20 },
+      { key: '2025-W46', planned: 20, actual: 19 },
     ],
   },
   {
-    memberKey: 'cloud-data-warehouse.nina-iversen',
+    memberKey: 'shared-services-automation.henrik-vestergaard',
     weeks: [
-      { key: '2025-W44', planned: 20, actual: 18 },
-      { key: '2025-W45', planned: 22, actual: 21 },
-      { key: '2025-W46', planned: 20, actual: 20 },
+      { key: '2025-W44', planned: 18, actual: 18 },
+      { key: '2025-W45', planned: 18, actual: 17 },
+      { key: '2025-W46', planned: 18, actual: 18 },
     ],
   },
   {
-    memberKey: 'citizen-engagement-app.maja-holm',
+    memberKey: 'shared-services-automation.emma-kristensen',
     weeks: [
-      { key: '2025-W45', planned: 20, actual: 19 },
-      { key: '2025-W46', planned: 20, actual: 21 },
-      { key: '2025-W47', planned: 18, actual: 18 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.maria-jorgensen',
-    weeks: [
-      { key: '2025-W45', planned: 26, actual: 25 },
-      { key: '2025-W46', planned: 26, actual: 27 },
-      { key: '2025-W47', planned: 24, actual: 23 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.rasmus-lund',
-    weeks: [
-      { key: '2025-W45', planned: 28, actual: 26 },
-      { key: '2025-W46', planned: 28, actual: 28 },
-      { key: '2025-W47', planned: 26, actual: 24 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.clara-petersen',
-    weeks: [
-      { key: '2025-W45', planned: 22, actual: 21 },
-      { key: '2025-W46', planned: 22, actual: 22 },
-      { key: '2025-W47', planned: 20, actual: 20 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.ahmed-yasin',
-    weeks: [
-      { key: '2025-W45', planned: 30, actual: 29 },
-      { key: '2025-W46', planned: 30, actual: 30 },
-      { key: '2025-W47', planned: 28, actual: 27 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.linea-skov',
-    weeks: [
-      { key: '2025-W45', planned: 18, actual: 18 },
-      { key: '2025-W46', planned: 18, actual: 19 },
-      { key: '2025-W47', planned: 18, actual: 18 },
-    ],
-  },
-  {
-    memberKey: 'citizen-engagement-app.julie-sand',
-    weeks: [
-      { key: '2025-W45', planned: 6, actual: 5 },
-      { key: '2025-W46', planned: 6, actual: 6 },
-      { key: '2025-W47', planned: 6, actual: 5 },
+      { key: '2025-W44', planned: 16, actual: 15 },
+      { key: '2025-W45', planned: 16, actual: 16 },
+      { key: '2025-W46', planned: 16, actual: 15 },
     ],
   },
 ];
 
 const reportTemplates = [
   {
-    projectKey: 'digital-hr-platform',
-    weekKey: '2025-W47',
+    projectKey: 'rehab-tracker-platform',
+    weekKey: '2025-W48',
     statusItems: [
-      'Sprint 6 afsluttet med 92 procent leverancegrad.',
-      'Designsystem for medarbejderflows samlet og godkendt.',
+      'Pilot med Middelfart og Aarhus leverer stabile videoforl?b.',
+      'Device-hub er deployet i skyen og h?ndterer 280 samtidige forbindelser.',
     ],
     challengeItems: [
-      'Integration til lon-system afventer opdateret API kontrakt.',
-      'HR supportteam mangler accepteret overgangsplan.',
+      'Hjemmesygeplejen eftersp?rger bedre onboarding materiale til patienter 70+.',
+      'Regional sikkerhed kr?ver ekstra logning af videokonsultationer.',
     ],
     nextStepItems: [
-      'Forbered demo for HR-ledelsen i uge 6.',
-      'Planlaeg hypercare-setup til pilotafdelingerne.',
+      'Planl?g hypercare for f?rste b?lge af patienter.',
+      'Fasthold aftale om datadeling med kommunerne.',
     ],
     mainTableRows: [
-      { title: 'Leverancer', status: 'yellow', note: 'Integrationer forsinket en uge.' },
-      { title: 'Ressourcer', status: 'green', note: 'Teamet er fuldt bemandet.' },
-      { title: 'Tidsplan', status: 'green', note: 'Release dato holdes.' },
+      { title: 'Leverancer', status: 'green', note: 'Alle kerneflows i mobilappen er gennemtestet.' },
+      { title: 'Ressourcer', status: 'yellow', note: 'Ekstern IoT-arkitekt forlader projektet i december.' },
+      { title: 'Tidsplan', status: 'green', note: 'Implementering holder juni-go-live.' },
     ],
     risks: [
-      { name: 'Ekstern leverandoer leverer sent', probability: 3, consequence: 4 },
-      { name: 'Forandringsledelse undervurderes', probability: 2, consequence: 5 },
+      { name: 'Patient devices leveres for sent', probability: 3, consequence: 4 },
+      { name: 'Kommunal dokumentation ikke godkendt', probability: 2, consequence: 5 },
     ],
     phases: [
-      { label: 'Analyse', start: 0, end: 15, highlight: 'completed' },
-      { label: 'Design', start: 15, end: 40, highlight: 'completed' },
-      { label: 'Udvikling', start: 40, end: 80, highlight: 'active' },
-      { label: 'Implementering', start: 80, end: 100, highlight: 'planned' },
+      { label: 'Discovery', start: 0, end: 15, highlight: 'completed' },
+      { label: 'Design', start: 15, end: 35, highlight: 'completed' },
+      { label: 'Udvikling', start: 35, end: 75, highlight: 'active' },
+      { label: 'Implementering', start: 75, end: 100, highlight: 'planned' },
     ],
     milestones: [
-      { label: 'HR uddannelse kickoff', position: 60, dueDate: '2025-10-01', status: 'On Track' },
-      { label: 'Pilotafdeling live', position: 82, dueDate: '2026-02-01', status: 'On Track' },
-      { label: 'National udrulning', position: 95, dueDate: '2026-04-15', status: 'On Track' },
+      { label: 'Sensorpakker klar', position: 45, dueDate: '2025-11-15', status: 'On Track' },
+      { label: 'Region Syddanmark pilot', position: 70, dueDate: '2026-02-01', status: 'On Track' },
+      { label: 'National udrulning', position: 95, dueDate: '2026-06-30', status: 'On Track' },
     ],
     deliverables: [
-      { label: 'HR support playbook', position: 68, checklist: ['SLA udkast', 'FAQ draft'], startDate: '2025-08-15', endDate: '2025-10-15', status: 'In Progress' },
-      { label: 'Pilot evaluering', position: 88, checklist: ['Interview skabelon', 'Rapport kladde'], startDate: '2026-01-15', endDate: '2026-02-28', status: 'Pending' },
-      { label: 'Superbrugertraening', position: 92, checklist: ['Plan for 5 hold', 'Materialer klarmeldt'], startDate: '2026-02-10', endDate: '2026-03-10', status: 'Pending' },
-      { label: 'Go-live runbook', position: 96, checklist: ['Rollback plan', 'Cutover plan'], startDate: '2026-03-15', endDate: '2026-04-10', status: 'Pending' },
+      { label: 'Patient onboarding kit', position: 60, checklist: ['Video guides', 'Quick start kort'], startDate: '2025-10-01', endDate: '2025-12-01', status: 'In Progress' },
+      { label: 'Device monitoring', position: 75, checklist: ['Alert matrix', 'Drift SOP'], startDate: '2025-11-15', endDate: '2026-01-15', status: 'In Progress' },
+      { label: 'Hypercare setup', position: 85, checklist: ['Supportplan', 'Weekendberedskab'], startDate: '2026-01-05', endDate: '2026-03-15', status: 'Pending' },
+      { label: 'Evalueringsrapport', position: 95, checklist: ['Dataudtr?k', 'Anbefalinger'], startDate: '2026-03-15', endDate: '2026-05-31', status: 'Pending' },
     ],
     kanban: [
-      { content: 'Plan for HR supportteam', status: 'doing' },
-      { content: 'API kontrakt godkendelser', status: 'doing' },
-      { content: 'Afhold brugerworkshop', status: 'done' },
+      { content: 'Udarbejd patientvideoer', status: 'doing' },
+      { content: 'Forhandle device-SLA', status: 'todo' },
+      { content: 'Afslut Aarhus sprintdemo', status: 'done' },
     ],
   },
   {
-    projectKey: 'cloud-data-warehouse',
-    weekKey: '2025-W46',
+    projectKey: 'clinical-ai-triage',
+    weekKey: '2025-W47',
     statusItems: [
-      'Data pipelines til finans er i pre-prod.',
-      'PowerBI rapporter koerer paa den nye platform.',
+      'Triagemodeller k?rer nu mod realtime data fra Aalborg og Aarhus.',
+      'F?rste version af klinisk dashboard er pr?senteret for triageteamene.',
     ],
     challengeItems: [
-      'Data governance council er forsinket med godkendelse af kataloget.',
+      'Datasikkerhedsreview kr?ver ekstra anonymisering.',
+      'Akutmodtagelsen i Herning mangler uddannede superbrugere.',
     ],
     nextStepItems: [
-      'Fasthold plan for data steward backfill.',
-      'Planlaeg onboarding af supportteamet i marts.',
+      'Afklar regulatorisk review med jurateamet.',
+      'Planl?g shadow-mode pilot i januar.',
     ],
     mainTableRows: [
-      { title: 'Leverancer', status: 'green', note: 'Sprint 9 leverede alle features.' },
-      { title: 'Ressourcer', status: 'yellow', note: 'Data steward er sygemeldt.' },
-      { title: 'Tidsplan', status: 'green', note: 'Projekt paa plan.' },
+      { title: 'Leverancer', status: 'green', note: 'Model 1.3 er valideret med F1-score 0.86.' },
+      { title: 'Ressourcer', status: 'yellow', note: 'Data scientist erstattes midlertidigt af konsulent.' },
+      { title: 'Tidsplan', status: 'yellow', note: 'Shadow-mode afh?nger af compliance-afklaring.' },
     ],
     risks: [
-      { name: 'Manglende forankring af data governance', probability: 3, consequence: 4 },
-      { name: 'Licensaftaler ikke paaplads', probability: 2, consequence: 3 },
+      { name: 'AI-model opfattes som sort boks', probability: 3, consequence: 4 },
+      { name: 'Shadow-mode forsinkes', probability: 2, consequence: 4 },
+    ],
+    phases: [
+      { label: 'Data foundation', start: 0, end: 20, highlight: 'completed' },
+      { label: 'Model eksperimenter', start: 20, end: 55, highlight: 'completed' },
+      { label: 'Pilot', start: 55, end: 85, highlight: 'active' },
+      { label: 'Skalering', start: 85, end: 100, highlight: 'planned' },
+    ],
+    milestones: [
+      { label: 'Datasikkerhed godkendt', position: 40, dueDate: '2025-10-30', status: 'On Track' },
+      { label: 'Shadow-mode start', position: 65, dueDate: '2026-01-10', status: 'At Risk' },
+      { label: 'Go-live akutmodtagelser', position: 90, dueDate: '2026-03-01', status: 'Planned' },
+    ],
+    deliverables: [
+      { label: 'Explainability toolkit', position: 58, checklist: ['Kliniske scenarier', 'Modelkort'], startDate: '2025-09-01', endDate: '2025-11-15', status: 'In Progress' },
+      { label: 'Compliance pakke', position: 72, checklist: ['DPIA opdateret', 'Audit spor'], startDate: '2025-10-20', endDate: '2026-01-05', status: 'In Progress' },
+      { label: 'Superbruger program', position: 82, checklist: ['Train-the-trainer', 'Evalueringsskema'], startDate: '2025-12-01', endDate: '2026-02-15', status: 'Pending' },
+      { label: 'Driftsaftale', position: 90, checklist: ['On-call plan', 'Service vindue'], startDate: '2026-01-15', endDate: '2026-02-28', status: 'Pending' },
+    ],
+    kanban: [
+      { content: 'Udrul dashboards til Aalborg', status: 'doing' },
+      { content: 'Forbered shadow-mode design', status: 'todo' },
+      { content: 'Model performance review', status: 'done' },
+    ],
+  },
+  {
+    projectKey: 'shared-services-automation',
+    weekKey: '2025-W46',
+    statusItems: [
+      'Power Automate flows synkroniserer kontrakter til DataLake hver nat.',
+      'PMO cockpit viser nu alle 68 projekter med baseline og scope.',
+    ],
+    challengeItems: [
+      '?konomi efterlyser mere granularitet p? fordelte timer.',
+      'Azure AD app-registrering skal fornyes f?r december.',
+    ],
+    nextStepItems: [
+      'Afhold tr?ning for controllere i uge 49.',
+      'Luk testcases for kontraktmodulet.',
+    ],
+    mainTableRows: [
+      { title: 'Leverancer', status: 'green', note: 'Rapportpakken er i UAT med fem teams.' },
+      { title: 'Ressourcer', status: 'green', note: 'Teamet udvidet med Business Controller.' },
+      { title: 'Tidsplan', status: 'yellow', note: 'Integration til ?konomi forventes 2 uger forsinket.' },
+    ],
+    risks: [
+      { name: 'Masterdata ikke ejes centralt', probability: 3, consequence: 3 },
+      { name: 'Automatisering mangler change management', probability: 2, consequence: 4 },
     ],
     phases: [
       { label: 'Analyse', start: 0, end: 20, highlight: 'completed' },
-      { label: 'Platform setup', start: 20, end: 55, highlight: 'completed' },
-      { label: 'Migration', start: 55, end: 85, highlight: 'active' },
-      { label: 'Hypercare', start: 85, end: 100, highlight: 'planned' },
+      { label: 'Build', start: 20, end: 65, highlight: 'active' },
+      { label: 'UAT', start: 65, end: 85, highlight: 'planned' },
+      { label: 'Implementering', start: 85, end: 100, highlight: 'planned' },
     ],
     milestones: [
-      { label: 'Data landing zone', position: 25, dueDate: '2025-09-15', status: 'On Track' },
-      { label: 'Finance live', position: 60, dueDate: '2025-12-10', status: 'On Track' },
-      { label: 'Marketing live', position: 80, dueDate: '2026-02-15', status: 'On Track' },
+      { label: 'Automationssprint 2', position: 55, dueDate: '2025-12-01', status: 'On Track' },
+      { label: 'Controller tr?ning', position: 75, dueDate: '2026-01-20', status: 'Planned' },
+      { label: 'Go-live Sekretariatet', position: 92, dueDate: '2026-01-31', status: 'Planned' },
     ],
     deliverables: [
-      { label: 'Data katalog v1', position: 58, checklist: ['Godkendte domaener', 'Kvalitetsregler dokumenteret'], startDate: '2025-08-01', endDate: '2025-10-15', status: 'In Progress' },
-      { label: 'Support model', position: 72, checklist: ['On-call rotations', 'Runbook v1'], startDate: '2025-11-01', endDate: '2025-12-15', status: 'Pending' },
-      { label: 'Driftsaftale BI', position: 78, checklist: ['SLA udkast', 'Release kalender'], startDate: '2025-11-15', endDate: '2026-01-05', status: 'Pending' },
-      { label: 'Governance charter', position: 90, checklist: ['Roller', 'Proces for nye datakilder'], startDate: '2025-12-10', endDate: '2026-02-01', status: 'Pending' },
+      { label: 'Kontraktrobot', position: 62, checklist: ['Mapping fil', 'Fallback flow'], startDate: '2025-09-15', endDate: '2025-12-05', status: 'In Progress' },
+      { label: 'PMO cockpit', position: 68, checklist: ['Datamodel', 'PowerBI release'], startDate: '2025-10-01', endDate: '2025-12-20', status: 'In Progress' },
+      { label: 'Controller tr?ning', position: 80, checklist: ['Agenda', 'Hands-on cases'], startDate: '2025-12-15', endDate: '2026-01-20', status: 'Pending' },
+      { label: 'Driftsoverdragelse', position: 92, checklist: ['Runbook', 'Supportaftale'], startDate: '2026-01-05', endDate: '2026-01-31', status: 'Pending' },
     ],
     kanban: [
-      { content: 'Data catalog review', status: 'doing' },
-      { content: 'Planlaeg driftsoverdragelse', status: 'todo' },
-      { content: 'Pilot BI dashboards', status: 'done' },
-    ],
-  },
-  {
-    projectKey: 'citizen-engagement-app',
-    weekKey: '2025-W46',
-    statusItems: [
-      'Beta-release til intern kommunikation gennemfoert.',
-      'Feedback fra borgertest er positiv paa navigation og sprog.',
-    ],
-    challengeItems: [
-      'Push notifikationer skal haandtere samtykke korrekt inden produktion.',
-      'Supportorganisationen er ikke fuldt bemandet endnu.',
-    ],
-    nextStepItems: [
-      'Gennemfoer sikkerhedsgennemgang med IT-sikkerhed.',
-      'Planlaeg kommunikationskampagne til eksterne brugere.',
-    ],
-    mainTableRows: [
-      { title: 'Leverancer', status: 'green', note: 'Beta indeholder alle kernefunktioner.' },
-      { title: 'Ressourcer', status: 'yellow', note: 'App udvikler fratraeder i april.' },
-      { title: 'Tidsplan', status: 'green', note: 'Release planlagt til august beholdes.' },
-    ],
-    risks: [
-      { name: 'App store godkendelse forsinkes', probability: 2, consequence: 4 },
-      { name: 'Samtykkehaandtering ikke compliant', probability: 3, consequence: 5 },
-    ],
-    phases: [
-      { label: 'Discovery', start: 0, end: 20, highlight: 'completed' },
-      { label: 'Design', start: 20, end: 40, highlight: 'completed' },
-      { label: 'Udvikling', start: 40, end: 75, highlight: 'active' },
-      { label: 'Pilot & skalering', start: 75, end: 95, highlight: 'planned' },
-    ],
-    milestones: [
-      { label: 'Beta release', position: 70, dueDate: '2025-12-01', status: 'On Track' },
-      { label: 'Push consent klar', position: 78, dueDate: '2025-12-20', status: 'On Track' },
-      { label: 'Officiel launch', position: 92, dueDate: '2026-03-01', status: 'On Track' },
-    ],
-    deliverables: [
-      { label: 'Kommunikationspakke', position: 72, checklist: ['Landing page', 'FAQ kladde'], startDate: '2025-10-20', endDate: '2025-12-05', status: 'In Progress' },
-      { label: 'Supportsetup', position: 88, checklist: ['1st line script', 'On-call plan'], startDate: '2026-01-05', endDate: '2026-02-15', status: 'Pending' },
-      { label: 'Samtykke flow', position: 76, checklist: ['Tekst godkendt', 'Logning klar'], startDate: '2025-11-20', endDate: '2025-12-20', status: 'In Progress' },
-      { label: 'Analytics dashboard', position: 80, checklist: ['Event plan', 'Funnel rapport'], startDate: '2025-11-15', endDate: '2026-01-15', status: 'Pending' },
-    ],
-    kanban: [
-      { content: 'Implementer push consent flow', status: 'doing' },
-      { content: 'Forbered supportmateriale', status: 'todo' },
-      { content: 'Afslut beta feedbackrunde', status: 'done' },
+      { content: 'UAT-test scripts', status: 'doing' },
+      { content: 'Organiser tr?ning', status: 'todo' },
+      { content: 'Deploy connector v2', status: 'done' },
     ],
   },
 ];
-
 
 const ensureDatabaseUrl = () => {
   if (!config.databaseUrl) {
@@ -509,18 +643,152 @@ const ensureDatabaseUrl = () => {
   }
 };
 
-const upsertEmployees = async (client) => {
+const upsertWorkspaces = async (client) => {
+  const ids = new Map();
+
+  for (const workspace of workspaces) {
+    const existing = await client.query(
+      `
+        SELECT id::text
+        FROM workspaces
+        WHERE LOWER(name) = LOWER($1)
+        LIMIT 1
+      `,
+      [workspace.name],
+    );
+
+    const configValue = JSON.stringify(workspace.config ?? {});
+    const isActive = workspace.isActive ?? true;
+
+    if (existing.rowCount > 0) {
+      const workspaceId = existing.rows[0].id;
+      await client.query(
+        `
+          UPDATE workspaces
+          SET name = $2,
+              type = $3,
+              config = $4::jsonb,
+              is_active = $5
+          WHERE id = $1::uuid
+        `,
+        [workspaceId, workspace.name, workspace.type, configValue, isActive],
+      );
+      ids.set(workspace.key, workspaceId);
+    } else {
+      const created = await client.query(
+        `
+          INSERT INTO workspaces (name, type, config, is_active)
+          VALUES ($1, $2, $3::jsonb, $4)
+          RETURNING id::text
+        `,
+        [workspace.name, workspace.type, configValue, isActive],
+      );
+      ids.set(workspace.key, created.rows[0]?.id);
+    }
+  }
+
+  return ids;
+};
+
+const upsertOrganizations = async (client) => {
+  const ids = new Map();
+
+  for (const organization of organizations) {
+    const result = await client.query(
+      `
+        INSERT INTO organizations (name, code, is_active)
+        VALUES ($1, $2, true)
+        ON CONFLICT (code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          is_active = EXCLUDED.is_active
+        RETURNING id::text
+      `,
+      [organization.name, organization.code],
+    );
+
+    const id = result.rows[0]?.id;
+    if (id) {
+      ids.set(organization.key, id);
+    }
+  }
+
+  return ids;
+};
+
+const upsertLocations = async (client, organizationIds) => {
+  const ids = new Map();
+
+  for (const location of locations) {
+    const organizationId = organizationIds.get(location.organizationKey);
+    if (!organizationId) {
+      continue;
+    }
+
+    const existing = await client.query(
+      `
+        SELECT id::text
+        FROM locations
+        WHERE code = $1
+        LIMIT 1
+      `,
+      [location.code],
+    );
+
+    if (existing.rowCount > 0) {
+      const locationId = existing.rows[0].id;
+      await client.query(
+        `
+          UPDATE locations
+          SET name = $2,
+              organization_id = $3::uuid,
+              is_active = true
+          WHERE id = $1::uuid
+        `,
+        [locationId, location.name, organizationId],
+      );
+      ids.set(location.key, locationId);
+    } else {
+      const created = await client.query(
+        `
+          INSERT INTO locations (organization_id, name, code, is_active)
+          VALUES ($1::uuid, $2, $3, true)
+          RETURNING id::text
+        `,
+        [organizationId, location.name, location.code],
+      );
+      ids.set(location.key, created.rows[0]?.id);
+    }
+  }
+
+  return ids;
+};
+
+const upsertEmployees = async (client, workspaceIds, organizationIds, locationIds) => {
   const ids = new Map();
 
   for (const employee of employees) {
+    const workspaceId = workspaceIds.get(employee.workspaceKey) ?? null;
+    if (!workspaceId) {
+      throw new Error(`Manglende workspace for medarbejder ${employee.key}`);
+    }
+    const organizationId = employee.organizationKey ? organizationIds.get(employee.organizationKey) ?? null : null;
+    const locationId = employee.locationKey ? locationIds.get(employee.locationKey) ?? null : null;
+
     const result = await client.query(
       `
-        INSERT INTO employees (name, email, location, max_capacity_hours_week, department, job_title, account_enabled)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO employees (
+          name, email, location, workspace_id, organization_id, location_id,
+          max_capacity_hours_week, department, job_title, account_enabled
+        )
+        VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, $10)
         ON CONFLICT (email)
         DO UPDATE SET
           name = EXCLUDED.name,
           location = EXCLUDED.location,
+          workspace_id = EXCLUDED.workspace_id,
+          organization_id = EXCLUDED.organization_id,
+          location_id = EXCLUDED.location_id,
           max_capacity_hours_week = EXCLUDED.max_capacity_hours_week,
           department = EXCLUDED.department,
           job_title = EXCLUDED.job_title,
@@ -531,6 +799,9 @@ const upsertEmployees = async (client) => {
         employee.name,
         employee.email,
         employee.location,
+        workspaceId,
+        organizationId,
+        locationId,
         employee.maxCapacity,
         employee.department,
         employee.jobTitle,
@@ -547,7 +818,7 @@ const upsertEmployees = async (client) => {
   return ids;
 };
 
-const upsertDemoUsers = async (client, employeeIds) => {
+const upsertDemoUsers = async (client, employeeIds, workspaceIds) => {
   if (SKIP_USERS) {
     return;
   }
@@ -556,24 +827,35 @@ const upsertDemoUsers = async (client, employeeIds) => {
 
   for (const user of demoUsers) {
     const employeeId = employeeIds.get(user.employeeKey) ?? null;
+    const employeeData = employeeLookup.get(user.employeeKey);
+    const workspaceId =
+      (user.workspaceKey ? workspaceIds.get(user.workspaceKey) : null) ??
+      (employeeData ? workspaceIds.get(employeeData.workspaceKey) : null) ??
+      null;
+
+    if (!workspaceId) {
+      throw new Error(`Manglende workspace for bruger ${user.email}`);
+    }
 
     await client.query(
       `
-        INSERT INTO users (name, email, password_hash, role, employee_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO users (name, email, password_hash, role, employee_id, workspace_id, auth_provider)
+        VALUES ($1, $2, $3, $4, $5::uuid, $6::uuid, 'local')
         ON CONFLICT (email)
         DO UPDATE SET
           name = EXCLUDED.name,
           role = EXCLUDED.role,
           employee_id = EXCLUDED.employee_id,
-          password_hash = EXCLUDED.password_hash
+          password_hash = EXCLUDED.password_hash,
+          workspace_id = EXCLUDED.workspace_id,
+          auth_provider = EXCLUDED.auth_provider
       `,
-      [user.name, user.email, passwordHash, user.role, employeeId],
+      [user.name, user.email, passwordHash, user.role, employeeId, workspaceId],
     );
   }
 };
 
-const upsertProjects = async (client) => {
+const upsertProjects = async (client, workspaceIds) => {
   const ids = new Map();
 
   for (const project of projects) {
@@ -582,6 +864,10 @@ const upsertProjects = async (client) => {
     let totalBudget = null;
     if (typeof project.totalBudget === 'number' && Number.isFinite(project.totalBudget)) {
       totalBudget = Math.round(project.totalBudget * 100) / 100;
+    }
+    const workspaceId = workspaceIds.get(project.workspaceKey) ?? null;
+    if (!workspaceId) {
+      throw new Error(`Manglende workspace for projekt ${project.key}`);
     }
 
     const existing = await client.query(
@@ -607,20 +893,43 @@ const upsertProjects = async (client) => {
               business_case = $7,
               total_budget = $8,
               hero_image_url = $9,
+              workspace_id = $10::uuid,
               updated_at = NOW()
           WHERE id = $1::uuid
         `,
-        [projectId, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget, project.heroImageUrl ?? null],
+        [
+          projectId,
+          project.startDate,
+          project.endDate,
+          project.status,
+          project.description,
+          projectGoal,
+          businessCase,
+          totalBudget,
+          project.heroImageUrl ?? null,
+          workspaceId,
+        ],
       );
       ids.set(project.key, projectId);
     } else {
       const created = await client.query(
         `
-          INSERT INTO projects (name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO projects (name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url, workspace_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid)
           RETURNING id::text
         `,
-        [project.name, project.startDate, project.endDate, project.status, project.description, projectGoal, businessCase, totalBudget, project.heroImageUrl ?? null],
+        [
+          project.name,
+          project.startDate,
+          project.endDate,
+          project.status,
+          project.description,
+          projectGoal,
+          businessCase,
+          totalBudget,
+          project.heroImageUrl ?? null,
+          workspaceId,
+        ],
       );
       ids.set(project.key, created.rows[0].id);
     }
@@ -1090,9 +1399,12 @@ const seedDemoData = async () => {
     }
 
     await setWorkspaceBaseline(client);
-    const employeeIds = await upsertEmployees(client);
-    await upsertDemoUsers(client, employeeIds);
-    const projectIds = await upsertProjects(client);
+    const workspaceIds = await upsertWorkspaces(client);
+    const organizationIds = await upsertOrganizations(client);
+    const locationIds = await upsertLocations(client, organizationIds);
+    const employeeIds = await upsertEmployees(client, workspaceIds, organizationIds, locationIds);
+    await upsertDemoUsers(client, employeeIds, workspaceIds);
+    const projectIds = await upsertProjects(client, workspaceIds);
     const workstreamIds = await upsertProjectWorkstreams(client, projectIds);
     await seedProjectPlan(client, projectIds, workstreamIds);
     const memberIds = await upsertProjectMembers(client, projectIds, employeeIds);
