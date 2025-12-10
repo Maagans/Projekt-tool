@@ -59,5 +59,7 @@ export const api = {
     // Admin
     getUsers: adminApi.getUsers,
     updateUserRole: adminApi.updateUserRole,
+    updateUserWorkspace: adminApi.updateUserWorkspace,
+    getWorkspaces: adminApi.getWorkspaces,
 };
 

@@ -9,8 +9,11 @@ export const AdminPage = () => {
   const projectManager = useProjectManager();
   const {
     allUsers,
+    workspaces,
     fetchAllUsers,
+    fetchWorkspaces,
     updateUserRole,
+    updateUserWorkspace,
     currentUser,
     logout,
     isSaving,
@@ -21,7 +24,8 @@ export const AdminPage = () => {
 
   useEffect(() => {
     fetchAllUsers();
-  }, [fetchAllUsers]);
+    fetchWorkspaces();
+  }, [fetchAllUsers, fetchWorkspaces]);
 
   return (
     <div>
@@ -38,14 +42,15 @@ export const AdminPage = () => {
         </button>
       </AppHeader>
       <main className="bg-white p-4 rounded-lg shadow-sm">
-        <p className="text-sm text-slate-600 mb-4">Her kan du administrere roller for alle brugere i systemet.</p>
+        <p className="text-sm text-slate-600 mb-4">Her kan du administrere roller og workspaces for alle brugere i systemet.</p>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b-2 border-slate-200">
                 <th className="p-2 text-left text-sm font-semibold text-slate-600">Navn</th>
                 <th className="p-2 text-left text-sm font-semibold text-slate-600">Email</th>
-                <th className="p-2 text-left text-sm font-semibold text-slate-600 w-48">Rolle</th>
+                <th className="p-2 text-left text-sm font-semibold text-slate-600 w-40">Rolle</th>
+                <th className="p-2 text-left text-sm font-semibold text-slate-600 w-48">Workspace</th>
               </tr>
             </thead>
             <tbody>
@@ -64,6 +69,21 @@ export const AdminPage = () => {
                       {roles.map((role) => (
                         <option key={role} value={role}>
                           {role}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <select
+                      value={user.workspaceId ?? ''}
+                      onChange={(event) => updateUserWorkspace(user.id, event.target.value)}
+                      className="bg-white border border-slate-300 rounded-md p-1.5 text-sm w-full"
+                      title="Vælg workspace"
+                    >
+                      <option value="" disabled>-- Vælg --</option>
+                      {workspaces.map((ws) => (
+                        <option key={ws.id} value={ws.id}>
+                          {ws.name}
                         </option>
                       ))}
                     </select>

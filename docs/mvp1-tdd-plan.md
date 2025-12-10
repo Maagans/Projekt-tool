@@ -90,8 +90,10 @@ backend/tests/integration/workspaceIsolation.test.js
 ```
 
 **Implementation:**
-- [ ] Add workspace filter to all list queries
-- [ ] Add workspace validation on create/update operations
+- [x] Add workspace filter to all list queries ✅ (Phase 1.2)
+- [x] Add workspace validation on create/update operations ✅
+- [x] **Admin UI:** Add workspace dropdown when creating/editing users ✅
+- [x] **API:** Update user create/update to accept workspaceId ✅
 
 ---
 

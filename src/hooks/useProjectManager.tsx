@@ -42,8 +42,11 @@ type WorkspaceContextValue = Pick<ProjectManagerValue,
 
 type AdminContextValue = Pick<ProjectManagerValue,
   | 'allUsers'
+  | 'workspaces'
   | 'fetchAllUsers'
+  | 'fetchWorkspaces'
   | 'updateUserRole'
+  | 'updateUserWorkspace'
 >;
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -132,10 +135,13 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
   const adminValue = useMemo<AdminContextValue>(
     () => ({
       allUsers: value.allUsers,
+      workspaces: value.workspaces,
       fetchAllUsers: value.fetchAllUsers,
+      fetchWorkspaces: value.fetchWorkspaces,
       updateUserRole: value.updateUserRole,
+      updateUserWorkspace: value.updateUserWorkspace,
     }),
-    [value.allUsers, value.fetchAllUsers, value.updateUserRole],
+    [value.allUsers, value.workspaces, value.fetchAllUsers, value.fetchWorkspaces, value.updateUserRole, value.updateUserWorkspace],
   );
 
   return (
