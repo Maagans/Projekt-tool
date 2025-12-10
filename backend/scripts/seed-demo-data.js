@@ -572,8 +572,8 @@ const reportTemplates = [
     ],
     milestones: [
       { label: 'Datasikkerhed godkendt', position: 40, dueDate: '2025-10-30', status: 'On Track' },
-      { label: 'Shadow-mode start', position: 65, dueDate: '2026-01-10', status: 'At Risk' },
-      { label: 'Go-live akutmodtagelser', position: 90, dueDate: '2026-03-01', status: 'Planned' },
+      { label: 'Shadow-mode start', position: 65, dueDate: '2026-01-10', status: 'Delayed' },
+      { label: 'Go-live akutmodtagelser', position: 90, dueDate: '2026-03-01', status: 'Pending' },
     ],
     deliverables: [
       { label: 'Explainability toolkit', position: 58, checklist: ['Kliniske scenarier', 'Modelkort'], startDate: '2025-09-01', endDate: '2025-11-15', status: 'In Progress' },
@@ -619,8 +619,8 @@ const reportTemplates = [
     ],
     milestones: [
       { label: 'Automationssprint 2', position: 55, dueDate: '2025-12-01', status: 'On Track' },
-      { label: 'Controller tr?ning', position: 75, dueDate: '2026-01-20', status: 'Planned' },
-      { label: 'Go-live Sekretariatet', position: 92, dueDate: '2026-01-31', status: 'Planned' },
+      { label: 'Controller tr?ning', position: 75, dueDate: '2026-01-20', status: 'Pending' },
+      { label: 'Go-live Sekretariatet', position: 92, dueDate: '2026-01-31', status: 'Pending' },
     ],
     deliverables: [
       { label: 'Kontraktrobot', position: 62, checklist: ['Mapping fil', 'Fallback flow'], startDate: '2025-09-15', endDate: '2025-12-05', status: 'In Progress' },
