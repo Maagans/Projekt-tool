@@ -89,6 +89,7 @@ export const getResourceAnalytics = async (req, res, next) => {
     const analytics = await aggregateResourceAnalytics({
       scope,
       scopeId,
+      workspaceId: req.user.workspaceId,
       range: { fromWeek, toWeek },
     });
 

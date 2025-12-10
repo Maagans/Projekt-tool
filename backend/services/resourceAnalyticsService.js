@@ -9,8 +9,8 @@ const EXTERNAL_DEPARTMENT = "Ekstern";
 const defaultCache = new Map();
 const WORKSPACE_SETTINGS_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
 
-const buildCacheKey = ({ scope, scopeId, fromWeek, toWeek }) =>
-  `${scope}:${scopeId}:${fromWeek}:${toWeek}`;
+const buildCacheKey = ({ scope, scopeId, workspaceId, fromWeek, toWeek }) =>
+  `${workspaceId}:${scope}:${scopeId}:${fromWeek}:${toWeek}`;
 
 const getFromCache = (cache, key, now = Date.now) => {
   const cached = cache.get(key);
@@ -197,7 +197,7 @@ const ensureProjectId = (projectId) => {
   return projectId;
 };
 
-export const calcDepartmentSeries = async (department, { range, dbClient } = {}) => {
+export const calcDepartmentSeries = async (department, { workspaceId, range, dbClient } = {}) => {
   const validatedDepartment = ensureDepartment(department);
   const { fromWeek, toWeek } = normalizeRange(range);
   const database = dbClient ?? pool;
@@ -207,14 +207,17 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
     `
       SELECT id::text, COALESCE(max_capacity_hours_week, 0)::float AS capacity
       FROM employees
-      WHERE department <> $1${isAllDepartments ? "" : " AND department = $2"}
+      WHERE department <> $1
+        ${isAllDepartments ? "" : " AND department = $2"}
+        AND workspace_id = $${isAllDepartments ? 2 : 3}
     `,
-    isAllDepartments ? [EXTERNAL_DEPARTMENT] : [EXTERNAL_DEPARTMENT, validatedDepartment],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, workspaceId] : [EXTERNAL_DEPARTMENT, validatedDepartment, workspaceId],
   );
 
   const totalCapacity = (employeesResult.rows ?? []).reduce((sum, row) => sum + Number(row.capacity ?? 0), 0);
 
-  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, isAllDepartments ? 2 : 3);
+  const startIndex = isAllDepartments ? 2 : 3;
+  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, startIndex + 1);
   const timeEntriesResult = await database.query(
     `
       SELECT t.week_key,
@@ -224,11 +227,13 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN employees e ON e.id = pm.employee_id
       WHERE e.department <> $1
-        ${isAllDepartments ? "" : "AND e.department = $2"}${rangeClause}
+        ${isAllDepartments ? "" : "AND e.department = $2"}
+        AND e.workspace_id = $${startIndex}
+        ${rangeClause}
       GROUP BY t.week_key
       ORDER BY t.week_key ASC
     `,
-    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, workspaceId, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, workspaceId, ...rangeParams],
   );
 
   const projectBreakdownResult = await database.query(
@@ -244,11 +249,12 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN employees e ON e.id = pm.employee_id
       WHERE e.department <> $1
         ${isAllDepartments ? "" : "AND e.department = $2"}
+        AND p.workspace_id = $${startIndex}
         AND p.status = 'active'${rangeClause}
       GROUP BY p.id, p.name
       ORDER BY p.name ASC
     `,
-    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, workspaceId, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, workspaceId, ...rangeParams],
   );
 
   const projectStackResult = await database.query(
@@ -265,11 +271,12 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
       JOIN employees e ON e.id = pm.employee_id
       WHERE e.department <> $1
         ${isAllDepartments ? "" : "AND e.department = $2"}
+        AND p.workspace_id = $${startIndex}
         AND p.status = 'active'${rangeClause}
       GROUP BY pm.project_id, p.name, t.week_key
       ORDER BY t.week_key ASC, p.name ASC
     `,
-    isAllDepartments ? [EXTERNAL_DEPARTMENT, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, ...rangeParams],
+    isAllDepartments ? [EXTERNAL_DEPARTMENT, workspaceId, ...rangeParams] : [EXTERNAL_DEPARTMENT, validatedDepartment, workspaceId, ...rangeParams],
   );
 
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);
@@ -367,7 +374,7 @@ export const calcDepartmentSeries = async (department, { range, dbClient } = {})
   };
 };
 
-export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => {
+export const calcProjectSeries = async (projectId, { workspaceId, range, dbClient } = {}) => {
   const validatedProjectId = ensureProjectId(projectId);
   const { fromWeek, toWeek } = normalizeRange(range);
   const database = dbClient ?? pool;
@@ -376,10 +383,10 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
     `
       SELECT id::text, name
       FROM projects
-      WHERE id = $1::uuid
+      WHERE id = $1::uuid AND workspace_id = $2::uuid
       LIMIT 1
     `,
-    [validatedProjectId],
+    [validatedProjectId, workspaceId],
   );
 
   if (projectResult.rowCount === 0) {
@@ -401,7 +408,7 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
 
   const totalCapacity = (memberResult.rows ?? []).reduce((sum, row) => sum + Number(row.capacity ?? 0), 0);
 
-  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, 3);
+  const { clause: rangeClause, params: rangeParams } = buildRangeClause({ fromWeek, toWeek }, 4);
   const timeEntriesResult = await database.query(
     `
       SELECT t.week_key,
@@ -411,11 +418,12 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
       JOIN project_members pm ON pm.id = t.project_member_id
       JOIN employees e ON e.id = pm.employee_id
       WHERE pm.project_id = $1::uuid
-        AND e.department <> $2${rangeClause}
+        AND e.department <> $2
+        AND e.workspace_id = $3::uuid${rangeClause}
       GROUP BY t.week_key
       ORDER BY t.week_key ASC
     `,
-    [validatedProjectId, EXTERNAL_DEPARTMENT, ...rangeParams],
+    [validatedProjectId, EXTERNAL_DEPARTMENT, workspaceId, ...rangeParams],
   );
 
   const entriesByWeek = mapEntriesByWeek(timeEntriesResult.rows ?? []);
@@ -474,7 +482,7 @@ export const calcProjectSeries = async (projectId, { range, dbClient } = {}) => 
 };
 
 export const aggregateResourceAnalytics = async (
-  { scope, scopeId, range, dbClient } = {},
+  { scope, scopeId, workspaceId, range, dbClient } = {},
   { cache = defaultCache, ttlMs = DEFAULT_CACHE_TTL_MS, now = Date.now } = {},
 ) => {
   const normalizedRange = normalizeRange(range);
@@ -483,6 +491,7 @@ export const aggregateResourceAnalytics = async (
   const cacheKey = buildCacheKey({
     scope,
     scopeId,
+    workspaceId,
     fromWeek: normalizedRange.fromWeek,
     toWeek: normalizedRange.toWeek,
   });
@@ -511,13 +520,13 @@ export const aggregateResourceAnalytics = async (
   };
 
   if (scope === "department") {
-    const result = await calcDepartmentSeries(scopeId, { range: normalizedRange, dbClient: database });
+    const result = await calcDepartmentSeries(scopeId, { workspaceId, range: normalizedRange, dbClient: database });
     const enriched = await enrichWithBaseline(result);
     setCacheEntry(cache, cacheKey, enriched, ttlMs, now);
     return enriched;
   }
   if (scope === "project") {
-    const result = await calcProjectSeries(scopeId, { range: normalizedRange, dbClient: database });
+    const result = await calcProjectSeries(scopeId, { workspaceId, range: normalizedRange, dbClient: database });
     const enriched = await enrichWithBaseline(result);
     setCacheEntry(cache, cacheKey, enriched, ttlMs, now);
     return enriched;
