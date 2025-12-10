@@ -13,6 +13,7 @@ export interface User {
   name: string;
   role: UserRole;
   employeeId?: string | null;
+  workspaceId?: string | null;
 }
 
 export interface Employee {

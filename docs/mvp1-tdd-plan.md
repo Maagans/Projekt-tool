@@ -76,8 +76,8 @@ backend/tests/authMiddleware.test.js
 - [x] `authService.login()` → includes workspaceId in response ✅
 - [x] JWT payload → includes workspaceId ✅
 - [x] Auth middleware → passes workspaceId through (already worked) ✅
-- [ ] Migration: seed existing users with workspace_id
-- [ ] **Frontend:** Update AuthProvider to store workspaceId from login response
+- [x] Migration TD-4 → backfills existing users with workspace_id ✅
+- [x] **Frontend:** User interface includes workspaceId ✅
 
 ### 1.4 Data Isolation
 
