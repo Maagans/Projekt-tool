@@ -10,6 +10,7 @@ export const findByEmail = async (client, email) => {
         role,
         password_hash,
         employee_id::text AS employee_id,
+        workspace_id::text AS workspace_id,
         auth_provider
       FROM users
       WHERE LOWER(email) = LOWER($1)
@@ -30,6 +31,7 @@ export const findById = async (client, userId) => {
         role,
         password_hash,
         employee_id::text AS employee_id,
+        workspace_id::text AS workspace_id,
         auth_provider
       FROM users
       WHERE id = $1::uuid

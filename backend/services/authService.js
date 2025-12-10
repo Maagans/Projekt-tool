@@ -44,6 +44,7 @@ export const login = async (email, password) => {
         name: enrichedUser?.name ?? user.name,
         role: user.role,
         employeeId: enrichedUser?.employeeId ?? null,
+        workspaceId: user.workspace_id ?? null,
     };
 
     const token = jwt.sign(userPayload, jwtSecret, { expiresIn: '1d' });

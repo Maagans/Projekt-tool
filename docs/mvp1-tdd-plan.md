@@ -61,19 +61,22 @@ backend/tests/repositories/workspaceRepository.test.js
 **Tests først:**
 ```
 backend/tests/services/authService.test.js
-- login returns user.workspaceId in JWT/response
-- user record includes workspaceId
+- [x] login returns user.workspaceId in response ✅
+- [x] includes workspaceId in JWT payload ✅
+- [x] handles null workspaceId gracefully ✅
 
-backend/tests/middleware/auth.test.js
-- req.user contains workspaceId from token
-- JWT without workspaceId is rejected (NEW: Gemini feedback)
+backend/tests/authMiddleware.test.js
+- [x] sets req.user.workspaceId from JWT token ✅
+- [x] allows tokens without workspaceId (backwards compat) ✅
 ```
 
 **Implementation:**
-- [ ] Migration: seed users with workspace_id
-- [ ] Update `authService.login()` → include workspaceId in response
-- [ ] Update JWT payload → add workspaceId
-- [ ] Update auth middleware → set req.user.workspaceId
+- [x] `userRepository.findByEmail()` → returns workspace_id ✅
+- [x] `userRepository.findById()` → returns workspace_id ✅
+- [x] `authService.login()` → includes workspaceId in response ✅
+- [x] JWT payload → includes workspaceId ✅
+- [x] Auth middleware → passes workspaceId through (already worked) ✅
+- [ ] Migration: seed existing users with workspace_id
 - [ ] **Frontend:** Update AuthProvider to store workspaceId from login response
 
 ### 1.4 Data Isolation
