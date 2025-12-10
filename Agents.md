@@ -119,22 +119,41 @@ employee.locationId      // New: UUID reference (nullable for DGH/SEK)
 ---
 
 ## 5. Frontend API Modules (`src/api/`)
-Domain-specific APIs are organized in separate modules:
 
-| Module | Purpose |
-|--------|---------|
-| `reportApi.ts` | Report CRUD operations |
-| `planApi.ts` | Project plan snapshots |
-| `organizationsApi.ts` | Organizations/locations master data |
-| `workspacesApi.ts` | Workspace management |
-
-### Usage
-```ts
-import { reportApi, organizationsApi } from './api';
-
-const orgs = await organizationsApi.getOrganizations();
-const report = await reportApi.getReport(id);
+### Core Architecture
 ```
+src/api/
+├── client.ts         # Core: fetchWithAuth, HttpError, toErrorMessage
+├── index.ts          # Re-exports + backward-compat api object
+├── authApi.ts        # login, logout, register
+├── employeesApi.ts   # Employee CRUD
+├── projectsApi.ts    # Project + members CRUD
+├── riskApi.ts        # Risk management
+├── analyticsApi.ts   # Resource analytics
+├── adminApi.ts       # User management
+├── workspaceApi.ts   # Workspace settings
+├── reportApi.ts      # Report CRUD
+├── planApi.ts        # Project plan snapshots
+├── organizationsApi.ts
+└── workspacesApi.ts
+```
+
+### Import Pattern
+```ts
+// New pattern: import from specific modules
+import { authApi } from './api/authApi';
+import { fetchWithAuth } from './api/client';
+
+// Backward compat: combined api object still works
+import { api } from './api';
+api.login(...);
+```
+
+### Creating New API Modules
+1. Create `src/api/[domain]Api.ts`
+2. Import `fetchWithAuth` from `./client` (NOT from `./index`)
+3. Export named object (e.g., `export const domainApi = { ... }`)
+4. Add re-export in `src/api/index.ts`
 
 ---
 
