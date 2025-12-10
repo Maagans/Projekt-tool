@@ -38,5 +38,6 @@ export const useProjectManagerInternal = () => {
     getProjectById: workspace.getProjectById,
     getWeekKey: workspace.getWeekKey,
     projectActions: workspace.projectActions,
+    currentWorkspace: workspace.currentWorkspace,
   };
 };

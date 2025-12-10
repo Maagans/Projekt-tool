@@ -1,6 +1,8 @@
-﻿import { useCallback, useEffect, useRef } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
+import { workspacesApi } from '../../api/workspacesApi';
+import type { Workspace } from '../../api/workspacesApi';
 import { resourceAnalyticsKeys } from '../useResourceAnalytics';
 import { DEFAULT_EMPLOYEE_CAPACITY } from '../../constants';
 import {
@@ -102,6 +104,16 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
   } = store;
 
   const setWorkspaceSettingsState = store.setWorkspaceSettings;
+
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      workspacesApi.getCurrentWorkspace()
+        .then(setCurrentWorkspace)
+        .catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const queryClient = useQueryClient();
   const pendingMutations = useRef(0);
@@ -1864,6 +1876,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     deleteProjectMember,
     updateTimeLogForMember,
     bulkUpdateTimeLogForMember,
+    currentWorkspace,
   };
 };
 

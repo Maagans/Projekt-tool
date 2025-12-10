@@ -73,6 +73,7 @@ backend/tests/authMiddleware.test.js
 **Implementation:**
 - [x] `userRepository.findByEmail()` → returns workspace_id ✅
 - [x] `userRepository.findById()` → returns workspace_id ✅
+- [x] Migration: seed users with workspace_id
 - [x] `authService.login()` → includes workspaceId in response ✅
 - [x] JWT payload → includes workspaceId ✅
 - [x] Auth middleware → passes workspaceId through (already worked) ✅

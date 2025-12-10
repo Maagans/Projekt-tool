@@ -38,6 +38,7 @@ type WorkspaceContextValue = Pick<ProjectManagerValue,
   | 'updateEmployee'
   | 'deleteEmployee'
   | 'importEmployeesFromCsv'
+  | 'currentWorkspace'
 >;
 
 type AdminContextValue = Pick<ProjectManagerValue,
@@ -111,6 +112,7 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
       updateEmployee: value.updateEmployee,
       deleteEmployee: value.deleteEmployee,
       importEmployeesFromCsv: value.importEmployeesFromCsv,
+      currentWorkspace: value.currentWorkspace,
     }),
     [
       value.projects,
@@ -129,6 +131,7 @@ export const ProjectManagerProvider = ({ children }: { children: ReactNode }) =>
       value.updateEmployee,
       value.deleteEmployee,
       value.importEmployeesFromCsv,
+      value.currentWorkspace,
     ],
   );
 
