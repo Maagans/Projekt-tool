@@ -52,8 +52,9 @@ export const resolveDepartmentLocation = (source = {}, fallback = {}) => {
         department: canonical,
     };
 };
-export const loadFullWorkspace = async (clientOverride) => {
+export const loadFullWorkspace = async (clientOverride, workspaceId) => {
     const executor = clientOverride ?? pool;
+    const hasWorkspaceFilter = workspaceId !== undefined && workspaceId !== null;
 
     const settingsResult = await executor.query(
         `
@@ -69,7 +70,7 @@ export const loadFullWorkspace = async (clientOverride) => {
         pmoBaselineHoursWeek: toNonNegativeCapacity(baselineRow?.baseline ?? 0),
     };
 
-    const employeesResult = await executor.query(`
+    const employeesQuery = `
         SELECT
             id::text,
             name,
@@ -82,8 +83,10 @@ export const loadFullWorkspace = async (clientOverride) => {
             account_enabled,
             synced_at
         FROM employees
+        ${hasWorkspaceFilter ? 'WHERE workspace_id = $1::uuid' : ''}
         ORDER BY name ASC
-    `);
+    `;
+    const employeesResult = await executor.query(employeesQuery, hasWorkspaceFilter ? [workspaceId] : []);
 
     const employees = employeesResult.rows.map((row) => {
         const mirrored = resolveDepartmentLocation(row);
@@ -101,11 +104,13 @@ export const loadFullWorkspace = async (clientOverride) => {
         };
     });
 
-    const projectsResult = await executor.query(`
+    const projectsQuery = `
         SELECT id::text, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url
         FROM projects
+        ${hasWorkspaceFilter ? 'WHERE workspace_id = $1::uuid' : ''}
         ORDER BY created_at ASC
-    `);
+    `;
+    const projectsResult = await executor.query(projectsQuery, hasWorkspaceFilter ? [workspaceId] : []);
 
     const projects = projectsResult.rows.map((row) => ({
         id: row.id,
@@ -677,7 +682,9 @@ export const ensureEmployeeLinkForUser = async (executor, user) => {
 export const buildWorkspaceForUser = async (user, clientOverride) => {
     const executor = clientOverride ?? pool;
     const effectiveUser = await ensureEmployeeLinkForUser(executor, user);
-    const workspace = await loadFullWorkspace(clientOverride);
+    // Pass workspaceId for data isolation (MVP 1.0)
+    const workspaceId = effectiveUser?.workspaceId ?? user?.workspaceId ?? null;
+    const workspace = await loadFullWorkspace(clientOverride, workspaceId);
     return applyWorkspacePermissions(workspace, effectiveUser);
 }; export const getUserEditableProjects = (workspace, user) => {
     const editable = new Set();

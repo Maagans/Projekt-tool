@@ -40,15 +40,17 @@ const toIsoString = (value) => {
 /**
  * Load complete workspace data from database
  * Uses repository layer for all database queries
+ * @param {Object|undefined} clientOverride - Optional database client to use
+ * @param {string|undefined} workspaceId - Optional workspace ID to filter data by
  */
-export const loadFullWorkspace = async (clientOverride) => {
+export const loadFullWorkspace = async (clientOverride, workspaceId) => {
     const executor = clientOverride ?? pool;
 
     // Load settings
     const settings = await workspaceRepository.loadSettings(executor);
 
-    // Load and map employees
-    const employeeRows = await workspaceRepository.loadEmployees(executor);
+    // Load and map employees (filtered by workspace if provided)
+    const employeeRows = await workspaceRepository.loadEmployees(executor, workspaceId);
     const employees = employeeRows.map((row) => {
         const mirrored = resolveDepartmentLocation(row);
         return {
@@ -65,8 +67,8 @@ export const loadFullWorkspace = async (clientOverride) => {
         };
     });
 
-    // Load projects
-    const projectRows = await workspaceRepository.loadProjects(executor);
+    // Load projects (filtered by workspace if provided)
+    const projectRows = await workspaceRepository.loadProjects(executor, workspaceId);
     const projects = projectRows.map((row) => ({
         id: row.id,
         config: {

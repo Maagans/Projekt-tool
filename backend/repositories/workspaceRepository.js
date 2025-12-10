@@ -28,10 +28,13 @@ export const loadSettings = async (executor = pool) => {
 };
 
 /**
- * Load all employees
+ * Load employees, optionally filtered by workspace
+ * @param {Object} executor - Database executor (pool or client)
+ * @param {string|undefined} workspaceId - Optional workspace ID to filter by
  */
-export const loadEmployees = async (executor = pool) => {
-    const result = await executor.query(`
+export const loadEmployees = async (executor = pool, workspaceId) => {
+    const hasWorkspaceFilter = workspaceId !== undefined && workspaceId !== null;
+    const query = `
     SELECT
       id::text,
       name,
@@ -44,16 +47,22 @@ export const loadEmployees = async (executor = pool) => {
       account_enabled,
       synced_at
     FROM employees
+    ${hasWorkspaceFilter ? 'WHERE workspace_id = $1::uuid' : ''}
     ORDER BY name ASC
-  `);
+  `;
+    const params = hasWorkspaceFilter ? [workspaceId] : [];
+    const result = await executor.query(query, params);
     return result.rows;
 };
 
 /**
- * Load all projects (basic info)
+ * Load projects (basic info), optionally filtered by workspace
+ * @param {Object} executor - Database executor (pool or client)
+ * @param {string|undefined} workspaceId - Optional workspace ID to filter by
  */
-export const loadProjects = async (executor = pool) => {
-    const result = await executor.query(`
+export const loadProjects = async (executor = pool, workspaceId) => {
+    const hasWorkspaceFilter = workspaceId !== undefined && workspaceId !== null;
+    const query = `
     SELECT
       id::text,
       name,
@@ -66,8 +75,11 @@ export const loadProjects = async (executor = pool) => {
       total_budget,
       hero_image_url
     FROM projects
+    ${hasWorkspaceFilter ? 'WHERE workspace_id = $1::uuid' : ''}
     ORDER BY created_at ASC
-  `);
+  `;
+    const params = hasWorkspaceFilter ? [workspaceId] : [];
+    const result = await executor.query(query, params);
     return result.rows.map((row) => ({
         id: row.id,
         name: row.name,

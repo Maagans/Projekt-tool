@@ -41,19 +41,20 @@ backend/tests/repositories/workspacesRepository.test.js
 
 **Tests først:**
 ```
-backend/tests/repositories/projectRepository.test.js
-- getProjectsByWorkspace filters by workspace_id
-- createProject sets workspace_id from user
-
-backend/tests/services/employeeService.test.js
-- getEmployees filters by user's workspace_id
+backend/tests/repositories/workspaceRepository.test.js
+- [x] loadEmployees filters by workspace_id when provided
+- [x] loadEmployees returns all when no workspaceId (backwards compat)
+- [x] loadProjects filters by workspace_id when provided
+- [x] loadProjects returns all when no workspaceId (backwards compat)
 ```
 
 **Implementation:**
 - [x] Migration: `workspace_id` columns (✅ Done in TD-4)
-- [ ] Update `projectRepository.getAll()` → add workspace filter
-- [ ] Update `employeeService.getEmployees()` → add workspace filter
-- [ ] Update `workspaceService.loadFullWorkspace()` → filter by workspace
+- [x] `workspaceRepository.loadEmployees(executor, workspaceId)` → workspace filter ✅
+- [x] `workspaceRepository.loadProjects(executor, workspaceId)` → workspace filter ✅
+- [x] `loadWorkspaceService.loadFullWorkspace(client, workspaceId)` → passes filter ✅
+- [x] `workspaceService.loadFullWorkspace(client, workspaceId)` → workspace filter ✅
+- [x] `workspaceService.buildWorkspaceForUser()` → passes user.workspaceId ✅
 
 ### 1.3 User-Workspace Assignment
 
