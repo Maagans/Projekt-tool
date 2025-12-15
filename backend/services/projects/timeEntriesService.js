@@ -2,6 +2,7 @@ import logger from "../../logger.js";
 import { createAppError } from "../../utils/errors.js";
 import { ensureEmployeeLinkForUser } from "../workspaceService.js";
 import { withTransaction } from "../../utils/transactions.js";
+import { clearResourceAnalyticsCache } from "../resourceAnalyticsService.js";
 import {
   findMemberById,
   getTimeEntryForWeek,
@@ -65,6 +66,9 @@ export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, p
           actualHours: normaliseHours(actualHours, existingEntry?.actualHours ?? 0),
         });
       }
+
+      // Clear analytics cache so charts update immediately
+      clearResourceAnalyticsCache();
 
       const timeEntries = await listTimeEntriesForMember(client, memberId);
 
