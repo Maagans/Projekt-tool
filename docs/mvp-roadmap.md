@@ -2,7 +2,10 @@
 
 ## Executive Summary
 
-PRD indeholder 7 moduler med ~35 features. Baseret på nuværende implementation og dependencies anbefales opdeling i 3 faser.
+PRD indeholder 7 moduler med ~35 features. Baseret på nuværende implementation og nye UX-krav fra PMO anbefales opdeling i 3 faser.
+
+> [!IMPORTANT]
+> **Strategisk Skift:** "Project Overview" bliver til et "Stamkort" (Project Charter) – en statisk forsidebeskrivelse af projektet i stedet for et dynamisk dashboard. "Project Organization" omdøbes til "Project Resources" (Projektressourcer).
 
 ---
 
@@ -17,104 +20,171 @@ PRD indeholder 7 moduler med ~35 features. Baseret på nuværende implementation
 | Project members | ✅ Med timeregistrering |
 | Reports | ✅ Ugebaseret med risici, faser, milestones |
 | Resource analytics | ✅ Kapacitet vs. planlagt/faktisk |
+| **Workspace Foundation** | ✅ **KOMPLET** (se Phase 1 nedenfor) |
 
 ---
 
-## MVP 1.0 - Foundation (4-6 uger)
+## MVP 1.0 - Foundation & Core UX (Igangværende)
 
 > [!IMPORTANT]
-> Fokus: Basis multi-workspace + forbedret RBAC + UX
+> Fokus: Multi-workspace fuldendt + **Project Charter UX-redesign** + RBAC forbedringer
 
-### 1.1 Workspace Foundation
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| `workspace_id` på alle entiteter | Medium | 1 |
-| Workspace-tabel (id, name, type) | Low | 1 |
-| Bruger-workspace relation | Low | 1 |
-| Data isolation i queries | Medium | 1 |
+### 1.1 Workspace Foundation ✅ KOMPLET
 
-**Database ændringer:**
-```sql
-CREATE TABLE workspaces (id UUID, name TEXT, type TEXT);
-ALTER TABLE projects ADD workspace_id UUID;
-ALTER TABLE employees ADD workspace_id UUID;
-ALTER TABLE users ADD workspace_id UUID;
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `workspace_id` på alle entiteter | ✅ Done | TD-4 migration |
+| Workspace-tabel (id, name, type) | ✅ Done | Repository + routes |
+| Bruger-workspace relation | ✅ Done | JWT payload inkluderer workspaceId |
+| Data isolation i queries | ✅ Done | Alle list-queries filtrerer |
+| Admin UI: workspace dropdown | ✅ Done | User create/edit |
+| Frontend: workspaceId i context | ✅ Done | AuthProvider/useProjectManager |
+
+### 1.2 3rd Workspace for Cross-Cutting Projects (NY)
+
+| Feature | Complexity | Status |
+|---------|------------|--------|
+| Opret "Strategiske Projekter" workspace | Low | ⬜ TODO |
+| Seed data med 3 workspaces | Low | ⬜ TODO |
+| Dokumentation af context-switching workflow | Low | ⬜ TODO |
+
+> **Arkitektur-beslutning:** I stedet for multi-tenant projekter, oprettes et dedikeret 3. workspace til tværgående projekter (M365, ERP, etc.). Brugere skifter kontekst for at tilgå dette.
+
+### 1.2.1 Workspace Switcher UI (NY)
+
+| Feature | Complexity | Status |
+|---------|------------|--------|
+| Dropdown i header til workspace-valg | Medium | ⬜ TODO |
+| Gem valgt workspace i session/localStorage | Low | ⬜ TODO |
+| Refetch projekter/medarbejdere ved skift | Low | ⬜ TODO |
+
+**UI Mockup:**
+```
+┌─────────────────────────────────────────────┐
+│  🏢 Vælg Workspace: [▼ Sekretariatet     ]  │
+│     ○ Sekretariatet                         │
+│     ○ Behandlingsstederne                   │
+│     ○ Cross-Workspace (Strategiske)         │
+└─────────────────────────────────────────────┘
 ```
 
-### 1.2 Forbedret RBAC
+### 1.2.2 Employee → Workspace Auto-Mapping (NY)
+
+| Feature | Complexity | Status |
+|---------|------------|--------|
+| `deriveWorkspace(location)` helper | Low | ⬜ TODO |
+| Auto-sæt workspace ved CSV-import | Low | ⬜ TODO |
+| Auto-sæt workspace ved manuel oprettelse | Low | ⬜ TODO |
+
+**Mapping:**
+| Location | Workspace |
+|----------|-----------|
+| Sano Aarhus, Sano Middelfart, Sano Skælskør, Dansk Gigthospital | Behandlingsstederne |
+| Sekretariatet | Sekretariatet |
+
+### 1.2.3 Analytics: Medarbejder-Baseret Model (NY)
+
+| Feature | Complexity | Status |
+|---------|------------|--------|
+| Ændre analytics query til `WHERE employee.workspace_id = ?` | Medium | ⬜ TODO |
+| PMO ser timer for egne folk - uanset projektets workspace | Medium | ⬜ TODO |
+
+> **Nøgle-princip:** "Timer tæller i medarbejderens workspace, ikke projektets." Dette giver hver PMO fuldt overblik over egne folks kapacitet.
+
+### 1.3 Project Charter (Stamkort) - UX REDESIGN (NY)
+
 | Feature | Complexity | PRD Ref |
 |---------|------------|---------|
-| Ny rolle: "Mellemleder" (PMO) | Low | 2 |
-| PL read-all, write-own | Medium | 2 |
-| Projektleder-felt på projekt | Low | 2 |
+| **Omdøbning:** "Project Organization" → "Project Resources" | Low | - |
+| **Fjern:** Hero Image + Capacity Overview fra Project Overview | Low | - |
+| **Ny Top Sektion:** | | |
+| - Strategisk Ambition/Mål (tekstfelt) | Medium | - |
+| - Styringsudvalg & Projektgruppe (avatar-visning) | Medium | - |
+| - "Projektplan" knap (link/upload) | Low | - |
+| **Nyt Indhold:** | | |
+| - Formål (bullet points) | Low | - |
+| - Business Case (kort resumé) | Low | - |
+| - Placeholders for: Gevinster, Interessenter, Dokumenter | Low | MVP 1.5 |
+| **Ny Sidebar:** | | |
+| - Top 3 Risici (eksisterende) | ✅ Eksisterer | - |
+| - Gevinstpåvirkning (trafiklysstatus) | Medium | - |
+| - Næste Skridt (6-måneders horisont) | Low | - |
 
-### 1.3 Projekt-liste UX
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Default filter: kun "Aktiv" | Low | 3 |
-| "Mine Projekter" sektion | Medium | 3 |
-| Status-filter toggle | Low | 3 |
+### 1.4 Forbedret RBAC
 
-**Estimat:** 4-6 uger | **Risiko:** Lav-Medium
+| Feature | Complexity | Status |
+|---------|------------|--------|
+| Ny rolle: "Mellemleder" (PMO) | Low | ⬜ TODO |
+| PL read-all, write-own | Medium | ⬜ TODO |
+| Projektleder-felt på projekt (`leader_id`) | Low | ⬜ TODO |
+
+### 1.5 Projekt-liste UX
+
+| Feature | Status |
+|---------|--------|
+| Default filter: kun "Aktiv" | ⬜ TODO |
+| "Mine Projekter" sektion | ⬜ TODO |
+| Status-filter toggle | ⬜ TODO |
+
+**Estimat:** 4-6 uger | **Risiko:** Medium (UI-redesign)
 
 ---
 
-## MVP 1.5 - Master Data (3-4 uger)
+## MVP 1.5 - The Project Toolbox (Næste)
 
 > [!TIP]
-> Fokus: Organisationshierarki + roller + status
+> Fokus: Master Data + CRUD-moduler til Charter
 
 ### 1.5.1 Organisationshierarki
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Organisation-tabel | Low | 4 |
-| Location-tabel (erstatter hardcoded) | Medium | 4 |
-| Afdeling/Team-tabel | Low | 4 |
-| Hierarki: PMO → Org → Lok → Afd | Medium | 4 |
+| Feature | Complexity |
+|---------|------------|
+| Organisation-tabel | Low |
+| Location-tabel (erstatter hardcoded) | Medium |
+| Afdeling/Team-tabel | Low |
+| Hierarki: PMO → Org → Lok → Afd | Medium |
 
-### 1.5.2 Job Roles (Master Data)
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Rolle-tabel (Sygeplejerske, etc.) | Low | 4 |
-| Medarbejder → Rolle relation | Low | 4 |
+### 1.5.2 Charter Data Modules (NY)
+| Feature | Complexity | Notes |
+|---------|------------|-------|
+| **Gevinster (Benefits)** - CRUD tabel | Medium | Erstatter placeholder fra MVP 1.0 |
+| **Interessenter (Stakeholders)** - CRUD tabel | Medium | Erstatter placeholder fra MVP 1.0 |
+| **Dokumentlinks** - CRUD tabel | Low | Erstatter placeholder fra MVP 1.0 |
 
-### 1.5.3 Medarbejder Status
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Aktiv/Inaktiv felt | Low | 4 |
-| Orlovsperioder | Medium | 4 |
-| Tidskategorisering (%) | Medium | 4 |
+### 1.5.3 Workflow Forbedringer
+| Feature | Complexity |
+|---------|------------|
+| Risk Snapshot til rapporter (eliminer dobbelt-indtastning) | Medium |
+| Job Roles master data | Low |
+| Medarbejder status (aktiv/inaktiv/orlov) | Medium |
 
 **Estimat:** 3-4 uger | **Risiko:** Lav
 
 ---
 
-## MVP 2.0 - Analytics Engine (4-6 uger)
+## MVP 2.0 - The Analytics Engine
 
 > [!WARNING]
 > Fokus: Avanceret ressourcestyring - kræver MVP 1.5
 
 ### 2.0.1 Brutto-til-Netto
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Baseline kapacitet | ✅ Eksisterer | 5 |
-| Fradrag (drift, ferie, compliance) | High | 5 |
-| Netto projekt-tid beregning | High | 5 |
+| Feature | Complexity |
+|---------|------------|
+| Baseline kapacitet | ✅ Eksisterer |
+| Fradrag (drift, ferie, compliance) | High |
+| Netto projekt-tid beregning | High |
 
-### 2.0.2 Rolle-baseret Planlægning
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| "Generic resource" på projekt | High | 5 |
-| Rolle-kapacitet aggregering | High | 5 |
-| Flaskehals-detektor på roller | High | 5 |
+### 2.0.2 Person-level Filtering (NY)
+| Feature | Complexity |
+|---------|------------|
+| Projekt-filter i grafer | Medium |
+| Person-filter i ressource charts | Medium |
+| Drill-down (Org → Lok → Afd) | High |
 
 ### 2.0.3 Dashboard Forbedringer
-| Feature | Complexity | PRD Ref |
-|---------|------------|---------|
-| Projekt-filter i grafer | Medium | 6 |
-| 85% threshold linje | Low | 6 |
-| Overbooking highlighting | Medium | 6 |
-| Drill-down (Org → Lok → Afd) | High | 6 |
+| Feature | Complexity |
+|---------|------------|
+| 85% threshold linje | Low |
+| Overbooking highlighting | Medium |
 
 **Estimat:** 4-6 uger | **Risiko:** Høj
 
@@ -122,39 +192,52 @@ ALTER TABLE users ADD workspace_id UUID;
 
 ## Backlog (Post-MVP)
 
-| Feature | PRD Ref | Priority |
-|---------|---------|----------|
-| Dokumenthåndtering | 3 | Medium |
-| Sprint/Agil proces | 7 | Low |
-| Notifikationsmodul | 7 | Medium |
-| KPI vs. strategiske mål | 6 | Medium |
+| Feature | Priority |
+|---------|----------|
+| Dokumenthåndtering (full upload) | Medium |
+| Sprint/Agil proces | Low |
+| Notifikationsmodul | Medium |
+| KPI vs. strategiske mål | Medium |
+| Generic Resources (rolle-baseret planlægning) | High |
 
 ---
 
 ## Anbefalet Rækkefølge
 
-```mermaid
-gantt
-    title MVP Roadmap
-    dateFormat  YYYY-MM-DD
-    section Foundation
-    Workspace scope       :mvp1a, 2025-01-13, 2w
-    RBAC forbedring       :mvp1b, after mvp1a, 2w
-    Projekt-liste UX      :mvp1c, after mvp1b, 1w
-    section Master Data
-    Org hierarki          :mvp15a, after mvp1c, 2w
-    Job roles             :mvp15b, after mvp15a, 1w
-    Medarbejder status    :mvp15c, after mvp15b, 1w
-    section Analytics
-    Brutto-Netto          :mvp2a, after mvp15c, 2w
-    Rolle-planlægning     :mvp2b, after mvp2a, 2w
-    Dashboard             :mvp2c, after mvp2b, 2w
-```
+| Fase | Feature | Estimat | Status |
+|------|---------|---------|--------|
+| **MVP 1.0** | Workspace Foundation | ✅ Done | ✅ |
+| | 3rd Workspace Config | 3 dage | ⬜ TODO |
+| | Project Charter UX | 2 uger | ⬜ TODO |
+| | Renaming (Org→Resources) | 2 dage | ⬜ TODO |
+| | RBAC (leader_id) | 1 uge | ⬜ TODO |
+| | Projekt-liste UX | 1 uge | ⬜ TODO |
+| **MVP 1.5** | Org Hierarki | 2 uger | ⬜ Backlog |
+| | Benefits CRUD | 1 uge | ⬜ Backlog |
+| | Stakeholders CRUD | 1 uge | ⬜ Backlog |
+| | Documents CRUD | 3 dage | ⬜ Backlog |
+| | Risk Snapshots | 1 uge | ⬜ Backlog |
+| **MVP 2.0** | Brutto-Netto | 2 uger | ⬜ Backlog |
+| | Person Filtering | 2 uger | ⬜ Backlog |
+| | Dashboard Polish | 1 uge | ⬜ Backlog |
+
+**Total estimat:** ~12-14 uger
 
 ---
 
-## Beslutninger Påkrævet
+## Beslutninger (Løst)
 
-1. **Workspace strategi:** Database-level isolation (strikt) eller logical separation (fleksibel)?
-2. **Tidskategorisering:** Skal alle 4 kategorier (Udvikling/Drift/Compliance/Forskning) bruges af begge workspaces?
-3. **Generic resources:** Skal rolle-baseret planlægning ind i MVP 1.5 eller 2.0?
+| Spørgsmål | Beslutning | Begrundelse |
+|-----------|------------|-------------|
+| **Workspace strategi** | Strict (database-level) | Crasher hellere end lækker data |
+| **Cross-Org Projects** | 3. Workspace | Undgår multi-tenant kompleksitet |
+| **Admin scope** | Workspace-scoped | Admin er "Gud i sit rum" |
+| **Project leader** | Én primær `leader_id` | O(1) permission check |
+
+## Open Questions (Afventer PMO)
+
+| Spørgsmål | Status |
+|-----------|--------|
+| Skal man kun kunne tilknytte medarbejdere fra samme workspace? | ⏳ Afventer |
+| Må medarbejdere (IT) være i flere workspaces? | ⏳ Afventer |
+| PMO permissions: read-only eller redigering? | ⏳ Afventer |
