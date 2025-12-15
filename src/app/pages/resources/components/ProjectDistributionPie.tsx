@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { formatHours } from '../../../../utils/format';
 
@@ -17,7 +18,7 @@ type ProjectDistributionPieProps = {
   isLoading: boolean;
 };
 
-export const ProjectDistributionPie = ({ title, items, total, isLoading }: ProjectDistributionPieProps) => {
+export const ProjectDistributionPie = memo(function ProjectDistributionPie({ title, items, total, isLoading }: ProjectDistributionPieProps) {
   const hasData = total > 0 && items.some((item) => item.value > 0);
 
   return (
@@ -45,6 +46,7 @@ export const ProjectDistributionPie = ({ title, items, total, isLoading }: Proje
                   paddingAngle={2}
                   stroke="#ffffff"
                   strokeWidth={3}
+                  isAnimationActive={false}
                 >
                   {items.map((entry) => (
                     <Cell key={`${title}-${entry.id}`} fill={entry.color} />
@@ -85,4 +87,4 @@ export const ProjectDistributionPie = ({ title, items, total, isLoading }: Proje
       )}
     </div>
   );
-};
+});

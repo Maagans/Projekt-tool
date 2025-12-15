@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   LineChart,
   Line,
@@ -32,7 +33,7 @@ type AnalyticsContentProps = {
   onToggleOverAllocated: () => void;
 };
 
-export const AnalyticsContent = ({
+export const AnalyticsContent = memo(function AnalyticsContent({
   chartData,
   baselineHoursWeek,
   baselineTotalHours,
@@ -45,7 +46,7 @@ export const AnalyticsContent = ({
   summary,
   showOverAllocated,
   onToggleOverAllocated,
-}: AnalyticsContentProps) => {
+}: AnalyticsContentProps) {
   const isSummary = viewMode === 'summary';
   const isCumulative = viewMode === 'cumulative';
   const hasChartData = chartData.length > 0;
@@ -72,11 +73,10 @@ export const AnalyticsContent = ({
             type="button"
             onClick={onToggleOverAllocated}
             aria-pressed={showOverAllocated}
-            className={`ml-auto rounded-full border px-4 py-2 text-xs font-medium transition ${
-              showOverAllocated
-                ? 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
-                : 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
-            }`}
+            className={`ml-auto rounded-full border px-4 py-2 text-xs font-medium transition ${showOverAllocated
+              ? 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600'
+              : 'border-blue-500 bg-blue-50 text-blue-600 shadow-sm'
+              }`}
           >
             {overAllocatedButtonLabel}
           </button>
@@ -115,9 +115,9 @@ export const AnalyticsContent = ({
                     contentStyle={{ borderRadius: '0.75rem', borderColor: '#cbd5f5' }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="capacity" name="Kumulativ kapacitet" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="capacity" name="Kumulativ kapacitet" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -166,8 +166,8 @@ export const AnalyticsContent = ({
                     }}
                   />
                 )}
-                <Line type="monotone" dataKey="capacity" name="Kapacitet" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="capacity" name="Kapacitet" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} activeDot={{ r: 5 }} isAnimationActive={false} />
                 <Line
                   type="monotone"
                   dataKey="actual"
@@ -186,6 +186,7 @@ export const AnalyticsContent = ({
                     return <circle cx={props.cx} cy={props.cy} r={radius} fill={fill} stroke="#ffffff" strokeWidth={strokeWidth} />;
                   }}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -196,4 +197,4 @@ export const AnalyticsContent = ({
       )}
     </section>
   );
-};
+});

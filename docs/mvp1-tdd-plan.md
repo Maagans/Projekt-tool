@@ -10,13 +10,60 @@ MVP 1.0 fokuserer på 3 områder: Workspace Foundation, Forbedret RBAC, og Proje
 
 ---
 
-## Design Decisions (Resolved)
+## Design Decisions & Open Questions
 
 | Spørgsmål | Beslutning | Begrundelse |
 |-----------|------------|-------------|
-| **Admin scope** | Workspace-scoped | Forenkler repository logic - ingen `if(admin) fjern_filter`. Admin er "Gud i sit rum". |
-| **Project leader** | Én primær `leader_id` | O(1) check i `canEditProject()` - ingen join på project_members. |
+| 1. **Admin scope:** Skal admin se alt på tværs af workspaces, eller kun sin egen? | Workspace-scoped | Forenkler repository logic - ingen `if(admin) fjern_filter`. Admin er "Gud i sit rum". |
+| 2. **PMO permissions:** Skal PMO kunne redigere projekter, eller kun se? | | |
+| 3. **Project leader:** Kan et projekt have flere ledere, eller kun én? | Én primær `leader_id` | O(1) check i `canEditProject()` - ingen join på project_members. |
+| 4. **Employee-Workspace Constraint:** Skal man kun kunne tilknytte medarbejdere fra samme workspace til et projekt? (Kan en PL i SEK kun vælge medarbejdere fra SEK?) | | |
+| 5. **Cross-Workspace Employees:** Må medarbejdere (f.eks. IT) være medlem af flere workspaces samtidig? | | |
+| 6. **Multi-tenant Projects:** Skal der være projekter der går på tværs af workspaces? (F.eks. "M365 Implementering" der berører hele organisationen). | | |
 | **Workspace strategi** | Strict (database-level) | Kræver workspace_id i alle queries - crasher hellere end lækker data. |
+
+### Reflections: Workspace & Employee Model
+
+#### 4. Employee-Workspace Constraint
+**"Skal man kun kunne tilknytte medarbejdere fra samme workspace til et projekt?"**
+
+| Fordele | Ulemper |
+|---------|---------|
+| ✅ Simpel implementation – Én `WHERE workspace_id = ?` | ❌ Ufleksibelt – Kan ikke invitere eksperter fra andre afdelinger |
+| ✅ Klar data-isolation – Ingen risiko for at se "fremmede" | ❌ Dublettering – IT-folk skal oprettes i flere workspaces |
+| ✅ Hurtig UI – Dropdown viser kun relevante medarbejdere | ❌ Inkonsistent data – Samme person med forskellige kapaciteter |
+
+> **MVP Anbefaling:** Start med strict constraint, tilføj "gæste-invitation" i v2.
+
+#### 5. Cross-Workspace Employees
+**"Må medarbejdere (f.eks. IT) være medlem af flere workspaces?"**
+
+| Fordele | Ulemper |
+|---------|---------|
+| ✅ Realistisk modellering – IT/HR arbejder på tværs | ❌ Kompleks datamodel – Kræver `employee_workspaces` junction-tabel |
+| ✅ Én sandhed – Medarbejderens stamdata ét sted | ❌ Kapacitets-split – Hvordan fordeles 37t/uge mellem workspaces? |
+| ✅ Bedre analytics – Samlet overblik over en persons tid | ❌ Permission-rod – Kan admin i SEK redigere en IT-medarbejder? |
+
+> **MVP Anbefaling:** Medarbejdere har én `primary_workspace_id`. Cross-workspace i v2.
+
+#### 6. Multi-tenant Projects
+**"Skal der være projekter der går på tværs af workspaces?"**
+
+| Fordele | Ulemper |
+|---------|---------|
+| ✅ Virkeligheds-tro – Store projekter (M365, ERP) berører alle | ❌ Ødelægger isolation – Hvem "ejer" projektet? |
+| ✅ Samlet rapportering – Én statusrapport for hele org | ❌ Permissions-mareridt – Hvem kan redigere? Se? |
+| ✅ Undgår dubletter – Ét projekt i stedet for 3 kopier | ❌ Analytics-forurening – Timer fra SEK tæller i Behandling |
+
+> **MVP Anbefaling:** Nej. Opret projektet i "IT" eller "Fælles" workspace. Tilføj `visibility: 'organization'` flag i v2.
+
+### Samlet MVP 1 Strategi
+
+| Spørgsmål | MVP 1 (simpelt) | v2 (avanceret) |
+|-----------|-----------------|----------------|
+| Employee constraint | ✅ Strict – kun egen workspace | Tilføj "gæste-invitation" |
+| Cross-workspace employees | ❌ Nej – én primary workspace | Junction-tabel med allocation |
+| Multi-tenant projects | ❌ Nej – opret i fælles workspace | `visibility: 'organization'` flag |
 
 ---
 

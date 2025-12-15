@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceArea, ResponsiveContainer, Tooltip } from 'recharts';
 import { applyAlpha, type ProjectStackChartConfig, type StackAreaConfig } from '../resourceAnalyticsStacking';
 import { formatWeekLabel, formatHours } from '../../../../utils/format';
@@ -12,12 +12,16 @@ type StackedProjectsCardProps = {
   baselineTotalHours: number;
 };
 
-export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHours }: StackedProjectsCardProps) => {
+export const StackedProjectsCard = memo(function StackedProjectsCard({ chart, baselineHoursWeek, baselineTotalHours }: StackedProjectsCardProps) {
   const [view, setView] = useState<'planned' | 'actual'>('planned');
-  const areaMeta = new Map<string, StackAreaConfig>();
-  [...chart.plannedAreas, ...chart.actualAreas].forEach((area) => {
-    areaMeta.set(area.dataKey, area);
-  });
+
+  const areaMeta = useMemo(() => {
+    const meta = new Map<string, StackAreaConfig>();
+    [...chart.plannedAreas, ...chart.actualAreas].forEach((area) => {
+      meta.set(area.dataKey, area);
+    });
+    return meta;
+  }, [chart.plannedAreas, chart.actualAreas]);
 
   const computeOverBaselineRanges = (variant: 'planned' | 'actual') => {
     if (baselineHoursWeek <= 0) return [];
@@ -47,8 +51,8 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
     baselineHoursWeek <= 0
       ? []
       : chart.data.filter((point) =>
-          variant === 'planned' ? point.plannedTotal > baselineHoursWeek : point.actualTotal > baselineHoursWeek,
-        ).map((point) => point.week);
+        variant === 'planned' ? point.plannedTotal > baselineHoursWeek : point.actualTotal > baselineHoursWeek,
+      ).map((point) => point.week);
 
   const renderChart = (variant: 'planned' | 'actual') => {
     const areas = variant === 'planned' ? chart.plannedAreas : chart.actualAreas;
@@ -61,9 +65,8 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
     return (
       <div
         key={variant}
-        className={`absolute inset-0 transition-opacity duration-300 ${
-          view === variant ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`absolute inset-0 transition-opacity duration-300 ${view === variant ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         aria-hidden={view !== variant}
       >
         <ResponsiveContainer width="100%" height="100%">
@@ -168,4 +171,4 @@ export const StackedProjectsCard = ({ chart, baselineHoursWeek, baselineTotalHou
       <OverBaselineBadges weeks={overBaselineWeeks} baselineHoursWeek={baselineHoursWeek} />
     </section>
   );
-};
+});
