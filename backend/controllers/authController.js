@@ -10,7 +10,8 @@ import {
 export const login = async (req, res, next) => {
     try {
         const { email, password } = req.validatedBody ?? req.body ?? {};
-        const { token, csrfToken, user } = await loginService(email, password);
+        const ipAddress = req.ip || req.connection?.remoteAddress || null;
+        const { token, csrfToken, user } = await loginService(email, password, ipAddress);
 
         res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions);
         res.cookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions);

@@ -197,4 +197,44 @@ api.login(...);
 
 ### Hardcoded Locations (DEPRECATED)
 The `locations` array in `src/types.ts` is legacy. New code should fetch from `/api/organizations/all/locations`.
+
+---
+
+## 9. Audit Logging Guidelines
+
+All new components that mutate data **MUST** include audit logging.
+
+### When to Log
+- **CREATE/UPDATE/DELETE** of entities (users, employees, projects, members, reports, risks)
+- **Auth events** (login, logout, failed login)
+- **Workspace changes** (role updates, workspace assignments)
+
+### How to Add Audit Logging
+```js
+import { logAction } from '../services/auditLogService.js';
+
+// In your service, after a successful mutation:
+await logAction(client, {
+  userId: user.id,
+  userName: user.name,
+  userRole: user.role,
+  workspaceId: user.workspaceId,
+  action: 'CREATE', // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | LOGIN_FAILED
+  entityType: 'project', // user | employee | project | member | timeEntry | report | risk | auth
+  entityId: entity.id,
+  entityName: entity.name,
+  description: `Oprettede projekt '${entity.name}'`,
+  ipAddress: null // Pass req.ip from controller if available
+});
 ```
+
+### Best Practices
+- Log **after** the mutation succeeds (within the transaction if possible)
+- Use Danish descriptions for human-readable logs
+- Include entity name for easier filtering
+- The log service catches errors silently - logging failures won't break the main operation
+
+### Log Retention
+- Logs are retained for **26 weeks** (auto-cleanup via scheduled job)
+- Admins can view logs at `/admin/audit-logs`
+- CSV export available for external analysis

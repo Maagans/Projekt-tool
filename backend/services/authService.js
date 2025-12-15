@@ -10,10 +10,11 @@ import { config } from "../config/index.js";
 import { loginSchema, registerSchema } from "../validators/authValidators.js";
 import * as userRepository from "../repositories/userRepository.js";
 import * as employeeRepository from "../repositories/employeeRepository.js";
+import { logAction } from "./auditLogService.js";
 
 const jwtSecret = config.jwtSecret;
 
-export const login = async (email, password) => {
+export const login = async (email, password, ipAddress) => {
     if (!jwtSecret) {
         throw createAppError('JWT secret is not configured.', 500);
     }
@@ -22,12 +23,38 @@ export const login = async (email, password) => {
     const user = await userRepository.findByEmail(pool, normalizedEmail);
     if (!user) {
         logger.warn({ event: 'login_failed', reason: 'user_not_found' });
+        // Log failed login attempt
+        await logAction(pool, {
+            userId: null,
+            userName: normalizedEmail,
+            userRole: 'Unknown',
+            workspaceId: null,
+            action: 'LOGIN_FAILED',
+            entityType: 'auth',
+            entityId: null,
+            entityName: null,
+            description: `Fejlet login (bruger ikke fundet): ${normalizedEmail}`,
+            ipAddress
+        });
         throw createAppError('Login failed. Please check your email and password.', 401);
     }
 
     const isMatch = bcrypt.compareSync(sanitizedPassword, user.password_hash.trim());
     if (!isMatch) {
         logger.warn({ event: 'login_failed', reason: 'password_mismatch', userId: user.id });
+        // Log failed login attempt
+        await logAction(pool, {
+            userId: user.id,
+            userName: user.name,
+            userRole: user.role,
+            workspaceId: user.workspace_id,
+            action: 'LOGIN_FAILED',
+            entityType: 'auth',
+            entityId: user.id,
+            entityName: user.name,
+            description: `Fejlet login (forkert adgangskode): ${user.name}`,
+            ipAddress
+        });
         throw createAppError('Login failed. Please check your email and password.', 401);
     }
 
@@ -49,6 +76,20 @@ export const login = async (email, password) => {
 
     const token = jwt.sign(userPayload, jwtSecret, { expiresIn: '1d' });
     const csrfToken = generateCsrfToken();
+
+    // Log successful login
+    await logAction(pool, {
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        workspaceId: user.workspace_id,
+        action: 'LOGIN',
+        entityType: 'auth',
+        entityId: user.id,
+        entityName: user.name,
+        description: `Loggede ind: ${user.name}`,
+        ipAddress
+    });
 
     return { token, csrfToken, user: userPayload };
 };

@@ -18,6 +18,7 @@ import {
   parseCreateRiskPayload,
   parseUpdateRiskPayload,
 } from "../../validators/riskValidators.js";
+import { logAction } from "../auditLogService.js";
 
 const mapRiskRow = (row) => {
   const normalizeDate = (value) => {
@@ -176,6 +177,21 @@ export const createProjectRisk = async (projectId, payload, user, options = {}) 
     const parsedPayload = parseCreateRiskPayload(payload);
     const insertPayload = buildInsertPayload(projectId, parsedPayload, effectiveUser);
     const row = await insertProjectRisk(client, insertPayload);
+
+    // Log risk creation
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'CREATE',
+      entityType: 'risk',
+      entityId: row.id,
+      entityName: row.title,
+      description: `Oprettede risiko '${row.title}'`,
+      ipAddress: null
+    });
+
     return mapRiskRow(row);
   }, options);
 };
@@ -200,6 +216,21 @@ export const updateProjectRisk = async (riskId, updates, user, options = {}) => 
     const parsedUpdates = parseUpdateRiskPayload(updates);
     const updatePayload = buildUpdatePayload(riskRow, parsedUpdates, effectiveUser);
     const row = await updateProjectRiskRepo(client, { riskId, updates: updatePayload });
+
+    // Log risk update
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'UPDATE',
+      entityType: 'risk',
+      entityId: riskId,
+      entityName: row.title,
+      description: `Opdaterede risiko '${row.title}'`,
+      ipAddress: null
+    });
+
     return mapRiskRow(row);
   }, options);
 };
@@ -211,6 +242,20 @@ export const archiveProjectRisk = async (riskId, user, options = {}) => {
     await assertEditAccess(client, riskRow.project_id, effectiveUser);
 
     await archiveProjectRiskRepo(client, riskId, effectiveUser.id ?? null);
+
+    // Log risk archival
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'DELETE',
+      entityType: 'risk',
+      entityId: riskId,
+      entityName: riskRow.title,
+      description: `Arkiverede risiko '${riskRow.title}'`,
+      ipAddress: null
+    });
 
     return { success: true };
   }, options);

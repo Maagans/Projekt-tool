@@ -4,6 +4,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.15.0] - 2025-12-15
+### Added
+- **Audit Log System (AUDIT-001):**
+  - Database: `audit_logs` table with migration, indexes, and 26-week retention policy.
+  - Backend: `auditLogRepository.js`, `auditLogService.js`, `auditLogController.js` with full CRUD.
+  - API endpoints: `GET /api/admin/audit-logs`, `GET .../export` (CSV), `GET .../users`, `POST .../cleanup`.
+  - Frontend: `AuditLogPage.tsx` with table, filtering (action, type, date range), pagination (100/page), CSV export.
+  - Route `/admin/audit-logs` and navigation button in Admin panel.
+  - Logging integrated in all services: auth, user, employee, project, projectMembers, timeEntries, report, risk.
+  - `Agents.md` updated with Section 9: Audit Logging Guidelines.
+
 ## [1.14.0] - 2025-12-09
 ### Added
 - **Frontend:** 4 nye domæne-hooks til modulær arkitektur (ARCH-001):

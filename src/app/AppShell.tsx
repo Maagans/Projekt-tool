@@ -12,6 +12,7 @@ import { PROJECT_RISK_ANALYSIS_ENABLED } from './constants';
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const EmployeePage = lazy(() => import('./pages/employees/EmployeePage'));
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'));
+const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const PmoPage = lazy(() => import('./pages/pmo/PmoPage'));
 const ProjectLayout = lazy(() => import('./pages/projects/ProjectLayout'));
 const ProjectReportsPage = lazy(
@@ -188,6 +189,7 @@ export const AppShell = () => {
               <Route path="/pmo" element={canManage ? <PmoPage /> : <Navigate to="/" replace />} />
               <Route path="/resources" element={<Navigate to="/pmo?view=resources" replace />} />
               <Route path="/admin" element={isAdministrator ? <AdminPage /> : <Navigate to="/" replace />} />
+              <Route path="/admin/audit-logs" element={isAdministrator ? <AuditLogPage /> : <Navigate to="/" replace />} />
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
                 <Route index element={<ProjectOverviewPage />} />
                 <Route path="reports" element={<ProjectReportsPage />} />

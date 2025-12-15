@@ -4,6 +4,7 @@ import { createAppError } from "../../utils/errors.js";
 import { ensureEmployeeLinkForUser } from "../workspaceService.js";
 import * as projectMembersRepository from "../../repositories/projectMembersRepository.js";
 import * as employeeRepository from "../../repositories/employeeRepository.js";
+import { logAction } from "../auditLogService.js";
 
 const mapMemberRow = (row) => ({
   id: row.id,
@@ -35,7 +36,7 @@ const assertCanManageProject = async (client, projectId, user) => {
 
 export const addProjectMemberRecord = async (projectId, payload, user) =>
   withTransaction(async (client) => {
-    await assertCanManageProject(client, projectId, user);
+    const effectiveUser = await assertCanManageProject(client, projectId, user);
     let createdEmployee = null;
     let employeeId = payload.employeeId;
 
@@ -46,7 +47,7 @@ export const addProjectMemberRecord = async (projectId, payload, user) =>
         employeeId = existing.id;
       } else {
         createdEmployee = await employeeRepository.create(client, {
-          id: payload.newEmployee.id ?? payload.employeeId, // allow client-supplied id for linkage
+          id: payload.newEmployee.id ?? payload.employeeId,
           name: payload.newEmployee.name.trim(),
           email: normalizedEmail,
           location: payload.newEmployee.location ?? "",
@@ -82,12 +83,27 @@ export const addProjectMemberRecord = async (projectId, payload, user) =>
     });
 
     const detailRow = await projectMembersRepository.findById(client, memberId);
+
+    // Log member addition
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'CREATE',
+      entityType: 'member',
+      entityId: memberId,
+      entityName: detailRow.employee_name ?? null,
+      description: `Tilføjede projektmedlem til projekt`,
+      ipAddress: null
+    });
+
     return { member: mapMemberRow(detailRow), employee: createdEmployee };
   });
 
 export const updateProjectMemberRecord = async (projectId, memberId, updates, user) =>
   withTransaction(async (client) => {
-    await assertCanManageProject(client, projectId, user);
+    const effectiveUser = await assertCanManageProject(client, projectId, user);
     const updated = await projectMembersRepository.updateMember(client, {
       projectId,
       memberId,
@@ -100,16 +116,49 @@ export const updateProjectMemberRecord = async (projectId, memberId, updates, us
     }
 
     const detailRow = await projectMembersRepository.findById(client, memberId);
+
+    // Log member update
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'UPDATE',
+      entityType: 'member',
+      entityId: memberId,
+      entityName: detailRow.employee_name ?? null,
+      description: `Opdaterede projektmedlem`,
+      ipAddress: null
+    });
+
     return mapMemberRow(detailRow);
   });
 
 export const deleteProjectMemberRecord = async (projectId, memberId, user) =>
   withTransaction(async (client) => {
-    await assertCanManageProject(client, projectId, user);
+    const effectiveUser = await assertCanManageProject(client, projectId, user);
+
+    // Get member details before deletion for logging
+    const memberRow = await projectMembersRepository.findById(client, memberId);
+
     const deleted = await projectMembersRepository.deleteMember(client, projectId, memberId);
-    // Idempotent delete: if member is already gone, treat as success
     if (!deleted) {
       return { success: true };
     }
+
+    // Log member deletion
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'DELETE',
+      entityType: 'member',
+      entityId: memberId,
+      entityName: memberRow?.employee_name ?? null,
+      description: `Fjernede projektmedlem fra projekt`,
+      ipAddress: null
+    });
+
     return { success: true };
   });

@@ -10,6 +10,7 @@ import {
   listTimeEntriesForMember,
   upsertTimeEntry,
 } from "../../repositories/timeEntryRepository.js";
+import { logAction } from "../auditLogService.js";
 
 const normaliseHours = (value, fallback = 0) => {
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
@@ -67,6 +68,20 @@ export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, p
         });
       }
 
+      // Log time entry update
+      await logAction(client, {
+        userId: effectiveUser.id,
+        userName: effectiveUser.name,
+        userRole: effectiveUser.role,
+        workspaceId: effectiveUser.workspaceId,
+        action: 'UPDATE',
+        entityType: 'timeEntry',
+        entityId: memberId,
+        entityName: weekKey,
+        description: `Opdaterede timeregistrering for uge ${weekKey}`,
+        ipAddress: null
+      });
+
       // Clear analytics cache so charts update immediately
       clearResourceAnalyticsCache();
 
@@ -89,3 +104,4 @@ export const updateProjectTimeEntries = async ({ projectId, memberId, weekKey, p
     throw error;
   }
 };
+

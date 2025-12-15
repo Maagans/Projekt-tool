@@ -5,6 +5,7 @@ import { normalizeEmail, toNonNegativeCapacity } from "../utils/helpers.js";
 import { ensureEmployeeLinkForUser, resolveDepartmentLocation } from "./workspaceService.js";
 import * as employeeRepository from "../repositories/employeeRepository.js";
 import { isAdmin, isProjectLeader } from "../utils/permissions.js";
+import { logAction } from "./auditLogService.js";
 
 const mapEmployeeRow = (row) => {
   const resolved = resolveDepartmentLocation(
@@ -103,6 +104,21 @@ export const createEmployeeRecord = async (payload, user) =>
         department,
         maxCapacityHoursWeek: maxCapacity,
       });
+
+      // Log employee creation
+      await logAction(client, {
+        userId: effectiveUser.id,
+        userName: effectiveUser.name,
+        userRole: effectiveUser.role,
+        workspaceId: effectiveUser.workspaceId,
+        action: 'CREATE',
+        entityType: 'employee',
+        entityId: employeeId,
+        entityName: name,
+        description: `Oprettede medarbejder '${name}'`,
+        ipAddress: null
+      });
+
       return mapEmployeeRow(rawEmployee);
     } catch (error) {
       if (error.code === "23505") {
@@ -174,6 +190,21 @@ export const updateEmployeeRecord = async (employeeId, updates, user) =>
 
     try {
       const updatedRow = await employeeRepository.update(client, employeeId, setStatements, params);
+
+      // Log employee update
+      await logAction(client, {
+        userId: effectiveUser.id,
+        userName: effectiveUser.name,
+        userRole: effectiveUser.role,
+        workspaceId: effectiveUser.workspaceId,
+        action: 'UPDATE',
+        entityType: 'employee',
+        entityId: employeeId,
+        entityName: updatedRow.name,
+        description: `Opdaterede medarbejder '${updatedRow.name}'`,
+        ipAddress: null
+      });
+
       return mapEmployeeRow(updatedRow);
     } catch (error) {
       if (error.code === "23505") {
@@ -187,12 +218,26 @@ export const deleteEmployeeRecord = async (employeeId, user) =>
   withTransaction(async (client) => {
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     assertAdmin(effectiveUser);
-    await fetchEmployeeOrThrow(client, employeeId);
+    const existingEmployee = await fetchEmployeeOrThrow(client, employeeId);
 
     const deleted = await employeeRepository.deleteById(client, employeeId);
     if (!deleted) {
       throw createAppError("Employee not found.", 404);
     }
+
+    // Log employee deletion
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'DELETE',
+      entityType: 'employee',
+      entityId: employeeId,
+      entityName: existingEmployee.name,
+      description: `Slettede medarbejder '${existingEmployee.name}'`,
+      ipAddress: null
+    });
 
     return { success: true };
   });

@@ -16,6 +16,7 @@ import {
 import { listPlanByProject } from "../repositories/projectPlanRepository.js";
 import { findByIdForUpdate } from "../repositories/projectRepository.js";
 import { toDateOnly } from "../utils/helpers.js";
+import { logAction } from "./auditLogService.js";
 
 const assertAuthenticated = (user) => {
   if (!user) {
@@ -274,6 +275,21 @@ export const createReport = async (projectId, payload, user) => {
     const newId = await repoCreateReport(client, projectId, weekKey);
     await replaceReportState(client, newId, baseState);
     const createdState = await getReportState(client, newId);
+
+    // Log report creation
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'CREATE',
+      entityType: 'report',
+      entityId: newId,
+      entityName: weekKey,
+      description: `Oprettede ugerapport '${weekKey}'`,
+      ipAddress: null
+    });
+
     return { id: newId, projectId, weekKey, state: createdState };
   }, { client: pool });
 };
@@ -301,6 +317,21 @@ export const updateReport = async (reportId, payload, user) => {
       await replaceReportState(client, reportId, merged);
     }
     const updatedState = await getReportState(client, reportId);
+
+    // Log report update
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'UPDATE',
+      entityType: 'report',
+      entityId: reportId,
+      entityName: weekKey ?? report.weekKey,
+      description: `Opdaterede ugerapport '${weekKey ?? report.weekKey}'`,
+      ipAddress: null
+    });
+
     return { id: report.id, projectId: report.projectId, weekKey: weekKey ?? report.weekKey, state: updatedState };
   }, { client: pool });
 };
@@ -310,6 +341,21 @@ export const deleteReport = async (reportId, user) => {
     const report = await fetchReportOrThrow(client, reportId);
     const effectiveUser = await ensureEmployeeLinkForUser(client, user);
     await assertProjectEditAccess(client, report.projectId, effectiveUser);
+
+    // Log report deletion
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'DELETE',
+      entityType: 'report',
+      entityId: reportId,
+      entityName: report.weekKey,
+      description: `Slettede ugerapport '${report.weekKey}'`,
+      ipAddress: null
+    });
+
     await repoDeleteReport(client, reportId);
   }, { client: pool });
 };

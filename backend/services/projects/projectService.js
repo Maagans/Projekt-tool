@@ -8,6 +8,7 @@ import * as projectRepository from "../../repositories/projectRepository.js";
 import { createProjectInputSchema, updateProjectInputSchema } from "../../validators/projectValidators.js";
 import { USER_ROLES } from "../../constants/roles.js";
 import { PROJECT_STATUS } from "../../constants/projectStatus.js";
+import { logAction } from "../auditLogService.js";
 
 const toIsoDateString = (value) => {
   if (typeof value === "string") {
@@ -158,6 +159,20 @@ export const createProjectRecord = async (payload, user) =>
       await syncProjectReports(client, createdProject.id, payload.reports);
     }
 
+    // Log project creation
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'CREATE',
+      entityType: 'project',
+      entityId: data.id,
+      entityName: data.config.projectName,
+      description: `Oprettede projekt '${data.config.projectName}'`,
+      ipAddress: null
+    });
+
     return createdProject?.id;
   });
 
@@ -230,6 +245,20 @@ export const updateProjectRecord = async (projectId, projectPayload, user) =>
       await syncProjectReports(client, projectId, projectPayload.reports);
     }
 
+    // Log project update
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'UPDATE',
+      entityType: 'project',
+      entityId: projectId,
+      entityName: config.projectName,
+      description: `Opdaterede projekt '${config.projectName}'`,
+      ipAddress: null
+    });
+
     return projectId;
   });
 
@@ -247,10 +276,30 @@ export const deleteProjectRecord = async (projectId, user) =>
       throw createAppError("Forbidden: Insufficient permissions.", 403);
     }
 
+    const projectData = await projectRepository.findByIdForUpdate(client, projectId);
+    if (!projectData) {
+      throw createAppError("Project not found.", 404);
+    }
+
     const deleted = await projectRepository.deleteById(client, projectId);
     if (!deleted) {
       throw createAppError("Project not found.", 404);
     }
+
+    // Log project deletion
+    await logAction(client, {
+      userId: effectiveUser.id,
+      userName: effectiveUser.name,
+      userRole: effectiveUser.role,
+      workspaceId: effectiveUser.workspaceId,
+      action: 'DELETE',
+      entityType: 'project',
+      entityId: projectId,
+      entityName: projectData.name,
+      description: `Slettede projekt '${projectData.name}'`,
+      ipAddress: null
+    });
+
     return { success: true };
   });
 
