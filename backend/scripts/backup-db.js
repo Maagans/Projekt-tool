@@ -27,6 +27,32 @@ const BACKUP_DIR = join(__dirname, '..', 'backups');
 const MAX_BACKUPS = 14; // 7 days x 2 daily backups
 const BACKUP_PREFIX = 'backup-';
 
+// Common pg_dump locations on Windows
+const PG_DUMP_PATHS = [
+    process.env.PG_DUMP_PATH,
+    'pg_dump', // Use PATH
+    'C:\\Program Files\\PostgreSQL\\18\\bin\\pg_dump.exe',
+    'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe',
+    'C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe',
+    'C:\\Program Files\\PostgreSQL\\15\\bin\\pg_dump.exe',
+];
+
+/**
+ * Find pg_dump executable
+ */
+const findPgDump = () => {
+    for (const pgPath of PG_DUMP_PATHS) {
+        if (!pgPath) continue;
+        try {
+            execSync(`"${pgPath}" --version`, { stdio: 'pipe' });
+            return pgPath;
+        } catch {
+            // Try next path
+        }
+    }
+    throw new Error('pg_dump not found. Set PG_DUMP_PATH environment variable.');
+};
+
 /**
  * Ensure backup directory exists
  */
@@ -75,7 +101,9 @@ const createBackup = async () => {
     const startTime = Date.now();
 
     try {
-        execSync(`pg_dump "${dbUrl}" -f "${filepath}"`, {
+        const pgDump = findPgDump();
+        logger.info({ pgDump }, 'Using pg_dump');
+        execSync(`"${pgDump}" "${dbUrl}" -f "${filepath}"`, {
             stdio: ['pipe', 'pipe', 'pipe'],
             maxBuffer: 1024 * 1024 * 500,
         });
