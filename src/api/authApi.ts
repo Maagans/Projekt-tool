@@ -130,4 +130,19 @@ export const authApi = {
             return { success: false, message: toErrorMessage(error) };
         }
     },
+
+    async refreshSession(): Promise<{ success: boolean; message?: string }> {
+        try {
+            const response = await fetchWithAuth('/api/refresh', {
+                method: 'POST',
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || `Request failed with status ${response.status}`);
+            }
+            return { success: true, message: data.message };
+        } catch (error: unknown) {
+            return { success: false, message: toErrorMessage(error) };
+        }
+    },
 };

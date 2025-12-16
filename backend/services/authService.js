@@ -74,7 +74,7 @@ export const login = async (email, password, ipAddress) => {
         workspaceId: user.workspace_id ?? null,
     };
 
-    const token = jwt.sign(userPayload, jwtSecret, { expiresIn: '1d' });
+    const token = jwt.sign(userPayload, jwtSecret, { expiresIn: '30m' });
     const csrfToken = generateCsrfToken();
 
     // Log successful login

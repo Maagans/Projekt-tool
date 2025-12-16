@@ -2,7 +2,9 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { StatusToast } from '../components/ui/StatusToast';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
+import { SessionTimeoutModal } from '../components/SessionTimeoutModal';
 import { useProjectManager } from '../hooks/useProjectManager';
+import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { GlobalErrorScreen } from './components/GlobalErrorScreen';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegistrationPage } from './pages/auth/RegistrationPage';
@@ -66,7 +68,14 @@ export const AppShell = () => {
     completeSetup,
     shouldRedirectToLogin,
     acknowledgeLogoutRedirect,
+    logout,
   } = projectManager;
+
+  // Session timeout handling
+  const { showModal: showTimeoutModal, secondsRemaining, extendSession } = useSessionTimeout(
+    isAuthenticated,
+    logout
+  );
 
   useEffect(() => {
     setShowApiToast(Boolean(apiError));
@@ -151,6 +160,15 @@ export const AppShell = () => {
 
   return (
     <>
+      {/* Session Timeout Modal */}
+      {showTimeoutModal && (
+        <SessionTimeoutModal
+          secondsRemaining={secondsRemaining}
+          onExtend={extendSession}
+          onLogout={logout}
+        />
+      )}
+
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3">
         {apiError && showApiToast && (
           <StatusToast

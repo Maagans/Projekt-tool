@@ -44,3 +44,34 @@ export const logout = async (req, res, next) => {
         next(error);
     }
 };
+
+export const refreshSession = async (req, res, next) => {
+    try {
+        // User is already authenticated via authMiddleware
+        const user = req.user;
+
+        // Re-import jwt and config to sign new token
+        const jwt = await import('jsonwebtoken');
+        const { config } = await import('../config/index.js');
+        const { generateCsrfToken } = await import('../utils/cookies.js');
+
+        const userPayload = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            employeeId: user.employeeId ?? null,
+            workspaceId: user.workspaceId ?? null,
+        };
+
+        const token = jwt.default.sign(userPayload, config.jwtSecret, { expiresIn: '30m' });
+        const csrfToken = generateCsrfToken();
+
+        res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions);
+        res.cookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions);
+
+        res.json({ success: true, message: 'Session extended successfully.' });
+    } catch (error) {
+        next(error);
+    }
+};

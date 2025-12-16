@@ -52,43 +52,37 @@ execSync(`pg_dump ${config.databaseUrl} | gzip > ./backups/${filename}`);
 
 ---
 
-## 2. Session Timeout UI 🔴 HIGH
+## 2. Session Timeout UI 🔴 HIGH ✅ DONE
 
 ### Problem
 Users get abruptly logged out without warning when session expires. No opportunity to extend session.
 
 ### Solution
 Implement a session timeout warning modal that:
-- Shows 2 minutes before session expires
+- Shows 5 minutes before session expires
 - Allows user to extend session with one click
 - Auto-logs out if user doesn't respond
 - Shows remaining time countdown
 
 ### Implementation
 
-#### Files to Create/Modify
-- `[NEW] src/components/SessionTimeoutModal.tsx` - Warning modal
+#### Files Created/Modified
+- `[NEW] src/components/SessionTimeoutModal.tsx` - Warning modal with Danish UI
+- `[NEW] src/hooks/useSessionTimeout.ts` - Session monitoring hook
 - `[MODIFY] src/app/AppShell.tsx` - Add timeout monitoring
-- `[MODIFY] backend/authMiddleware.js` - Add session refresh endpoint
-
-#### Technical Approach
-```tsx
-// SessionTimeoutModal.tsx
-const SessionTimeoutModal = () => {
-  const [secondsRemaining, setSecondsRemaining] = useState(120);
-  const [showModal, setShowModal] = useState(false);
-  
-  // Monitor session expiry from cookie or API
-  // Show modal when < 2 min remaining
-  // Call /api/auth/refresh to extend session
-};
-```
+- `[MODIFY] src/api/authApi.ts` - Add refreshSession() method
+- `[MODIFY] backend/routes/authRoutes.js` - Add /refresh endpoint
+- `[MODIFY] backend/controllers/authController.js` - Add refreshSession controller
+- `[MODIFY] backend/services/authService.js` - JWT expiry updated to 30m
+- `[MODIFY] backend/utils/cookies.js` - Cookie maxAge updated to 30m
 
 #### Verification
-- [ ] Modal appears 2 min before timeout
-- [ ] "Extend Session" button works
-- [ ] Auto-logout occurs if ignored
-- [ ] Countdown timer accurate
+- [x] TypeScript type check passes
+- [x] Auth middleware tests pass
+- [x] Modal appears 5 min before timeout
+- [x] "Forlæng session" button works
+- [x] Auto-logout occurs if ignored
+- [x] Countdown timer accurate
 
 ---
 
@@ -289,7 +283,7 @@ const useTheme = () => {
 | Phase | Task | Estimated Effort |
 |-------|------|------------------|
 | 1 | Database Backup Script | ✅ Complete |
-| 2 | Session Timeout UI | 3-4 hours |
+| 2 | Session Timeout UI | ✅ Complete |
 | 3 | Error Boundary Improvements | 2-3 hours |
 | 4 | Loading States | 3-4 hours |
 | 5 | Keyboard Shortcuts | 2-3 hours |
