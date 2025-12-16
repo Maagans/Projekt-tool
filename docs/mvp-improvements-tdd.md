@@ -1,7 +1,8 @@
 # MVP Improvements - Technical Design Document
 
-> **Status:** Draft  
+> **Status:** In Progress  
 > **Created:** 2025-12-15  
+> **Updated:** 2025-12-16  
 > **Context:** Improvements to implement while awaiting program lead MVP validation
 
 ---
@@ -12,7 +13,7 @@ This document outlines six quality-of-life improvements prioritized by impact an
 
 ---
 
-## 1. Database Backup Script 🔴 HIGH
+## 1. Database Backup Script 🔴 HIGH ✅ DONE
 
 ### Problem
 No automated backup strategy for production database. Manual recovery would be time-consuming and error-prone.
@@ -44,9 +45,10 @@ execSync(`pg_dump ${config.databaseUrl} | gzip > ./backups/${filename}`);
 ```
 
 #### Verification
-- [ ] Run `npm run backup` manually
-- [ ] Verify backup file is created and restorable
-- [ ] Test cleanup of old backups
+- [x] Run `npm run backup` manually
+- [x] Verify backup file is created and restorable
+- [x] Test cleanup of old backups
+- [x] Auto-detect pg_dump path for Task Scheduler
 
 ---
 
@@ -286,7 +288,7 @@ const useTheme = () => {
 
 | Phase | Task | Estimated Effort |
 |-------|------|------------------|
-| 1 | Database Backup Script | 2-3 hours |
+| 1 | Database Backup Script | ✅ Complete |
 | 2 | Session Timeout UI | 3-4 hours |
 | 3 | Error Boundary Improvements | 2-3 hours |
 | 4 | Loading States | 3-4 hours |
