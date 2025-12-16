@@ -30,7 +30,7 @@ To run backups automatically at 09:00 and 15:00 daily:
 9. Select **Start a program**
 10. Program/script: `npm`
 11. Add arguments: `run backup`
-12. Start in: `C:\Users\sekcsc\Documents\projekt-tool\Projekt-tool\backend`
+12. Start in: `<path-to-project>\backend`
 13. Click **Next** then **Finish**
 
 ### Step 2: Create the second task (15:00)
