@@ -41,7 +41,7 @@ const toIsoWeek = (input: Date) => {
 };
 
 const formatWeekKey = ({ year, week }: { year: number; week: number }) =>
-  `${year} -W${String(week).padStart(2, "0")} `;
+  `${year}-W${String(week).padStart(2, "0")}`;
 
 const subtractWeeks = (date: Date, weeks: number) => {
   const result = startOfUtcDay(date);
