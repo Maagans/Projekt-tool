@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AuditLogEntry, type AuditLogFilters } from '../../../api/adminApi';
-
+import { TableSkeleton } from '../../../components/skeletons';
 const ACTION_LABELS: Record<string, string> = {
     CREATE: 'Opret',
     UPDATE: 'Opdater',
@@ -172,7 +172,7 @@ export default function AuditLogPage() {
             {/* Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
                 {isLoading && (
-                    <div className="p-8 text-center text-gray-500">Indlæser...</div>
+                    <TableSkeleton rows={8} cols={5} showHeader={true} />
                 )}
                 {error && (
                     <div className="p-8 text-center text-red-500">Fejl ved indlæsning af logs</div>
