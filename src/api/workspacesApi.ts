@@ -3,7 +3,7 @@
  * Frontend API functions for workspace management
  */
 
-import { fetchWithAuth } from '../api';
+import { fetchWithAuth } from './client';
 
 export interface Workspace {
     id: string;
@@ -21,7 +21,16 @@ export interface Workspace {
  */
 export const getWorkspaces = async (): Promise<Workspace[]> => {
     const response = await fetchWithAuth('/api/workspaces');
-    return response as Workspace[];
+    if (Array.isArray(response)) {
+        return response as Workspace[];
+    }
+    if (response && typeof response === 'object' && 'workspaces' in response) {
+        const nested = (response as { workspaces?: Workspace[] }).workspaces;
+        if (Array.isArray(nested)) {
+            return nested;
+        }
+    }
+    return [];
 };
 
 /**
@@ -37,6 +46,9 @@ export const getWorkspaceById = async (id: string): Promise<Workspace> => {
  */
 export const getCurrentWorkspace = async (): Promise<Workspace> => {
     const response = await fetchWithAuth('/api/workspaces/current/info');
+    if (response && typeof response === 'object' && 'workspace' in response) {
+        return (response as { workspace: Workspace }).workspace;
+    }
     return response as Workspace;
 };
 

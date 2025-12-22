@@ -11,7 +11,8 @@ import {
     CalendarIcon,
     WarningTriangleIcon,
     SettingsIcon,
-    ArrowLeftIcon
+    ArrowLeftIcon,
+    LogOutIcon
 } from '../../../components/Icons';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 import { useProjectManager } from '../../../hooks/useProjectManager';
@@ -27,7 +28,7 @@ type SidebarProps = {
 export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: SidebarProps) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { getProjectById } = useProjectManager();
+    const { getProjectById, logout } = useProjectManager();
 
     // Parse projectId from URL path since we're outside the route context
     const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
@@ -80,6 +81,29 @@ export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: Sid
             </Link>
         );
     };
+
+    const NavButton = ({
+        icon: Icon,
+        label,
+        onClick,
+    }: {
+        icon: React.ComponentType<{ className?: string }>;
+        label: string;
+        onClick: () => void;
+    }) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`nav-item ${collapsed ? 'collapsed' : ''}`}
+            title={collapsed ? label : undefined}
+            aria-label={collapsed ? label : undefined}
+        >
+            <span className="nav-icon">
+                <Icon className="w-5 h-5" />
+            </span>
+            <span className={collapsed ? 'sr-only' : ''}>{label}</span>
+        </button>
+    );
 
     // Project-specific tabs
     const projectTabs = [
@@ -150,17 +174,22 @@ export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: Sid
                         ))}
                     </div>
 
-                    {/* PROJECT SETTINGS - Bottom */}
-                    {canManage && (
-                        <div className="mt-auto flex flex-col gap-1">
+                    {/* PROJECT SETTINGS + LOGOUT - Bottom */}
+                    <div className="mt-auto flex flex-col gap-1">
+                        {canManage && (
                             <NavItem
                                 to={`/projects/${projectId}/settings`}
                                 icon={SettingsIcon}
                                 label="Indstillinger"
                                 active={isProjectTabActive('settings')}
                             />
-                        </div>
-                    )}
+                        )}
+                        <NavButton
+                            icon={LogOutIcon}
+                            label="Log af"
+                            onClick={logout}
+                        />
+                    </div>
                 </>
             ) : (
                 <>
@@ -202,6 +231,11 @@ export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: Sid
                                 active={isActive('/admin', false)}
                             />
                         )}
+                        <NavButton
+                            icon={LogOutIcon}
+                            label="Log af"
+                            onClick={logout}
+                        />
                     </div>
                 </>
             )}

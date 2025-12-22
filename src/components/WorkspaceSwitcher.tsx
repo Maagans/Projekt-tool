@@ -25,7 +25,7 @@ export const WorkspaceSwitcher = ({ className = '' }: WorkspaceSwitcherProps) =>
                     getWorkspaces(),
                     getCurrentWorkspace(),
                 ]);
-                setWorkspaces(allWorkspaces);
+                setWorkspaces(Array.isArray(allWorkspaces) ? allWorkspaces : []);
                 setCurrentWorkspace(current);
             } catch (err) {
                 console.error('Failed to load workspaces:', err);
