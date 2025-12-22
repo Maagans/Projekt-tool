@@ -1,4 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿
+import { useMemo, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import {
   CartesianGrid,
   Legend,
@@ -39,7 +41,7 @@ const toIsoWeek = (input: Date) => {
 };
 
 const formatWeekKey = ({ year, week }: { year: number; week: number }) =>
-  `${year}-W${String(week).padStart(2, "0")}`;
+  `${year} -W${String(week).padStart(2, "0")} `;
 
 const subtractWeeks = (date: Date, weeks: number) => {
   const result = startOfUtcDay(date);
@@ -72,13 +74,10 @@ export const ProjectResourcePanel = () => {
   const isAllowed = RESOURCES_ANALYTICS_ENABLED && projectManager.canManage;
 
   const [rangeWeeks, setRangeWeeks] = useState<number>(12);
-  const [range, setRange] = useState(() => deriveDefaultRange(12));
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
 
-  useEffect(() => {
-    if (!isAllowed) return;
-    setRange(deriveDefaultRange(rangeWeeks));
-  }, [rangeWeeks, isAllowed]);
+  // Derive range directly from rangeWeeks - stable through renders unless rangeWeeks changes
+  const range = useMemo(() => deriveDefaultRange(rangeWeeks), [rangeWeeks]);
 
   const analyticsParams: ResourceAnalyticsQuery = useMemo(
     () => ({
@@ -93,6 +92,7 @@ export const ProjectResourcePanel = () => {
   const analytics = useResourceAnalytics(analyticsParams, {
     enabled: isAllowed,
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   if (!isAllowed) {
@@ -130,18 +130,18 @@ export const ProjectResourcePanel = () => {
     const labelPrefix = viewMode === "cumulative" ? "Kumulativ " : "Total ";
     return [
       {
-        label: `${labelPrefix}planlagt`,
+        label: `${labelPrefix} planlagt`,
         value: formatHours(summary.totalPlanned),
         suffix: "timer",
         tone: "planned" as ResourceSummaryTone,
-        helper: `Gns. ${formatHours(summary.averagePlanned)} timer/uge`,
+        helper: `Gns.${formatHours(summary.averagePlanned)} timer / uge`,
       },
       {
-        label: `${labelPrefix}faktisk`,
+        label: `${labelPrefix} faktisk`,
         value: formatHours(summary.totalActual),
         suffix: "timer",
         tone: "actual" as ResourceSummaryTone,
-        helper: `Gns. ${formatHours(summary.averageActual)} timer/uge`,
+        helper: `Gns.${formatHours(summary.averageActual)} timer / uge`,
       },
     ];
   })();
@@ -162,11 +162,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option}
                 type="button"
-                className={`rounded-full border px-3 py-1 font-semibold transition ${
-                  rangeWeeks === option
-                    ? "border-blue-500 bg-blue-50 text-blue-600"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                }`}
+                className={`rounded - full border px - 3 py - 1 font - semibold transition ${rangeWeeks === option
+                  ? "border-blue-500 bg-blue-50 text-blue-600"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                  } `}
                 onClick={() => setRangeWeeks(option)}
               >
                 {option} uger
@@ -181,11 +180,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option.value}
                 type="button"
-                className={`rounded-full border px-3 py-1 font-semibold transition ${
-                  viewMode === option.value
-                    ? "border-blue-500 bg-blue-50 text-blue-600"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                }`}
+                className={`rounded - full border px - 3 py - 1 font - semibold transition ${viewMode === option.value
+                  ? "border-blue-500 bg-blue-50 text-blue-600"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                  } `}
                 onClick={() => setViewMode(option.value)}
               >
                 {option.label}
@@ -251,7 +249,7 @@ export const ProjectResourcePanel = () => {
                   fillOpacity={0.25}
                   strokeOpacity={0}
                 />
-                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line
                   type="monotone"
                   dataKey="actual"
@@ -260,6 +258,7 @@ export const ProjectResourcePanel = () => {
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -271,13 +270,13 @@ export const ProjectResourcePanel = () => {
                   <XAxis dataKey="week" tickFormatter={formatWeekLabel} stroke="#475569" />
                   <YAxis stroke="#475569" tickFormatter={formatHours} />
                   <Tooltip
-                    formatter={(value: number) => `${formatHours(value)} timer (kumulativt)`}
+                    formatter={(value: number) => `${formatHours(value)} timer(kumulativt)`}
                     labelFormatter={formatWeekLabel}
                     contentStyle={{ borderRadius: "0.75rem", borderColor: "#cbd5f5" }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -344,7 +343,7 @@ const SummaryComparison = ({ summary }: { summary: ResourceAnalyticsSummary }) =
               <span>{formatHours(row.value)} timer</span>
             </div>
             <div className="h-2 w-full rounded-full bg-slate-100">
-              <div className={`h-full rounded-full ${row.barClass}`} style={{ width: `${width}%` }} />
+              <div className={`h - full rounded - full ${row.barClass} `} style={{ width: `${width}% ` }} />
             </div>
           </div>
         );
@@ -365,7 +364,7 @@ const DiffBadge = ({ value }: { value: number }) => {
     : isNegative
       ? "border-emerald-200 bg-emerald-50 text-emerald-600"
       : "border-slate-200 bg-slate-100 text-slate-600";
-  return <span className={`${baseClasses} ${toneClass}`}>{formatDiffHours(value)}</span>;
+  return <span className={`${baseClasses} ${toneClass} `}>{formatDiffHours(value)}</span>;
 };
 
 const formatDiffHours = (value: number) => {
