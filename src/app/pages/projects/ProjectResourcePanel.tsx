@@ -162,11 +162,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option}
                 type="button"
-                className={`rounded-full border px-3 py-1 font-semibold transition ${
-                  rangeWeeks === option
+                className={`rounded-full border px-3 py-1 font-semibold transition ${rangeWeeks === option
                     ? "border-blue-500 bg-blue-50 text-blue-600"
                     : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                }`}
+                  }`}
                 onClick={() => setRangeWeeks(option)}
               >
                 {option} uger
@@ -181,11 +180,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option.value}
                 type="button"
-                className={`rounded-full border px-3 py-1 font-semibold transition ${
-                  viewMode === option.value
+                className={`rounded-full border px-3 py-1 font-semibold transition ${viewMode === option.value
                     ? "border-blue-500 bg-blue-50 text-blue-600"
                     : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                }`}
+                  }`}
                 onClick={() => setViewMode(option.value)}
               >
                 {option.label}
@@ -251,7 +249,7 @@ export const ProjectResourcePanel = () => {
                   fillOpacity={0.25}
                   strokeOpacity={0}
                 />
-                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="planned" name="Planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
                 <Line
                   type="monotone"
                   dataKey="actual"
@@ -260,6 +258,7 @@ export const ProjectResourcePanel = () => {
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -276,8 +275,8 @@ export const ProjectResourcePanel = () => {
                     contentStyle={{ borderRadius: "0.75rem", borderColor: "#cbd5f5" }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="planned" name="Kumulativ planlagt" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="actual" name="Kumulativ faktisk" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
