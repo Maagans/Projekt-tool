@@ -63,7 +63,7 @@ export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: Sid
         icon: React.ComponentType<{ className?: string }>;
         label: string;
         active: boolean;
-        iconScale?: number;
+        iconScale?: number | undefined;
     }) => {
         const iconStyle = iconScale !== 1 ? ({ '--icon-scale': iconScale } as CSSProperties) : undefined;
         return (
