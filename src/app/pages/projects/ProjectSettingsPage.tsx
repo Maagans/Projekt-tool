@@ -1,4 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { EditableField } from '../../../components/EditableField';
 import { InlineRichEditor, sanitizeRichText } from '../../../components/RichTextInlineEditor';
 import { SyncStatusPill } from '../../../components/SyncStatusPill';
@@ -71,8 +72,10 @@ const NarrativeCard = ({
 
 export const ProjectSettingsPage = () => {
   const { project, projectManager } = useProjectRouteContext();
-  const { updateProjectConfig, updateProjectStatus, isSaving } = projectManager;
+  const { updateProjectConfig, updateProjectStatus, deleteProject, isSaving } = projectManager;
+  const navigate = useNavigate();
   const [editingField, setEditingField] = useState<NarrativeField | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const floatingSyncClass = 'fixed bottom-6 right-4 sm:right-6 pointer-events-none z-40 drop-shadow-lg';
 
   const projectStatusOptions: { key: ProjectStatus; label: string }[] = [
@@ -91,7 +94,7 @@ export const ProjectSettingsPage = () => {
     [],
   );
   const budgetDisplay =
-    typeof project.config.totalBudget === 'number' ? currencyFormatter.format(project.config.totalBudget) : 'Ikke angivet';
+    typeof project.config?.totalBudget === 'number' ? currencyFormatter.format(project.config.totalBudget) : 'Ikke angivet';
 
   const handleNarrativeSave = (field: NarrativeField, nextValue: string) => {
     if (field === 'projectGoal') {
@@ -103,23 +106,23 @@ export const ProjectSettingsPage = () => {
   };
 
   const [budgetInputValue, setBudgetInputValue] = useState<string>('');
-  const [startDateInput, setStartDateInput] = useState(project.config.projectStartDate);
-  const [endDateInput, setEndDateInput] = useState(project.config.projectEndDate);
+  const [startDateInput, setStartDateInput] = useState(project.config?.projectStartDate ?? '');
+  const [endDateInput, setEndDateInput] = useState(project.config?.projectEndDate ?? '');
   const [imagePreviewError, setImagePreviewError] = useState(false);
 
   useEffect(() => {
     setBudgetInputValue(
-      typeof project.config.totalBudget === 'number' ? String(project.config.totalBudget) : '',
+      typeof project.config?.totalBudget === 'number' ? String(project.config.totalBudget) : '',
     );
-  }, [project.config.totalBudget]);
+  }, [project.config?.totalBudget]);
 
   useEffect(() => {
-    setStartDateInput(project.config.projectStartDate);
-  }, [project.config.projectStartDate]);
+    setStartDateInput(project.config?.projectStartDate ?? '');
+  }, [project.config?.projectStartDate]);
 
   useEffect(() => {
-    setEndDateInput(project.config.projectEndDate);
-  }, [project.config.projectEndDate]);
+    setEndDateInput(project.config?.projectEndDate ?? '');
+  }, [project.config?.projectEndDate]);
 
   const handleBudgetChange = (event: ChangeEvent<HTMLInputElement>) => {
     setBudgetInputValue(event.target.value);
@@ -128,7 +131,7 @@ export const ProjectSettingsPage = () => {
   const handleBudgetBlur = () => {
     const rawValue = budgetInputValue.trim();
     if (rawValue === '') {
-      if (project.config.totalBudget !== null) {
+      if (project.config?.totalBudget !== null) {
         updateProjectConfig(project.id, { totalBudget: null });
       }
       return;
@@ -136,11 +139,11 @@ export const ProjectSettingsPage = () => {
     const parsed = Number(rawValue);
     if (Number.isNaN(parsed)) {
       setBudgetInputValue(
-        typeof project.config.totalBudget === 'number' ? String(project.config.totalBudget) : '',
+        typeof project.config?.totalBudget === 'number' ? String(project.config.totalBudget) : '',
       );
       return;
     }
-    if (project.config.totalBudget !== parsed) {
+    if (project.config?.totalBudget !== parsed) {
       updateProjectConfig(project.id, { totalBudget: parsed });
     }
   };
@@ -155,7 +158,7 @@ export const ProjectSettingsPage = () => {
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600">Projektnavn</label>
               <EditableField
-                initialValue={project.config.projectName}
+                initialValue={project.config?.projectName ?? 'Nyt projekt'}
                 onSave={(newName) => updateProjectConfig(project.id, { projectName: newName })}
                 className="text-lg"
                 disabled={isSaving}
@@ -169,7 +172,7 @@ export const ProjectSettingsPage = () => {
                   value={startDateInput}
                   onChange={(event) => setStartDateInput(event.target.value)}
                   onBlur={() => {
-                    if (startDateInput && startDateInput !== project.config.projectStartDate) {
+                    if (startDateInput && startDateInput !== project.config?.projectStartDate) {
                       updateProjectConfig(project.id, { projectStartDate: startDateInput });
                     }
                   }}
@@ -185,7 +188,7 @@ export const ProjectSettingsPage = () => {
                   value={endDateInput}
                   onChange={(event) => setEndDateInput(event.target.value)}
                   onBlur={() => {
-                    if (endDateInput && endDateInput !== project.config.projectEndDate) {
+                    if (endDateInput && endDateInput !== project.config?.projectEndDate) {
                       updateProjectConfig(project.id, { projectEndDate: endDateInput });
                     }
                   }}
@@ -217,7 +220,7 @@ export const ProjectSettingsPage = () => {
           <NarrativeCard
             title="Projektmål"
             description="Beskriv projektets formål, ønskede gevinster og succeskriterier."
-            value={project.config.projectGoal ?? ''}
+            value={project.config?.projectGoal ?? ''}
             emptyLabel="Ingen projektmål angivet endnu."
             isEditing={editingField === 'projectGoal'}
             onEdit={() => setEditingField('projectGoal')}
@@ -228,7 +231,7 @@ export const ProjectSettingsPage = () => {
           <NarrativeCard
             title="Business case"
             description="Opsummer kort den forventede effekt, ROI eller budgetmæssige argumenter."
-            value={project.config.businessCase ?? ''}
+            value={project.config?.businessCase ?? ''}
             emptyLabel="Ingen business case beskrivelse angivet endnu."
             isEditing={editingField === 'businessCase'}
             onEdit={() => setEditingField('businessCase')}
@@ -280,7 +283,7 @@ export const ProjectSettingsPage = () => {
               <div className="mt-4 space-y-4">
                 <input
                   type="url"
-                  value={project.config.heroImageUrl ?? ''}
+                  value={project.config?.heroImageUrl ?? ''}
                   onChange={(event) => {
                     updateProjectConfig(project.id, { heroImageUrl: event.target.value || null });
                     setImagePreviewError(false);
@@ -289,11 +292,11 @@ export const ProjectSettingsPage = () => {
                   disabled={isSaving}
                   className="w-full rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
                 />
-                {project.config.heroImageUrl ? (
+                {project.config?.heroImageUrl ? (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-center">
                     {!imagePreviewError ? (
                       <img
-                        src={project.config.heroImageUrl}
+                        src={project.config?.heroImageUrl}
                         alt="Hero preview"
                         className="mx-auto h-32 w-full rounded-lg object-cover"
                         onError={() => setImagePreviewError(true)}
@@ -321,6 +324,48 @@ export const ProjectSettingsPage = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
+          <h3 className="text-lg font-bold text-red-700">Slet projekt</h3>
+          <p className="mt-1 text-sm text-red-600">
+            Dette kan ikke fortrydes. Alle projektdata og rapporter slettes permanent.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isSaving}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Slet projekt
+            </button>
+
+            {showDeleteConfirm && (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-700">
+                <span className="font-semibold">Er du sikker?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteProject(project.id);
+                    navigate('/', { replace: true });
+                  }}
+                  disabled={isSaving}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Ja, slet projekt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isSaving}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Annuller
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

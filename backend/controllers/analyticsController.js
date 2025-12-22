@@ -86,12 +86,21 @@ export const getResourceAnalytics = async (req, res, next) => {
       throw createAppError("Unsupported scope type.", 400);
     }
 
+    console.log('[DEBUG] Calling aggregateResourceAnalytics with:', JSON.stringify({
+      scope,
+      scopeId,
+      workspaceId: req.user.workspaceId,
+      range: { fromWeek, toWeek },
+    }));
+
     const analytics = await aggregateResourceAnalytics({
       scope,
       scopeId,
       workspaceId: req.user.workspaceId,
       range: { fromWeek, toWeek },
     });
+
+    console.log('[DEBUG] aggregateResourceAnalytics returned successfully');
 
     if (typeof format === "string" && format.toLowerCase() === "csv") {
       const csvContent = buildCsv(analytics, { fromWeek, toWeek });

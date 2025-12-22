@@ -98,17 +98,22 @@ export const useSessionTimeout = (
 
     // Extend session by calling refresh API
     const extendSession = useCallback(async () => {
+        console.log('[SessionTimeout] extendSession called');
         try {
             const result = await authApi.refreshSession();
+            console.log('[SessionTimeout] refreshSession result:', result);
             if (result.success) {
                 // Update session start time on successful refresh
                 localStorage.setItem('session_start_time', Date.now().toString());
                 const newExpiry = Date.now() + (30 * 60 * 1000);
                 setExpiryTime(newExpiry);
                 setShowModal(false);
+                console.log('[SessionTimeout] Session extended successfully, new expiry:', new Date(newExpiry));
+            } else {
+                console.error('[SessionTimeout] Failed to extend session:', result.message);
             }
         } catch (error) {
-            console.error('Failed to extend session:', error);
+            console.error('[SessionTimeout] Error extending session:', error);
         }
     }, []);
 

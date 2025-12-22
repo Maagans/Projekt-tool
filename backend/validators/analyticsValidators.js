@@ -40,8 +40,12 @@ const analyticsQuerySchema = z
   );
 
 export const validateAnalyticsQuery = (req, res, next) => {
+  // DEBUG: Log incoming query params
+  console.log('[DEBUG] Analytics query params received:', JSON.stringify(req.query));
+
   const parsed = analyticsQuerySchema.safeParse(req.query ?? {});
   if (!parsed.success) {
+    console.log('[DEBUG] Validation failed:', JSON.stringify(parsed.error.issues));
     return respondValidationError(
       res,
       "Invalid analytics query parameters.",

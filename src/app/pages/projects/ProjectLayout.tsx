@@ -1,9 +1,9 @@
 import { createContext, useContext, useMemo } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { AppHeader } from '../../components/AppHeader';
 import { useProjectManager } from '../../../hooks/useProjectManager';
 import type { Project } from '../../../types';
-import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
+
 
 type ProjectRouteContextValue = {
   project: Project;
@@ -23,32 +23,15 @@ export const useProjectRouteContext = () => {
 export const ProjectLayout = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const projectManager = useProjectManager();
-  const { getProjectById, logout, currentUser, isSaving, isWorkspaceFetching, apiError, canManage } = projectManager;
+  const { getProjectById, logout, currentUser, isSaving, isWorkspaceFetching, apiError } = projectManager;
 
   const project = useMemo(
     () => (projectId ? getProjectById(projectId) : null),
     [getProjectById, projectId],
   );
 
-  const tabs = useMemo(() => {
-    const baseTabs = [
-      { key: 'overview', label: 'Overblik', path: '' },
-      { key: 'reports', label: 'Rapporter', path: 'reports' },
-      { key: 'plan', label: 'Tidsplan', path: 'plan' },
-      { key: 'organization', label: 'Projektorganisation', path: 'organization' },
-    ];
-    if (PROJECT_RISK_ANALYSIS_ENABLED) {
-      baseTabs.push({ key: 'risks', label: 'Risikovurdering', path: 'risks' });
-    }
-    if (canManage) {
-      baseTabs.push({ key: 'settings', label: 'Indstillinger', path: 'settings' });
-    }
-    return baseTabs;
-  }, [canManage]);
 
-  const isReportsRoute = location.pathname.endsWith('/reports');
 
   if (!project) {
     return (
@@ -73,42 +56,13 @@ export const ProjectLayout = () => {
     <ProjectRouteContext.Provider value={{ project, projectManager }}>
       <div className="flex flex-col gap-6 flex-1">
         <AppHeader
-          title={project.config.projectName}
+          title={project.config?.projectName || 'Projekt'}
           user={currentUser}
           isSaving={isSaving}
           isRefreshing={isWorkspaceFetching}
           apiError={apiError}
           onLogout={logout}
-        >
-          <button onClick={() => navigate('/')} className="text-sm bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300">
-            Tilbage til Dashboard
-          </button>
-        </AppHeader>
-
-        <div className="bg-white p-2 rounded-lg shadow-sm flex flex-wrap justify-between items-center gap-4 export-hide">
-          <div className="flex items-center gap-2">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.key}
-                to={tab.path}
-                className={({ isActive }) =>
-                  `px-4 py-2 text-sm font-semibold rounded-md transition-colors ${isActive ? 'bg-blue-500 text-white' : 'hover:bg-slate-100'}`
-                }
-                end
-              >
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
-          {isReportsRoute && (
-            <button
-              onClick={() => window.print()}
-              className="flex items-center justify-center gap-2 text-sm bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-            >
-              Eksportér PDF
-            </button>
-          )}
-        </div>
+        />
 
         <Outlet />
       </div>

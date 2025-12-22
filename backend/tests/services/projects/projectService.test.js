@@ -55,7 +55,7 @@ describe("projectService", () => {
       { rowCount: 0 },
     );
     withTransaction.mockImplementation(async (callback) => callback(mockClient));
-    ensureEmployeeLinkForUser.mockResolvedValue({ id: "admin-1", role: "Administrator" });
+    ensureEmployeeLinkForUser.mockResolvedValue({ id: "admin-1", role: "Administrator", workspaceId: "ws-1" });
 
     const projectId = await createProjectRecord(
       { config: { projectName: "Nyt projekt" } },
@@ -73,7 +73,7 @@ describe("projectService", () => {
       { rowCount: 0 },
     );
     withTransaction.mockImplementation(async (callback) => callback(mockClient));
-    ensureEmployeeLinkForUser.mockResolvedValue({ id: "admin-1", role: "Administrator" });
+    ensureEmployeeLinkForUser.mockResolvedValue({ id: "admin-1", role: "Administrator", workspaceId: "ws-1" });
 
     await createProjectRecord(
       { reports: [{ weekKey: "2024-W10", state: emptyReportState }] },

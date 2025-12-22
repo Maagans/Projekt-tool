@@ -4,6 +4,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [1.15.1] - 2025-12-22
+### Added
+- **UI/UX:**
+  - Ny "Opret Projekt" modal dialog med start/slut-datoer for bedre onboarding.
+  - Sidebar er nu kontekst-afhængig: Viser projekt-navigation (Overblik, Rapporter, etc.) når man er inde i et projekt.
+  - Collapsible sidebar funktion for mere skærmplads (UX-020).
+  - Mulighed for at slette projekter direkte fra indstillingssiden med sikkerhedsbekræftelse (PROJ-001).
+
+### Changed
+- Dashboard bruger nu modal-dialog frem for inline-input til nye projekter.
+- Sidebar ikoner normaliseret, så "Projektorganisation" linker matcher de øvrige faner.
+- "Indstillinger" fanen er flyttet ned i bunden af sidebaren i projektvisning.
+- Session timeout håndtering rettet, så "Forlæng session" virker korrekt ved at parse API-respons rigtigt.
+
 ## [1.15.0] - 2025-12-15
 ### Added
 - **Audit Log System (AUDIT-001):**
@@ -318,23 +332,3 @@ extStepItems-felt i rapporter inkl. backend-migration, seed-data og CRUD-manager
 - JSONB-baseret workspace-lagring for projekter, medarbejdere og time tracking.
 - Database-bootstrap script (`backend/setup-db.sql`) og milj?baseret konfiguration.
 - Lokale udviklingsscripts til backend (`npm run dev` i `backend/`) og frontend (`npm run dev`).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type { User } from '../../types';
 import { LogOutIcon, SignalIcon, UserIcon } from '../../components/Icons';
-import { BrandLogo } from '../../components/branding/BrandLogo';
 
 type AppHeaderProps = {
   title: string;
@@ -33,11 +32,8 @@ export const AppHeader = ({ title, user, isSaving, isRefreshing = false, apiErro
 
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-blue-500/5 backdrop-blur export-hide">
-      <div className="flex items-center gap-24">
-        <div className="relative h-20 w-20">
-          <BrandLogo className="absolute inset-0 h-full w-full scale-[2.0] object-contain origin-left" />
-        </div>
-        <h1 className="text-3xl font-semibold text-slate-900">{title}</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {children}

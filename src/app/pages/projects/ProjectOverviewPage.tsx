@@ -91,9 +91,9 @@ export const ProjectOverviewPage = () => {
     return [...project.reports].sort((a, b) => b.weekKey.localeCompare(a.weekKey))[0];
   }, [project.reports]);
 
-  const heroGoal = sanitizeRichText(project.config.projectGoal ?? '');
-  const businessCaseHtml = sanitizeRichText(project.config.businessCase ?? '');
-  const heroImageUrl = typeof project.config.heroImageUrl === 'string' ? project.config.heroImageUrl.trim() : null;
+  const heroGoal = sanitizeRichText(project.config?.projectGoal ?? '');
+  const businessCaseHtml = sanitizeRichText(project.config?.businessCase ?? '');
+  const heroImageUrl = typeof project.config?.heroImageUrl === 'string' ? project.config.heroImageUrl.trim() : null;
 
   const hoursSummary = useMemo(() => {
     let planned = 0;
@@ -110,7 +110,7 @@ export const ProjectOverviewPage = () => {
   const capacityRatio = hoursSummary.planned > 0 ? Math.round((hoursSummary.actual / hoursSummary.planned) * 100) : null;
 
   const timeSummary = useMemo(() => {
-    if (!project.config.projectEndDate) {
+    if (!project.config?.projectEndDate) {
       return null;
     }
     const end = new Date(project.config.projectEndDate);
@@ -122,7 +122,7 @@ export const ProjectOverviewPage = () => {
     end.setHours(0, 0, 0, 0);
     const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
-  }, [project.config.projectEndDate]);
+  }, [project.config?.projectEndDate]);
 
   const daysRemainingLabel = useMemo(() => {
     if (timeSummary === null) {
@@ -147,9 +147,9 @@ export const ProjectOverviewPage = () => {
           icon: <CheckCircleIcon />,
           color: project.status === 'active' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-600 bg-slate-50',
         },
-        { label: 'Projektstart', value: formatDate(project.config.projectStartDate), icon: <CalendarIcon />, color: 'text-blue-600 bg-blue-50' },
-        { label: 'Projektslut', value: formatDate(project.config.projectEndDate), icon: <CalendarIcon />, color: 'text-purple-600 bg-purple-50' },
-        { label: 'Budget', value: formatBudget(project.config.totalBudget ?? null), icon: <CoinsIcon />, color: 'text-amber-600 bg-amber-50' },
+        { label: 'Projektstart', value: formatDate(project.config?.projectStartDate), icon: <CalendarIcon />, color: 'text-blue-600 bg-blue-50' },
+        { label: 'Projektslut', value: formatDate(project.config?.projectEndDate), icon: <CalendarIcon />, color: 'text-purple-600 bg-purple-50' },
+        { label: 'Budget', value: formatBudget(project.config?.totalBudget ?? null), icon: <CoinsIcon />, color: 'text-amber-600 bg-amber-50' },
         {
           label: 'Tid til slutdato',
           value: daysRemainingLabel,
@@ -161,9 +161,9 @@ export const ProjectOverviewPage = () => {
     [
       daysRemainingLabel,
       latestReport,
-      project.config.projectEndDate,
-      project.config.projectStartDate,
-      project.config.totalBudget,
+      project.config?.projectEndDate,
+      project.config?.projectStartDate,
+      project.config?.totalBudget,
       project.status,
     ],
   );
@@ -210,7 +210,7 @@ export const ProjectOverviewPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(15,23,42,0.15),_transparent_60%)] opacity-60" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch">
           <div className="flex-1 flex flex-col">
-            <h1 className="text-3xl font-bold text-white drop-shadow-sm">{project.config.projectName}</h1>
+            <h1 className="text-3xl font-bold text-white drop-shadow-sm">{project.config?.projectName || 'Nyt projekt'}</h1>
             {heroGoal ? (
               <div className="relative mt-2 max-w-4xl flex-1 min-h-[80px]">
                 <div

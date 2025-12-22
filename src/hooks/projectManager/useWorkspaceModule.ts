@@ -784,7 +784,7 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
     [createEmployeeMutation, updateEmployeeMutation, updateEmployees],
   );
   const createNewProject = useCallback(
-    (name: string): Project | null => {
+    (name: string, configOverrides: Partial<ProjectConfig> = {}): Project | null => {
       const normalizedName = name.trim();
       if (!normalizedName) {
         alert('Projektnavn er påkrævet.');
@@ -797,8 +797,10 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
       }
 
       const today = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 6);
+      const defaultEndDate = new Date();
+      defaultEndDate.setMonth(defaultEndDate.getMonth() + 6);
+      const startDateValue = configOverrides.projectStartDate ?? today.toISOString().split('T')[0];
+      const endDateValue = configOverrides.projectEndDate ?? defaultEndDate.toISOString().split('T')[0];
       const initialPlanState = getInitialProjectState();
       const initialWorkstreams = (initialPlanState.workstreams ?? []).map((stream, index) => ({
         ...stream,
@@ -809,12 +811,12 @@ export const useWorkspaceModule = (store: ProjectManagerStore) => {
         id: generateId(),
         config: {
           projectName: normalizedName,
-          projectStartDate: today.toISOString().split('T')[0],
-          projectEndDate: endDate.toISOString().split('T')[0],
-          heroImageUrl: null,
-          projectGoal: '',
-          businessCase: '',
-          totalBudget: null,
+          projectStartDate: startDateValue,
+          projectEndDate: endDateValue,
+          heroImageUrl: configOverrides.heroImageUrl ?? null,
+          projectGoal: configOverrides.projectGoal ?? '',
+          businessCase: configOverrides.businessCase ?? '',
+          totalBudget: configOverrides.totalBudget ?? null,
         },
         reports: [],
         projectMembers: [],

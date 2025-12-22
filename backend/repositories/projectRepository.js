@@ -18,15 +18,16 @@ export const create = async (client, project) => {
     businessCase,
     totalBudget,
     heroImageUrl,
+    workspaceId,
   } = project;
 
   const { rows } = await client.query(
     `
-      INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url)
-      VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10)
+      INSERT INTO projects (id, name, start_date, end_date, status, description, project_goal, business_case, total_budget, hero_image_url, workspace_id)
+      VALUES ($1::uuid, $2, $3::date, $4::date, $5, $6, $7, $8, $9, $10, $11::uuid)
       RETURNING id::text
     `,
-    [id, name, startDate, endDate, status, description, projectGoal, businessCase, totalBudget, heroImageUrl],
+    [id, name, startDate, endDate, status, description, projectGoal, businessCase, totalBudget, heroImageUrl, workspaceId],
   );
   return rows[0] ?? null;
 };

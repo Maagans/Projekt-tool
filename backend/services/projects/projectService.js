@@ -100,6 +100,10 @@ const checkProjectLead = (client, projectId, employeeId) =>
 export const createProjectRecord = async (payload, user) =>
   withTransaction(async (client) => {
     const effectiveUser = await assertCanManageProjects(client, user);
+    const workspaceId = effectiveUser?.workspaceId ?? user?.workspaceId ?? null;
+    if (!workspaceId) {
+      throw createAppError("Workspace not found.", 400);
+    }
     const parsedInput = parseCreateProjectInput(payload);
     const data = {
       id: parsedInput.id ?? randomUUID(),
@@ -141,6 +145,7 @@ export const createProjectRecord = async (payload, user) =>
       businessCase: businessCaseValue,
       totalBudget: totalBudgetValue,
       heroImageUrl,
+      workspaceId,
     });
 
     if (createdProject?.id && effectiveUser.role === USER_ROLES.PROJECT_LEADER && effectiveUser.employeeId) {

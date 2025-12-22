@@ -10,6 +10,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegistrationPage } from './pages/auth/RegistrationPage';
 import FirstTimeSetupPage from './pages/setup/FirstTimeSetupPage';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from './constants';
+import { AppLayout } from './components/layout/AppLayout';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const EmployeePage = lazy(() => import('./pages/employees/EmployeePage'));
@@ -201,7 +202,7 @@ export const AppShell = () => {
           />
         )}
       >
-        <div className="p-4 sm:p-6 min-h-screen flex flex-col">
+        <AppLayout>
           <Suspense fallback={<RouteLoader />}>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
@@ -224,7 +225,7 @@ export const AppShell = () => {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-        </div>
+        </AppLayout>
       </ErrorBoundary>
     </>
   );
