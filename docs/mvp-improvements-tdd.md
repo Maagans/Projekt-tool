@@ -86,7 +86,7 @@ Implement a session timeout warning modal that:
 
 ---
 
-## 3. Error Boundary Improvements 🟡 MEDIUM
+## 3. Error Boundary Improvements 🟡 MEDIUM ✅ DONE
 
 ### Problem
 Current error screens are generic. Users can't easily retry or navigate away after an error.
@@ -100,32 +100,17 @@ Enhance error boundaries with:
 
 ### Implementation
 
-#### Files to Create/Modify
-- `[MODIFY] src/components/GlobalErrorScreen.tsx` - Enhanced UI
-- `[NEW] src/components/ErrorBoundary.tsx` - React error boundary wrapper
-- `[MODIFY] src/app/AppShell.tsx` - Wrap routes with boundary
-
-#### Technical Approach
-```tsx
-// ErrorBoundary.tsx
-class ErrorBoundary extends Component {
-  state = { hasError: false, error: null };
-  
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  
-  handleRetry = () => {
-    this.setState({ hasError: false });
-    window.location.reload();
-  };
-}
-```
+#### Files Modified
+- `[MODIFY] src/components/ui/ErrorBoundary.tsx` - Store and pass error + errorInfo to fallback
+- `[MODIFY] src/app/components/GlobalErrorScreen.tsx` - Contextual messages, dev stack trace, Go to Dashboard
+- `[MODIFY] src/app/AppShell.tsx` - Pass error context to fallback
 
 #### Verification
-- [ ] API errors show retry option
-- [ ] Navigation errors show dashboard link
-- [ ] Dev mode shows stack trace
+- [x] TypeScript check passes
+- [x] ESLint passes
+- [x] Contextual error messages based on error type (network, auth, chunk loading, etc.)
+- [x] "Gå til forsiden" button for navigation to dashboard
+- [x] Dev mode shows expandable stack trace
 
 ---
 
@@ -284,7 +269,7 @@ const useTheme = () => {
 |-------|------|------------------|
 | 1 | Database Backup Script | ✅ Complete |
 | 2 | Session Timeout UI | ✅ Complete |
-| 3 | Error Boundary Improvements | 2-3 hours |
+| 3 | Error Boundary Improvements | ✅ Complete |
 | 4 | Loading States | 3-4 hours |
 | 5 | Keyboard Shortcuts | 2-3 hours |
 | 6 | Dark Mode Toggle | 4-5 hours |

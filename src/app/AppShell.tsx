@@ -185,7 +185,7 @@ export const AppShell = () => {
 
       <ErrorBoundary
         onError={handleGlobalError}
-        fallback={({ reset }) => (
+        fallback={({ reset, error, errorInfo }) => (
           <GlobalErrorScreen
             onRetry={() => {
               clearGlobalError();
@@ -196,6 +196,8 @@ export const AppShell = () => {
               reset();
               window.location.reload();
             }}
+            error={error}
+            errorInfo={errorInfo}
           />
         )}
       >
