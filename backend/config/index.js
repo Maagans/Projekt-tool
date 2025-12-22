@@ -70,6 +70,7 @@ const configSchema = z.object({
   AZURE_CLIENT_ID: z.string().optional(),
   AZURE_CLIENT_SECRET: z.string().optional(),
   AZURE_MAIL_FROM: z.string().email().optional(),
+  AZURE_OIDC_REDIRECT_URI: z.string().url().optional(),
   // Password Reset
   PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: z.coerce.number().int().positive().default(60),
   FRONTEND_URL: z.string().optional(),
@@ -114,6 +115,7 @@ export const config = {
     clientId: parsed.AZURE_CLIENT_ID ?? null,
     clientSecret: parsed.AZURE_CLIENT_SECRET ?? null,
     mailFrom: parsed.AZURE_MAIL_FROM ?? null,
+    oidcRedirectUri: parsed.AZURE_OIDC_REDIRECT_URI ?? null,
   },
   passwordReset: {
     tokenExpiryMinutes: parsed.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,

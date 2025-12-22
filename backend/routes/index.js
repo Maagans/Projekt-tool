@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRoutes from "./authRoutes.js";
+import azureAuthRoutes from "./azureAuthRoutes.js";
 import passwordResetRoutes from "./passwordResetRoutes.js";
 import setupRoutes from "./setupRoutes.js";
 import workspaceRoutes from "./workspaceRoutes.js";
@@ -17,6 +18,7 @@ export const createApiRouter = ({ resourcesEnabled, riskAnalysisEnabled } = {}) 
   const router = Router();
 
   router.use("/", authRoutes);
+  router.use("/auth/azure", azureAuthRoutes);
   router.use("/", passwordResetRoutes);
   router.use("/setup", setupRoutes);
   router.use("/workspace", workspaceRoutes);

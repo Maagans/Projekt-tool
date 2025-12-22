@@ -83,3 +83,62 @@ export const updatePasswordHash = async (client, userId, passwordHash) => {
   );
   return rowCount > 0;
 };
+
+/**
+ * Find user by Azure Object ID (OID)
+ * @param {import('pg').PoolClient} client
+ * @param {string} azureOid
+ */
+export const findByAzureOid = async (client, azureOid) => {
+  const { rows } = await client.query(
+    `
+      SELECT
+        id::text,
+        name,
+        email,
+        role,
+        password_hash,
+        employee_id::text AS employee_id,
+        workspace_id::text AS workspace_id,
+        auth_provider,
+        azure_oid
+      FROM users
+      WHERE azure_oid = $1
+      LIMIT 1
+    `,
+    [azureOid],
+  );
+  return rows[0] ?? null;
+};
+
+/**
+ * Update Azure OID for existing user (link Azure account)
+ * @param {import('pg').PoolClient} client
+ * @param {string} userId
+ * @param {string} azureOid
+ */
+export const updateAzureOid = async (client, userId, azureOid) => {
+  const { rowCount } = await client.query(
+    `UPDATE users SET azure_oid = $2, auth_provider = 'azure_ad' WHERE id = $1::uuid`,
+    [userId, azureOid],
+  );
+  return rowCount > 0;
+};
+
+/**
+ * Create user from Azure AD SSO
+ * @param {import('pg').PoolClient} client
+ * @param {{ azureOid: string, email: string, name: string, workspaceId?: string }} data
+ */
+export const createFromAzure = async (client, { azureOid, email, name, workspaceId }) => {
+  const userId = randomUUID();
+  const { rows } = await client.query(
+    `
+      INSERT INTO users (id, name, email, password_hash, role, auth_provider, azure_oid, workspace_id)
+      VALUES ($1::uuid, $2, LOWER($3), NULL, 'Teammedlem', 'azure_ad', $4, $5::uuid)
+      RETURNING id::text, name, email, role, auth_provider, azure_oid, workspace_id::text AS workspace_id
+    `,
+    [userId, name, email, azureOid, workspaceId ?? null],
+  );
+  return rows[0] ?? null;
+};
