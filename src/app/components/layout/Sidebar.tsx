@@ -15,6 +15,7 @@ import {
 } from '../../../components/Icons';
 import { PROJECT_RISK_ANALYSIS_ENABLED } from '../../constants';
 import { useProjectManager } from '../../../hooks/useProjectManager';
+import { WorkspaceSwitcher } from '../../../components/WorkspaceSwitcher';
 
 type SidebarProps = {
     isAdministrator: boolean;
@@ -116,6 +117,11 @@ export const Sidebar = ({ isAdministrator, canManage, collapsed, onToggle }: Sid
                     <ArrowLeftIcon className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
                 </button>
             </div>
+
+            {/* WORKSPACE SWITCHER - only on dashboard */}
+            {!collapsed && !isProjectView && (
+                <WorkspaceSwitcher className="mb-2" />
+            )}
 
             {isProjectView && currentProject ? (
                 <>

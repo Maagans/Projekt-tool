@@ -38,6 +38,7 @@ const DashboardPage = () => {
         isSyncing={isSaving || isWorkspaceFetching}
       />
 
+
       <section>
         <div className="section-header flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-slate-800">Aktive Projekter</h2>

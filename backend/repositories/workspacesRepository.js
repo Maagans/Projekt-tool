@@ -28,8 +28,9 @@ export const listWorkspaces = async (executor = pool) => {
 /**
  * Get workspace by ID
  */
-export const findById = async (executor, id) => {
-    const result = await executor.query(
+export const findById = async (executor = pool, id) => {
+    const db = executor ?? pool;
+    const result = await db.query(
         `SELECT id::text, name, type, config, is_active, created_at FROM workspaces WHERE id = $1`,
         [id],
     );

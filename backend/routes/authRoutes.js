@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import authMiddleware from "../authMiddleware.js";
 import requireCsrf from "../csrfMiddleware.js";
 import { validateLogin, validateRegister } from "../validators/authValidators.js";
-import { login, register, logout, refreshSession } from "../controllers/authController.js";
+import { login, register, logout, refreshSession, switchWorkspace } from "../controllers/authController.js";
 import { config } from "../config/index.js";
 
 const router = Router();
@@ -25,6 +25,8 @@ router.post('/login', authRateLimiter, validateLogin, login);
 router.post('/register', authRateLimiter, validateRegister, register);
 router.post('/logout', authMiddleware, requireCsrf, logout);
 router.post('/refresh', authMiddleware, refreshSession);
+router.post('/switch-workspace', authMiddleware, requireCsrf, switchWorkspace);
 
 export default router;
+
 
