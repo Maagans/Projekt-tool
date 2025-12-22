@@ -569,7 +569,12 @@ const StatusPanels = ({ state, canEdit, onChange, onCycleStatus, onUpdateNote }:
               onUpdateItem={guard((id: string, content: string) =>
                 onChange({ statusItems: state.statusItems.map((item) => (item.id === id ? { ...item, content } : item)) }),
               )}
-              onReorderItems={guard((items) => onChange({ statusItems: items }))}
+              onReorderItems={guard((sourceIndex: number, destinationIndex: number) => {
+                const items = [...state.statusItems];
+                const [removed] = items.splice(sourceIndex, 1);
+                items.splice(destinationIndex, 0, removed);
+                onChange({ statusItems: items });
+              })}
             />
             <EditableList
               title="Udfordringer"
@@ -580,7 +585,12 @@ const StatusPanels = ({ state, canEdit, onChange, onCycleStatus, onUpdateNote }:
               onUpdateItem={guard((id: string, content: string) =>
                 onChange({ challengeItems: state.challengeItems.map((item) => (item.id === id ? { ...item, content } : item)) }),
               )}
-              onReorderItems={guard((items) => onChange({ challengeItems: items }))}
+              onReorderItems={guard((sourceIndex: number, destinationIndex: number) => {
+                const items = [...state.challengeItems];
+                const [removed] = items.splice(sourceIndex, 1);
+                items.splice(destinationIndex, 0, removed);
+                onChange({ challengeItems: items });
+              })}
             />
             <EditableList
               title="Næste skridt"
@@ -595,7 +605,12 @@ const StatusPanels = ({ state, canEdit, onChange, onCycleStatus, onUpdateNote }:
                   nextStepItems: (state.nextStepItems ?? []).map((item) => (item.id === id ? { ...item, content } : item)),
                 }),
               )}
-              onReorderItems={guard((items) => onChange({ nextStepItems: items }))}
+              onReorderItems={guard((sourceIndex: number, destinationIndex: number) => {
+                const items = [...(state.nextStepItems ?? [])];
+                const [removed] = items.splice(sourceIndex, 1);
+                items.splice(destinationIndex, 0, removed);
+                onChange({ nextStepItems: items });
+              })}
             />
           </div>
         ) : (
