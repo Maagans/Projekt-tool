@@ -162,10 +162,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option}
                 type="button"
-                className={`rounded - full border px - 3 py - 1 font - semibold transition ${rangeWeeks === option
-                  ? "border-blue-500 bg-blue-50 text-blue-600"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                  } `}
+                className={`rounded-full border px-3 py-1 font-semibold transition ${rangeWeeks === option
+                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                  }`}
                 onClick={() => setRangeWeeks(option)}
               >
                 {option} uger
@@ -180,10 +180,10 @@ export const ProjectResourcePanel = () => {
               <button
                 key={option.value}
                 type="button"
-                className={`rounded - full border px - 3 py - 1 font - semibold transition ${viewMode === option.value
-                  ? "border-blue-500 bg-blue-50 text-blue-600"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
-                  } `}
+                className={`rounded-full border px-3 py-1 font-semibold transition ${viewMode === option.value
+                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-600"
+                  }`}
                 onClick={() => setViewMode(option.value)}
               >
                 {option.label}
