@@ -238,3 +238,91 @@ await logAction(client, {
 - Logs are retained for **26 weeks** (auto-cleanup via scheduled job)
 - Admins can view logs at `/admin/audit-logs`
 - CSV export available for external analysis
+
+---
+
+## 10. Session Management
+
+### Session Timeout Modal
+The app uses JWT tokens with **30-minute expiry**. A warning modal appears 5 minutes before session expires.
+
+#### Key Files
+- `src/components/SessionTimeoutModal.tsx` - Warning modal with countdown
+- `src/hooks/useSessionTimeout.ts` - Session monitoring hook
+- `backend/routes/authRoutes.js` - `/refresh` endpoint
+
+#### How It Works
+```tsx
+// In AppShell.tsx
+const { showModal, secondsRemaining, extendSession } = useSessionTimeout(
+  isAuthenticated,
+  logout
+);
+```
+
+#### Session Refresh
+- User clicks "Forlæng session" → calls `POST /api/refresh`
+- New JWT and CSRF tokens are issued
+- Session timer resets to 30 minutes
+
+---
+
+## 11. Error Handling UI
+
+### Enhanced Error Boundaries
+Error boundaries provide contextual error messages based on error type.
+
+#### Key Files
+- `src/components/ui/ErrorBoundary.tsx` - React error boundary with error capture
+- `src/app/components/GlobalErrorScreen.tsx` - Contextual error display
+
+#### Error Categories
+- **Network errors** → "Forbindelsesfejl" (retryable)
+- **Auth errors** → "Session udløbet" (not retryable)
+- **Permission errors** → "Adgang nægtet" (not retryable)
+- **Chunk loading** → "Indlæsningsfejl" (retryable)
+- **Code bugs** → "Applikationsfejl" (retryable)
+
+#### Developer Mode
+In development, errors show expandable stack traces:
+```tsx
+// isDevelopment is automatically detected via import.meta.env.DEV
+{isDevelopment && error && (
+  <details>
+    <summary>Vis tekniske detaljer</summary>
+    <pre>{error.stack}</pre>
+    <pre>{errorInfo.componentStack}</pre>
+  </details>
+)}
+```
+
+---
+
+## 12. Skeleton Loaders
+
+### Reusable Loading States
+Skeleton loaders provide better UX than simple spinners during data loading.
+
+#### Available Components
+```tsx
+import { TableSkeleton, CardSkeleton, DashboardSkeleton } from '../components/skeletons';
+
+// Table skeleton (for audit logs, lists)
+<TableSkeleton rows={8} cols={5} showHeader={true} />
+
+// Card skeleton (for dashboards, summaries)
+<CardSkeleton count={3} direction="horizontal" size="md" />
+
+// Full dashboard skeleton
+<DashboardSkeleton />
+```
+
+#### Integration Pattern
+```tsx
+// Replace loading spinners with skeletons
+{isLoading && <TableSkeleton rows={8} cols={5} />}
+{!isLoading && data && <ActualTable data={data} />}
+```
+
+#### Styling
+All skeletons use Tailwind's `animate-pulse` class for smooth animation.
